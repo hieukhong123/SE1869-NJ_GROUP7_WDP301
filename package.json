@@ -1,0 +1,29 @@
+{
+  "name": "roomerang",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "install-all": "npm install",
+    "dev": "concurrently \"npm run start-dev --workspace=api\" \"npm start --workspace=web\"",
+    "test": "npm test --workspaces"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hieukhong123/SE1869-NJ_GROUP7_WDP301.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/hieukhong123/SE1869-NJ_GROUP7_WDP301/issues"
+  },
+  "homepage": "https://github.com/hieukhong123/SE1869-NJ_GROUP7_WDP301#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

@@ -19,6 +19,16 @@ const corsOption = {
 	credentials: true,
 };
 
+// Middlewares
+app.use(express.json());
+app.use(cors(corsOption));
+app.use((req, res, next) => {
+	console.log(
+		`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`
+	);
+	next();
+});
+
 // MongoDB connection
 mongoose.set('strictQuery', false);
 const connect = async () => {
@@ -31,15 +41,14 @@ const connect = async () => {
 	}
 };
 
-// Middlewares
-app.use(express.json());
-app.use(cors(corsOption));
-
 // Routes
 app.use('/api/v1/auth', authRoute);
 app.use('/api/v1/hotels', hotelRoute);
 app.use('/api/v1/rooms', roomRoute);
 app.use('/api/v1/bookings', bookingRoute);
+app.get('/', (req, res) => {
+	res.status(200).json({ message: 'Server is running!' });
+});
 
 // Handle Unhandled Routes
 app.use((req, res, next) => {

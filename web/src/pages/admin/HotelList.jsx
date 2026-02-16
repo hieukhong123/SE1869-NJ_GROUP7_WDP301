@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import DataTable from '../../components/common/DataTable';
+import Table from '../../components/common/Table';
 import axiosClient from '../../services/axiosClient';
 
 const HotelList = () => {
@@ -7,67 +7,37 @@ const HotelList = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 
-	// Mock data for development
-	const mockHotels = [
-		{
-			id: 'H001',
-			name: 'Grand Hotel',
-			location: 'New York',
-			rating: 5,
-			roomsAvailable: 120,
-		},
-		{
-			id: 'H002',
-			name: 'City Inn',
-			location: 'Los Angeles',
-			rating: 4,
-			roomsAvailable: 80,
-		},
-		{
-			id: 'H003',
-			name: 'Mountain View Resort',
-			location: 'Colorado',
-			rating: 4,
-			roomsAvailable: 50,
-		},
-	];
-
 	useEffect(() => {
-		setHotels(mockHotels);
-		setLoading(false);
-
-		// const fetchHotels = async () => {
-		//     try {
-		//         setLoading(true);
-		//         const response = await axiosClient.get('/hotels'); // Adjust API endpoint
-		//         setHotels(response.data);
-		//     } catch (err) {
-		//         setError(err);
-		//     } finally {
-		//         setLoading(false);
-		//     }
-		// };
-		// fetchHotels();
+		const fetchHotels = async () => {
+			try {
+				setLoading(true);
+				const response = await axiosClient.get('/hotels'); // Adjust API endpoint
+				setHotels(response);
+			} catch (err) {
+				setError(err);
+			} finally {
+				setLoading(false);
+			}
+		};
+		fetchHotels();
 	}, []);
 
 	const columns = [
-		{ title: 'ID', data: 'id' },
-		{ title: 'Name', data: 'name' },
-		{ title: 'Location', data: 'location' },
-		{ title: 'Rating', data: 'rating' },
-		{ title: 'Rooms Available', data: 'roomsAvailable' },
+		{ accessorKey: '_id', header: 'ID' },
+		{ accessorKey: 'name', header: 'Name' },
+		{ accessorKey: 'location', header: 'Location' },
+		{ accessorKey: 'rating', header: 'Rating' },
+		{ accessorKey: 'roomsAvailable', header: 'Rooms Available' },
 		{
-			title: 'Actions',
-			data: null,
-			render: function (data, type, row) {
-				return `
-                    <div class="flex space-x-2">
-                        <button class="btn btn-sm btn-info">View</button>
-                        <button class="btn btn-sm btn-warning">Edit</button>
-                        <button class="btn btn-sm btn-error">Delete</button>
-                    </div>
-                `;
-			},
+			accessorKey: 'actions',
+			header: 'Actions',
+			cell: ({ row }) => (
+				<div className="flex space-x-2">
+					<button className="btn btn-sm btn-info">View</button>
+					<button className="btn btn-sm btn-warning">Edit</button>
+					<button className="btn btn-sm btn-error">Delete</button>
+				</div>
+			),
 		},
 	];
 
@@ -89,7 +59,7 @@ const HotelList = () => {
 	return (
 		<>
 			<h1 className="text-2xl font-bold mb-4">Hotel List</h1>
-			<DataTable data={hotels} columns={columns} />
+			<Table data={hotels} columns={columns} />
 		</>
 	);
 };

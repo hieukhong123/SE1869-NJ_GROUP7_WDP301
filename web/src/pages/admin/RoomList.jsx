@@ -1,85 +1,69 @@
 import { useState, useEffect } from 'react';
-import DataTable from '../../components/common/DataTable';
+import { Link, useNavigate } from 'react-router-dom';
+import Table from '../../components/common/Table';
 import axiosClient from '../../services/axiosClient';
+import { toast } from 'sonner';
+import { capitalizeFirstLetter } from '../../utils/helpers';
 
 const RoomList = () => {
 	const [rooms, setRooms] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
+	const navigate = useNavigate();
 
-	// Mock data for development
-	const mockRooms = [
-		{
-			id: 'R001',
-			roomNumber: '101',
-			category: 'Deluxe',
-			hotel: 'Grand Hotel',
-			price: 250,
-			capacity: 2,
-		},
-		{
-			id: 'R002',
-			roomNumber: '205',
-			category: 'Standard',
-			hotel: 'City Inn',
-			price: 120,
-			capacity: 2,
-		},
-		{
-			id: 'R003',
-			roomNumber: '301',
-			category: 'Suite',
-			hotel: 'Grand Hotel',
-			price: 500,
-			capacity: 4,
-		},
-		{
-			id: 'R004',
-			roomNumber: '102',
-			category: 'Standard',
-			hotel: 'Mountain View Resort',
-			price: 150,
-			capacity: 3,
-		},
-	];
+	const fetchRooms = async () => {
+		try {
+			setLoading(true);
+			const response = await axiosClient.get('/rooms');
+			setRooms(response.data);
+		} catch (err) {
+			toast.error('Failed to load rooms.');
+			setError(err);
+		} finally {
+			setLoading(false);
+		}
+	};
 
 	useEffect(() => {
-		setRooms(mockRooms);
-		setLoading(false);
-
-		// const fetchRooms = async () => {
-		//     try {
-		//         setLoading(true);
-		//         const response = await axiosClient.get('/rooms');
-		//         setRooms(response.data);
-		//     } catch (err) {
-		//         setError(err);
-		//     } finally {
-		//         setLoading(false);
-		//     }
-		// };
-		// fetchRooms();
+		fetchRooms();
 	}, []);
 
 	const columns = [
-		{ title: 'ID', data: 'id' },
-		{ title: 'Room Number', data: 'roomNumber' },
-		{ title: 'Category', data: 'category' },
-		{ title: 'Hotel', data: 'hotel' },
-		{ title: 'Price', data: 'price' },
-		{ title: 'Capacity', data: 'capacity' },
+		{ accessorKey: 'hotelId.name', header: 'Hotel', cell: info => info.getValue()},
+		{ accessorKey: 'roomName', header: 'Room Name' },
+		{ accessorKey: 'roomPrice', header: 'Room Price' },
+		{ accessorKey: 'maxOccupancy', header: 'Max Occupancy' },
+		{ accessorKey: 'quantity', header: 'Quantity' },
 		{
-			title: 'Actions',
-			data: null,
-			render: function (data, type, row) {
-				return `
-                    <div class="flex space-x-2">
-                        <button class="btn btn-sm btn-info">View</button>
-                        <button class="btn btn-sm btn-warning">Edit</button>
-                        <button class="btn btn-sm btn-error">Delete</button>
-                    </div>
-                `;
+			accessorKey: 'status',
+			header: 'Status',
+			cell: ({ row }) => {
+				const status = row.original.status;
+				const badgeClass =
+					status === 'available' ? 'badge-success' : 'badge-error';
+				return (
+					<button
+						onClick={() => handleToggleStatus(row.original._id)}
+						className={`badge ${badgeClass} btn btn-sm`}
+					>
+						{capitalizeFirstLetter(status)}
+					</button>
+				);
 			},
+		},
+		{
+			accessorKey: 'actions',
+			header: 'Actions',
+			cell: ({ row }) => (
+				<div className="flex space-x-2">
+					<Link to={`/admin/rooms/${row.original._id}/edit`} className="btn btn-sm btn-warning">
+						Edit
+					</Link>
+					<button onClick={() => handleDelete(row.original._id)} className="btn btn-sm btn-error">
+						Delete
+					</button>
+                    </div>
+			),
 		},
 	];
 

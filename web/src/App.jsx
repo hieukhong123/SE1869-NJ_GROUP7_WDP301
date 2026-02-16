@@ -9,7 +9,7 @@ import PublicHome from './pages/public/PublicHome';
 function App() {
 	return (
 		<BrowserRouter>
-			<Toaster richColors position="top-right" />
+			<Toaster richColors position="bottom-right" />
 
 			<Routes>
 				<Route path="/" element={<PublicHome />} />
@@ -25,6 +25,8 @@ function App() {
 					<Route path="hotels" element={<HotelList />} />
 
 					<Route path="rooms" element={<RoomList />} />
+					<Route path="rooms/new" element={<RoomForm />} />
+					<Route path="rooms/:id/edit" element={<RoomForm />} />
 
 					<Route
 						path="users"

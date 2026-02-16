@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import DataTable from '../../components/common/DataTable';
+import Table from '../../components/common/Table';
 import axiosClient from '../../services/axiosClient';
 
 const BookingList = () => {
@@ -7,75 +7,47 @@ const BookingList = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 
-	// Mock data for development
-	const mockBookings = [
-		{
-			id: 'B001',
-			guestName: 'Alice Smith',
-			hotel: 'Grand Hotel',
-			room: 'Deluxe Suite',
-			checkIn: '2024-03-01',
-			checkOut: '2024-03-05',
-			status: 'Confirmed',
-		},
-		{
-			id: 'B002',
-			guestName: 'Bob Johnson',
-			hotel: 'City Inn',
-			room: 'Standard Room',
-			checkIn: '2024-03-10',
-			checkOut: '2024-03-12',
-			status: 'Pending',
-		},
-		{
-			id: 'B003',
-			guestName: 'Charlie Brown',
-			hotel: 'Grand Hotel',
-			room: 'Standard Room',
-			checkIn: '2024-03-15',
-			checkOut: '2024-03-20',
-			status: 'Cancelled',
-		},
-	];
-
 	useEffect(() => {
-		setBookings(mockBookings);
-		setLoading(false);
-
-		// const fetchBookings = async () => {
-		//     try {
-		//         setLoading(true);
-		//         const response = await axiosClient.get('/bookings'); // Adjust API endpoint
-		//         setBookings(response.data);
-		//     } catch (err) {
-		//         setError(err);
-		//     } finally {
-		//         setLoading(false);
-		//     }
-		// };
-		// fetchBookings();
+		const fetchBookings = async () => {
+			try {
+				setLoading(true);
+				const response = await axiosClient.get('/bookings'); // Adjust API endpoint
+				setBookings(response);
+			} catch (err) {
+				setError(err);
+			} finally {
+				setLoading(false);
+			}
+		};
+		fetchBookings();
 	}, []);
 
 	const columns = [
-		{ title: 'ID', data: 'id' },
-		{ title: 'Guest Name', data: 'guestName' },
-		{ title: 'Hotel', data: 'hotel' },
-		{ title: 'Room', data: 'room' },
-		{ title: 'Check-in', data: 'checkIn' },
-		{ title: 'Check-out', data: 'checkOut' },
-		{ title: 'Status', data: 'status' },
+		{ accessorKey: '_id', header: 'ID' },
+		{ accessorKey: 'userId.fullName', header: 'Guest Name' },
+		{ accessorKey: 'hotelId.name', header: 'Hotel' },
+		{ accessorKey: 'roomIds', header: 'Rooms',
+			cell: ({ row }) => (
+				<div>
+					{row.original.roomIds.map((room) => (
+						<div key={room._id}>{room.roomName}</div>
+					))}
+				</div>
+			)
+		},
+		{ accessorKey: 'checkIn', header: 'Check-in' },
+		{ accessorKey: 'checkOut', header: 'Check-out' },
+		{ accessorKey: 'status', header: 'Status' },
 		{
-			title: 'Actions',
-			data: null,
-			render: function (data, type, row) {
-				return `
-                    <div class="flex space-x-2">
-                        <button class="btn btn-sm btn-info">View</button>
-                        <button class="btn btn-sm btn-warning">Edit</button>
-                        <button class="btn btn-sm btn-error">Delete</button>
-                    </div>
-                `;
-			},
+			accessorKey: 'actions',
+			header: 'Actions',
+			cell: ({ row }) => (
+				<div className="flex space-x-2">
+					<button className="btn btn-sm btn-info">View</button>
+					<button className="btn btn-sm btn-warning">Edit</button>
+					<button className="btn btn-sm btn-error">Delete</button>
+				</div>
+			),
 		},
 	];
 
@@ -97,7 +69,7 @@ const BookingList = () => {
 	return (
 		<>
 			<h1 className="text-2xl font-bold mb-4">Booking List</h1>
-			<DataTable data={bookings} columns={columns} />
+			<Table data={bookings} columns={columns} />
 		</>
 	);
 };

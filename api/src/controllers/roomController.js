@@ -19,6 +19,16 @@ export const getRooms = catchAsync(async (req, res, next) => {
 	});
 });
 
+export const getRoom = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const room = await RoomCategory.findById(id);
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: room,
+	});
+});
+
 export const createRoom = catchAsync(async (req, res, next) => {
 	const {
 		roomName,
@@ -144,5 +154,23 @@ export const updateRoom = catchAsync(async (req, res, next) => {
 		success: true,
 		message: 'Room updated successfully',
 		data: updatedRoom,
+	});
+});
+
+export const toggleRoomStatus = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+
+	const room = await RoomCategory.findById(id);
+	if (!room) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Room not found'));
+	}
+
+	room.status = room.status === 'available' ? 'unavailable' : 'available';
+	await room.save();
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Room status updated successfully',
+		data: room,
 	});
 });

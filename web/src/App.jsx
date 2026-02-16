@@ -4,6 +4,7 @@ import AdminLayout from './components/layouts/AdminLayout';
 import BookingList from './pages/admin/BookingList';
 import HotelList from './pages/admin/HotelList';
 import RoomList from './pages/admin/RoomList';
+import RoomForm from './pages/admin/RoomForm';
 import PublicHome from './pages/public/PublicHome';
 
 function App() {

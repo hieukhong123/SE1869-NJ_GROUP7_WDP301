@@ -28,6 +28,28 @@ const RoomList = () => {
 		fetchRooms();
 	}, []);
 
+	const handleDelete = async (roomId) => {
+		if (window.confirm('Are you sure you want to delete this room?')) {
+			try {
+				await axiosClient.delete(`/rooms/${roomId}`);
+				toast.success('Room deleted successfully!');
+				fetchRooms(); // Refresh the list
+			} catch (err) {
+				toast.error('Failed to delete room: ' + (err.response?.data?.message || err.message));
+			}
+		}
+	};
+
+	const handleToggleStatus = async (roomId) => {
+		try {
+			await axiosClient.put(`/rooms/${roomId}/toggleStatus`);
+			toast.success('Room status updated successfully!');
+			fetchRooms(); // Refresh the list
+		} catch (err) {
+			toast.error('Failed to toggle room status: ' + (err.response?.data?.message || err.message));
+		}
+	};
+
 	const columns = [
 		{ accessorKey: 'hotelId.name', header: 'Hotel', cell: info => info.getValue()},
 		{ accessorKey: 'roomName', header: 'Room Name' },
@@ -62,7 +84,7 @@ const RoomList = () => {
 					<button onClick={() => handleDelete(row.original._id)} className="btn btn-sm btn-error">
 						Delete
 					</button>
-                    </div>
+				</div>
 			),
 		},
 	];
@@ -84,8 +106,13 @@ const RoomList = () => {
 
 	return (
 		<>
-			<h1 className="text-2xl font-bold mb-4">Room List</h1>
-			<DataTable data={rooms} columns={columns} />
+			<div className="flex justify-between items-center mb-4">
+				<h1 className="text-2xl font-bold">Room List</h1>
+				<Link to="/admin/rooms/new" className="btn btn-primary">
+					Create New Room
+				</Link>
+			</div>
+			<Table data={rooms} columns={columns} />
 		</>
 	);
 };

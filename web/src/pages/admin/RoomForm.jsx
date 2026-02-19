@@ -15,10 +15,13 @@ const RoomForm = () => {
 		hotelId: '',
 		description: '',
 		photo: '',
+		status: 'available', // Added status field
 	});
 	const [hotels, setHotels] = useState([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
+	const [selectedFile, setSelectedFile] = useState(null);
+	const [isUploading, setIsUploading] = useState(false);
 
 	// Fetch hotels for dropdown
 	useEffect(() => {
@@ -54,11 +57,53 @@ const RoomForm = () => {
 	}, [id]);
 
 	const handleChange = (e) => {
-		const { name, value } = e.target;
+		const { name, value, type, checked } = e.target;
 		setRoomData((prevData) => ({
 			...prevData,
-			[name]: name === 'roomPrice' || name === 'maxOccupancy' || name === 'quantity' ? Number(value) : value,
+			[name]:
+				type === 'checkbox'
+					? checked
+						? 'available'
+						: 'unavailable'
+					: name === 'roomPrice' ||
+					  name === 'maxOccupancy' ||
+					  name === 'quantity'
+					? Number(value)
+					: value,
 		}));
+	};
+
+	const handleFileChange = (e) => {
+		setSelectedFile(e.target.files[0]);
+	};
+
+	const handleUpload = async () => {
+		if (!selectedFile) {
+			toast.error('Please select a file to upload.');
+			return;
+		}
+
+		setIsUploading(true);
+		const formData = new FormData();
+		formData.append('image', selectedFile);
+
+		try {
+			const response = await axiosClient.post('/upload', formData, {
+				headers: {
+					'Content-Type': 'multipart/form-data',
+				},
+			});
+			setRoomData((prevData) => ({
+				...prevData,
+				photo: response.url,
+			}));
+			toast.success('Image uploaded successfully!');
+		} catch (err) {
+			toast.error('Image upload failed: ' + (err.response?.data?.message || err.message));
+			setError(err);
+		} finally {
+			setIsUploading(false);
+		}
 	};
 
 	const handleSubmit = async (e) => {
@@ -97,7 +142,7 @@ const RoomForm = () => {
 			<h1 className="text-2xl font-bold mb-4">{id ? 'Edit Room' : 'Create New Room'}</h1>
 			<form onSubmit={handleSubmit} className="form-control gap-4">
 				{/* Hotel Dropdown */}
-				<div>
+				<div className="mb-4">
 					<label className="label">
 						<span className="label-text">Hotel</span>
 					</label>
@@ -118,7 +163,7 @@ const RoomForm = () => {
 				</div>
 
 				{/* Room Name */}
-				<div>
+				<div className="mb-4">
 					<label className="label">
 						<span className="label-text">Room Name</span>
 					</label>
@@ -134,7 +179,7 @@ const RoomForm = () => {
 				</div>
 
 				{/* Room Price */}
-				<div>
+				<div className="mb-4">
 					<label className="label">
 						<span className="label-text">Room Price</span>
 					</label>
@@ -151,7 +196,7 @@ const RoomForm = () => {
 				</div>
 
 				{/* Max Occupancy */}
-				<div>
+				<div className="mb-4">
 					<label className="label">
 						<span className="label-text">Max Occupancy</span>
 					</label>
@@ -168,7 +213,7 @@ const RoomForm = () => {
 				</div>
 
 				{/* Quantity */}
-				<div>
+				<div className="mb-4">
 					<label className="label">
 						<span className="label-text">Quantity</span>
 					</label>
@@ -185,7 +230,7 @@ const RoomForm = () => {
 				</div>
 
 				{/* Description */}
-				<div>
+				<div className="mb-4">
 					<label className="label">
 						<span className="label-text">Description</span>
 					</label>
@@ -198,26 +243,57 @@ const RoomForm = () => {
 					></textarea>
 				</div>
 
-				{/* Photo URL (for simplicity, using URL for now) */}
-				<div>
+				{/* Photo Upload */}
+				<div className="mb-4">
 					<label className="label">
-						<span className="label-text">Photo URL</span>
+						<span className="label-text">Room Image</span>
 					</label>
 					<input
-						type="text"
-						name="photo"
-						value={roomData.photo}
-						onChange={handleChange}
-						placeholder="http://example.com/room-image.jpg"
-						className="input input-bordered w-full"
+						type="file"
+						className="file-input file-input-bordered w-full mb-2"
+						onChange={handleFileChange}
 					/>
+					<button
+						type="button"
+						onClick={handleUpload}
+						className="btn btn-primary w-full"
+						disabled={!selectedFile || isUploading}
+					>
+						{isUploading ? 'Uploading...' : 'Upload Image'}
+					</button>
+					{roomData.photo && (
+						<div className="mt-4">
+							<img
+								src={roomData.photo}
+								alt="Room"
+								className="max-w-xs h-auto rounded-lg shadow-md"
+							/>
+							<p className="text-sm text-gray-500 mt-2">
+								{roomData.photo.split('/').pop()}
+							</p>
+						</div>
+					)}
+				</div>
+
+				{/* Status Toggle */}
+				<div className="form-control mb-4">
+					<label className="label cursor-pointer">
+						<span className="label-text">Available</span>
+						<input
+							type="checkbox"
+							name="status"
+							className="toggle toggle-primary"
+							checked={roomData.status === 'available'}
+							onChange={handleChange}
+						/>
+					</label>
 				</div>
 
 				<div className="flex gap-2 mt-4">
-					<button type="submit" className="btn btn-primary" disabled={loading}>
+					<button type="submit" className="btn btn-primary" disabled={loading || isUploading}>
 						{loading ? 'Saving...' : (id ? 'Update Room' : 'Create Room')}
 					</button>
-					<button type="button" className="btn btn-ghost" onClick={() => navigate('/admin/rooms')} disabled={loading}>
+					<button type="button" className="btn btn-ghost" onClick={() => navigate('/admin/rooms')} disabled={loading || isUploading}>
 						Cancel
 					</button>
 				</div>

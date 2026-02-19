@@ -6,6 +6,7 @@ import authRoute from './routes/authRouter.js';
 import bookingRoute from './routes/bookingRouter.js';
 import hotelRoute from './routes/hotelRouter.js';
 import roomRoute from './routes/roomRouter.js';
+import uploadRoute from './routes/uploadRouter.js';
 import { globalErrorHandler } from './middlewares/errorMiddleware.js';
 import AppError from './utils/AppError.js';
 import { HttpStatus } from './utils/httpStatus.js';
@@ -46,6 +47,7 @@ app.use('/api/v1/auth', authRoute);
 app.use('/api/v1/hotels', hotelRoute);
 app.use('/api/v1/rooms', roomRoute);
 app.use('/api/v1/bookings', bookingRoute);
+app.use('/api/v1/upload', uploadRoute);
 app.get('/', (req, res) => {
 	res.status(200).json({ message: 'Server is running!' });
 });

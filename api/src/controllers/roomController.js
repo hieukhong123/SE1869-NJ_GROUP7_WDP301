@@ -44,8 +44,8 @@ export const createRoom = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Room price must be a positive value.'
-			)
+				'Room price must be a positive value.',
+			),
 		);
 	}
 
@@ -53,15 +53,15 @@ export const createRoom = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Maximum occupancy must be a positive number.'
-			)
+				'Maximum occupancy must be a positive number.',
+			),
 		);
 	}
 
 	const hotel = await Hotel.findById(hotelId);
 	if (!hotel) {
 		return next(
-			new AppError(HttpStatus.NOT_FOUND, 'Selected hotel not found.')
+			new AppError(HttpStatus.NOT_FOUND, 'Selected hotel not found.'),
 		);
 	}
 
@@ -70,8 +70,8 @@ export const createRoom = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.CONFLICT,
-				'Room name already exists for this hotel. Please choose a different name.'
-			)
+				'Room name already exists for this hotel. Please choose a different name.',
+			),
 		);
 	}
 
@@ -108,8 +108,8 @@ export const updateRoom = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Room price must be a positive value.'
-			)
+				'Room price must be a positive value.',
+			),
 		);
 	}
 
@@ -121,8 +121,8 @@ export const updateRoom = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Maximum occupancy must be a positive number.'
-			)
+				'Maximum occupancy must be a positive number.',
+			),
 		);
 	}
 
@@ -138,8 +138,8 @@ export const updateRoom = catchAsync(async (req, res, next) => {
 			return next(
 				new AppError(
 					HttpStatus.CONFLICT,
-					'Room name already exists for this hotel. Please choose a different name.'
-				)
+					'Room name already exists for this hotel. Please choose a different name.',
+				),
 			);
 		}
 	}
@@ -147,13 +147,29 @@ export const updateRoom = catchAsync(async (req, res, next) => {
 	const updatedRoom = await RoomCategory.findByIdAndUpdate(
 		id,
 		{ $set: updates },
-		{ new: true, runValidators: true }
+		{ new: true, runValidators: true },
 	);
 
 	res.status(HttpStatus.OK).json({
 		success: true,
 		message: 'Room updated successfully',
 		data: updatedRoom,
+	});
+});
+
+export const deleteRoom = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const room = await RoomCategory.findByIdAndDelete(id);
+
+	if (!room) {
+		return next(
+			new AppError(HttpStatus.NOT_FOUND, 'Room not found with that ID'),
+		);
+	}
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Room deleted successfully',
 	});
 });
 

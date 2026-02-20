@@ -5,14 +5,13 @@ import {
 	getRooms,
 	updateRoom,
 	toggleRoomStatus,
+	deleteRoom,
 } from '../controllers/roomController.js';
 
 const router = express.Router();
 
-router.get('/', getRooms);
-router.get('/:id', getRoom);
-router.post('/', createRoom);
-router.put('/:id', updateRoom);
+router.route('/').get(getRooms).post(createRoom);
+router.route('/:id').get(getRoom).put(updateRoom).delete(deleteRoom);
 router.put('/:id/toggleStatus', toggleRoomStatus);
 
 export default router;

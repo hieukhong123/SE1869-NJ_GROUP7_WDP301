@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
 import axiosClient from '../../services/axiosClient';
+import { capitalizeFirstLetter } from '../../utils/helpers';
 
 const BookingList = () => {
 	const [bookings, setBookings] = useState([]);
@@ -11,8 +12,8 @@ const BookingList = () => {
 		const fetchBookings = async () => {
 			try {
 				setLoading(true);
-				const response = await axiosClient.get('/bookings'); // Adjust API endpoint
-				setBookings(response);
+				const response = await axiosClient.get('/bookings');
+				setBookings(response.data);
 			} catch (err) {
 				setError(err);
 			} finally {
@@ -23,21 +24,49 @@ const BookingList = () => {
 	}, []);
 
 	const columns = [
-		{ accessorKey: '_id', header: 'ID' },
 		{ accessorKey: 'userId.fullName', header: 'Guest Name' },
 		{ accessorKey: 'hotelId.name', header: 'Hotel' },
-		{ accessorKey: 'roomIds', header: 'Rooms',
+		{
+			accessorKey: 'roomIds',
+			header: 'Rooms',
 			cell: ({ row }) => (
 				<div>
 					{row.original.roomIds.map((room) => (
 						<div key={room._id}>{room.roomName}</div>
 					))}
 				</div>
-			)
+			),
 		},
 		{ accessorKey: 'checkIn', header: 'Check-in' },
 		{ accessorKey: 'checkOut', header: 'Check-out' },
-		{ accessorKey: 'status', header: 'Status' },
+		{
+			accessorKey: 'status',
+			header: 'Status',
+			cell: ({ row }) => {
+				const status = row.original.status;
+				let badgeClass = '';
+				switch (status) {
+					case 'confirmed':
+						badgeClass = 'badge-success';
+						break;
+					case 'pending':
+						badgeClass = 'badge-warning';
+						break;
+					case 'cancelled':
+						badgeClass = 'badge-error';
+						break;
+					default:
+						badgeClass = 'badge-ghost';
+				}
+				return (
+					<div className="flex justify-center">
+						<span className={`badge ${badgeClass}`}>
+							{capitalizeFirstLetter(status)}
+						</span>
+					</div>
+				);
+			},
+		},
 		{
 			accessorKey: 'actions',
 			header: 'Actions',

@@ -66,10 +66,10 @@ const RoomForm = () => {
 						? 'available'
 						: 'unavailable'
 					: name === 'roomPrice' ||
-					  name === 'maxOccupancy' ||
-					  name === 'quantity'
-					? Number(value)
-					: value,
+						  name === 'maxOccupancy' ||
+						  name === 'quantity'
+						? Number(value)
+						: value,
 		}));
 	};
 
@@ -99,7 +99,10 @@ const RoomForm = () => {
 			}));
 			toast.success('Image uploaded successfully!');
 		} catch (err) {
-			toast.error('Image upload failed: ' + (err.response?.data?.message || err.message));
+			toast.error(
+				'Image upload failed: ' +
+					(err.response?.data?.message || err.message),
+			);
 			setError(err);
 		} finally {
 			setIsUploading(false);
@@ -123,7 +126,10 @@ const RoomForm = () => {
 			}
 			navigate('/admin/rooms'); // Redirect to room list
 		} catch (err) {
-			toast.error('Operation failed: ' + (err.response?.data?.message || err.message));
+			toast.error(
+				'Operation failed: ' +
+					(err.response?.data?.message || err.message),
+			);
 			setError(err);
 		} finally {
 			setLoading(false);
@@ -134,12 +140,18 @@ const RoomForm = () => {
 		return <div className="text-center py-8">Loading room data...</div>;
 	}
 	if (error && id) {
-		return <div className="text-center py-8 text-error">Error: {error.message}</div>;
+		return (
+			<div className="text-center py-8 text-error">
+				Error: {error.message}
+			</div>
+		);
 	}
 
 	return (
 		<div className="container mx-auto p-4">
-			<h1 className="text-2xl font-bold mb-4">{id ? 'Edit Room' : 'Create New Room'}</h1>
+			<h1 className="text-2xl font-bold mb-4">
+				{id ? 'Edit Room' : 'Create New Room'}
+			</h1>
 			<form onSubmit={handleSubmit} className="form-control gap-4">
 				{/* Hotel Dropdown */}
 				<div className="mb-4">
@@ -153,7 +165,9 @@ const RoomForm = () => {
 						className="select select-bordered w-full"
 						required
 					>
-						<option value="" disabled>Select a Hotel</option>
+						<option value="" disabled>
+							Select a Hotel
+						</option>
 						{hotels.map((hotel) => (
 							<option key={hotel._id} value={hotel._id}>
 								{hotel.name}
@@ -290,10 +304,23 @@ const RoomForm = () => {
 				</div>
 
 				<div className="flex gap-2 mt-4">
-					<button type="submit" className="btn btn-primary" disabled={loading || isUploading}>
-						{loading ? 'Saving...' : (id ? 'Update Room' : 'Create Room')}
+					<button
+						type="submit"
+						className="btn btn-primary"
+						disabled={loading || isUploading}
+					>
+						{loading
+							? 'Saving...'
+							: id
+								? 'Update Room'
+								: 'Create Room'}
 					</button>
-					<button type="button" className="btn btn-ghost" onClick={() => navigate('/admin/rooms')} disabled={loading || isUploading}>
+					<button
+						type="button"
+						className="btn btn-ghost"
+						onClick={() => navigate('/admin/rooms')}
+						disabled={loading || isUploading}
+					>
 						Cancel
 					</button>
 				</div>

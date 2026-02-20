@@ -101,4 +101,26 @@ const createUser = asyncHandler(async (req, res) => {
 	}
 });
 
-export { getUsers, getUserById, updateUser, deleteUser, createUser };
+// @desc    Toggle user status
+// @route   PUT /api/v1/users/:id/toggle-status
+// @access  Private/Admin
+const toggleUserStatus = asyncHandler(async (req, res) => {
+	const user = await User.findById(req.params.id);
+
+	if (user) {
+		user.status = !user.status;
+		await user.save();
+		res.json({ message: 'User status updated' });
+	} else {
+		throw new AppError(HttpStatus.NOT_FOUND, 'User not found');
+	}
+});
+
+export {
+	getUsers,
+	getUserById,
+	updateUser,
+	deleteUser,
+	createUser,
+	toggleUserStatus,
+};

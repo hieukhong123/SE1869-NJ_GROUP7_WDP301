@@ -35,7 +35,10 @@ const RoomList = () => {
 				toast.success('Room deleted successfully!');
 				fetchRooms(); // Refresh the list
 			} catch (err) {
-				toast.error('Failed to delete room: ' + (err.response?.data?.message || err.message));
+				toast.error(
+					'Failed to delete room: ' +
+						(err.response?.data?.message || err.message),
+				);
 			}
 		}
 	};
@@ -46,12 +49,19 @@ const RoomList = () => {
 			toast.success('Room status updated successfully!');
 			fetchRooms(); // Refresh the list
 		} catch (err) {
-			toast.error('Failed to toggle room status: ' + (err.response?.data?.message || err.message));
+			toast.error(
+				'Failed to toggle room status: ' +
+					(err.response?.data?.message || err.message),
+			);
 		}
 	};
 
 	const columns = [
-		{ accessorKey: 'hotelId.name', header: 'Hotel', cell: info => info.getValue()},
+		{
+			accessorKey: 'hotelId.name',
+			header: 'Hotel',
+			cell: (info) => info.getValue(),
+		},
 		{ accessorKey: 'roomName', header: 'Room Name' },
 		{ accessorKey: 'roomPrice', header: 'Room Price' },
 		{ accessorKey: 'maxOccupancy', header: 'Max Occupancy' },
@@ -64,12 +74,14 @@ const RoomList = () => {
 				const badgeClass =
 					status === 'available' ? 'badge-success' : 'badge-error';
 				return (
-					<button
-						onClick={() => handleToggleStatus(row.original._id)}
-						className={`badge ${badgeClass} btn btn-sm`}
-					>
-						{capitalizeFirstLetter(status)}
-					</button>
+					<div className="flex justify-center">
+						<button
+							onClick={() => handleToggleStatus(row.original._id)}
+							className={`badge ${badgeClass} btn btn-sm`}
+						>
+							{capitalizeFirstLetter(status)}
+						</button>
+					</div>
 				);
 			},
 		},
@@ -78,10 +90,16 @@ const RoomList = () => {
 			header: 'Actions',
 			cell: ({ row }) => (
 				<div className="flex space-x-2">
-					<Link to={`/admin/rooms/${row.original._id}/edit`} className="btn btn-sm btn-warning">
+					<Link
+						to={`/admin/rooms/${row.original._id}/edit`}
+						className="btn btn-sm btn-warning"
+					>
 						Edit
 					</Link>
-					<button onClick={() => handleDelete(row.original._id)} className="btn btn-sm btn-error">
+					<button
+						onClick={() => handleDelete(row.original._id)}
+						className="btn btn-sm btn-error"
+					>
 						Delete
 					</button>
 				</div>
@@ -109,7 +127,7 @@ const RoomList = () => {
 			<div className="flex justify-between items-center mb-4">
 				<h1 className="text-2xl font-bold">Room List</h1>
 				<Link to="/admin/rooms/new" className="btn btn-primary">
-					Create New Room
+					Add Room
 				</Link>
 			</div>
 			<Table data={rooms} columns={columns} />

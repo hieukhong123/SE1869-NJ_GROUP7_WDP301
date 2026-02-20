@@ -60,7 +60,7 @@ const bookingSchema = new mongoose.Schema(
 			default: 'pending',
 			enum: ['pending', 'confirmed', 'cancelled'],
 		},
-		toltalAmount: {
+		totalAmount: {
 			type: Number,
 		},
 	},

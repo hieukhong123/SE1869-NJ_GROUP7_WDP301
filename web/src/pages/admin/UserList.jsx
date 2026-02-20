@@ -14,7 +14,7 @@ const UserList = () => {
 		try {
 			setLoading(true);
 			const response = await axiosClient.get('/users');
-			setUsers(response);
+			setUsers(response.data);
 		} catch (err) {
 			setError(err);
 		} finally {

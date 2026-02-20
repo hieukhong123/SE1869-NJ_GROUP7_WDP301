@@ -15,7 +15,7 @@ const ReviewDetails = () => {
 				setLoading(true);
 				try {
 					const response = await axiosClient.get(`/reviews/${id}`);
-					setReview(response);
+					setReview(response.data);
 				} catch (err) {
 					setError(err);
 				} finally {
@@ -40,24 +40,24 @@ const ReviewDetails = () => {
 	return (
 		<div className="container mx-auto p-4">
 			<h1 className="text-2xl font-bold mb-4">Review Details</h1>
-			<div className="form-control gap-4">
-				<div className="mb-4">
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+				<div>
 					<label className="label">
-						<span className="label-text">Hotel</span>
+						<span className="label-text font-semibold">Hotel</span>
 					</label>
-					<p>{review.hotelId?.name}</p>
+					<p className="pl-4">{review.hotelId?.name}</p>
 				</div>
-				<div className="mb-4">
+				<div>
 					<label className="label">
-						<span className="label-text">User</span>
+						<span className="label-text font-semibold">User</span>
 					</label>
-					<p>{review.userId?.fullName}</p>
+					<p className="pl-4">{review.userId?.fullName}</p>
 				</div>
-				<div className="mb-4">
+				<div className="col-span-2">
 					<label className="label">
-						<span className="label-text">Rating</span>
+						<span className="label-text font-semibold">Rating</span>
 					</label>
-					<div className="rating">
+					<div className="rating pl-4">
 						{[...Array(5)].map((_, i) => (
 							<span
 								key={i}
@@ -70,14 +70,16 @@ const ReviewDetails = () => {
 						))}
 					</div>
 				</div>
-				<div className="mb-4">
+				<div className="col-span-2">
 					<label className="label">
-						<span className="label-text">Review</span>
+						<span className="label-text font-semibold">Review</span>
 					</label>
-					<p>{review.reviewText}</p>
+					<p className="pl-4 whitespace-pre-wrap">
+						{review.reviewText}
+					</p>
 				</div>
 			</div>
-			<div className="flex justify-end mt-4">
+			<div className="flex justify-end mt-6">
 				<button
 					type="button"
 					className="btn btn-ghost"

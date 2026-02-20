@@ -1,4 +1,4 @@
-import asyncHandler from 'express-async-handler';
+import { catchAsync } from '../middlewares/errorMiddleware.js';
 import Review from '../models/Review.js';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
@@ -6,32 +6,38 @@ import { HttpStatus } from '../utils/httpStatus.js';
 // @desc    Get all reviews
 // @route   GET /api/v1/reviews
 // @access  Public
-const getReviews = asyncHandler(async (req, res) => {
+const getReviews = catchAsync(async (req, res) => {
 	const reviews = await Review.find()
 		.populate('hotelId', 'name')
 		.populate('userId', 'fullName');
-	res.json(reviews);
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: reviews,
+	});
 });
 
 // @desc    Get review by ID
 // @route   GET /api/v1/reviews/:id
 // @access  Public
-const getReviewById = asyncHandler(async (req, res) => {
+const getReviewById = catchAsync(async (req, res, next) => {
 	const review = await Review.findById(req.params.id)
 		.populate('hotelId', 'name')
 		.populate('userId', 'fullName');
 
 	if (review) {
-		res.json(review);
+		res.status(HttpStatus.OK).json({
+			success: true,
+			data: review,
+		});
 	} else {
-		throw new AppError(HttpStatus.NOT_FOUND, 'Review not found');
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Review not found'));
 	}
 });
 
 // @desc    Create a review
 // @route   POST /api/v1/reviews
 // @access  Private
-const createReview = asyncHandler(async (req, res) => {
+const createReview = catchAsync(async (req, res) => {
 	const { hotelId, userId, reviewText, rating } = req.body;
 
 	const review = new Review({
@@ -42,20 +48,26 @@ const createReview = asyncHandler(async (req, res) => {
 	});
 
 	const createdReview = await review.save();
-	res.status(HttpStatus.CREATED).json(createdReview);
+	res.status(HttpStatus.CREATED).json({
+		success: true,
+		data: createdReview,
+	});
 });
 
 // @desc    Delete a review
 // @route   DELETE /api/v1/reviews/:id
 // @access  Private/Admin
-const deleteReview = asyncHandler(async (req, res) => {
+const deleteReview = catchAsync(async (req, res, next) => {
 	const review = await Review.findById(req.params.id);
 
 	if (review) {
 		await Review.deleteOne({ _id: req.params.id });
-		res.json({ message: 'Review removed' });
+		res.status(HttpStatus.OK).json({
+			success: true,
+			message: 'Review removed',
+		});
 	} else {
-		throw new AppError(HttpStatus.NOT_FOUND, 'Review not found');
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Review not found'));
 	}
 });
 

@@ -13,7 +13,7 @@ const ReviewList = () => {
 			try {
 				setLoading(true);
 				const response = await axiosClient.get('/reviews');
-				setReviews(response);
+				setReviews(response.data);
 			} catch (err) {
 				setError(err);
 			} finally {
@@ -73,8 +73,8 @@ const ReviewList = () => {
 	return (
 		<div>
 			<div className="flex justify-between items-center mb-4">
-			        <h1 className="text-2xl font-bold">Review List</h1>
-			      </div>
+				<h1 className="text-2xl font-bold">Review List</h1>
+			</div>
 			<Table data={reviews} columns={columns} />
 		</div>
 	);

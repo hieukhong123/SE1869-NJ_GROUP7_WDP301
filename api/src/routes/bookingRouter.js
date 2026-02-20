@@ -1,8 +1,18 @@
 import express from 'express';
-import { getAllBookings } from '../controllers/bookingController.js';
+import {
+  getAllBookings,
+  getBookingById,
+  updateBookingStatus,
+  deleteBooking,
+} from '../controllers/bookingController.js';
 
 const router = express.Router();
 
-router.get('/', getAllBookings);
+router.route('/').get(getAllBookings);
+router
+  .route('/:id')
+  .get(getBookingById)
+  .put(updateBookingStatus)
+  .delete(deleteBooking);
 
 export default router;

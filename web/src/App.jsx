@@ -3,6 +3,7 @@ import { Toaster } from 'sonner';
 import AdminLayout from './components/layouts/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import BookingList from './pages/admin/BookingList';
+import BookingDetails from './pages/admin/BookingDetails';
 import HotelList from './pages/admin/HotelList';
 import HotelForm from './pages/admin/HotelForm';
 import RoomList from './pages/admin/RoomList';
@@ -30,9 +31,13 @@ function App() {
 						index
 						element={<Navigate to="/admin/dashboard" replace />}
 					/>
-          <Route path="dashboard" element={<Dashboard />} />
+					<Route path="dashboard" element={<Dashboard />} />
 
 					<Route path="bookings" element={<BookingList />} />
+					<Route
+						path="bookings/:id/view"
+						element={<BookingDetails />}
+					/>
 
 					<Route path="hotels" element={<HotelList />} />
 					<Route path="hotels/new" element={<HotelForm />} />
@@ -46,15 +51,21 @@ function App() {
 					<Route path="users/new" element={<UserForm />} />
 					<Route path="users/:id/edit" element={<UserForm />} />
 
-          <Route path="extra-fees" element={<ExtraFeeList />} />
-          <Route path="extra-fees/new" element={<ExtraFeeForm />} />
-          <Route path="extra-fees/:id/edit" element={<ExtraFeeForm />} />
+					<Route path="extra-fees" element={<ExtraFeeList />} />
+					<Route path="extra-fees/new" element={<ExtraFeeForm />} />
+					<Route
+						path="extra-fees/:id/edit"
+						element={<ExtraFeeForm />}
+					/>
 
-          <Route path="reviews" element={<ReviewList />} />
-          <Route path="reviews/:id/view" element={<ReviewDetails />} />
+					<Route path="reviews" element={<ReviewList />} />
+					<Route
+						path="reviews/:id/view"
+						element={<ReviewDetails />}
+					/>
 
-          <Route path="payments" element={<PaymentList />} />
-          <Route path="refunds" element={<RefundList />} />
+					<Route path="payments" element={<PaymentList />} />
+					<Route path="refunds" element={<RefundList />} />
 				</Route>
 
 				{/* 404 CATCH ALL */}
@@ -75,4 +86,3 @@ function App() {
 }
 
 export default App;
-

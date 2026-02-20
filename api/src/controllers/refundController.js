@@ -1,10 +1,11 @@
-import asyncHandler from 'express-async-handler';
+import { catchAsync } from '../middlewares/errorMiddleware.js';
 import Refund from '../models/Refund.js';
+import { HttpStatus } from '../utils/httpStatus.js';
 
 // @desc    Get all refunds
 // @route   GET /api/v1/refunds
 // @access  Private/Admin
-const getRefunds = asyncHandler(async (req, res) => {
+const getRefunds = catchAsync(async (req, res) => {
 	const refunds = await Refund.find().populate({
 		path: 'paymentId',
 		populate: {
@@ -15,7 +16,10 @@ const getRefunds = asyncHandler(async (req, res) => {
 			],
 		},
 	});
-	res.json(refunds);
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: refunds,
+	});
 });
 
 export { getRefunds };

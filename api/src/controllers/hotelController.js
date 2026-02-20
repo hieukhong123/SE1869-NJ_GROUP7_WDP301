@@ -3,6 +3,15 @@ import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 
+export const createHotel = catchAsync(async (req, res, next) => {
+	const newHotel = await Hotel.create(req.body);
+	res.status(HttpStatus.CREATED).json({
+		success: true,
+		message: 'Hotel created successfully',
+		data: newHotel,
+	});
+});
+
 export const getHotels = catchAsync(async (req, res, next) => {
 	const hotels = await Hotel.find();
 
@@ -33,12 +42,12 @@ export const updateHotel = catchAsync(async (req, res, next) => {
 	const updatedHotel = await Hotel.findByIdAndUpdate(
 		id,
 		{ $set: req.body },
-		{ new: true, runValidators: true }
+		{ new: true, runValidators: true },
 	);
 
 	if (!updatedHotel) {
 		return next(
-			new AppError(HttpStatus.NOT_FOUND, 'Hotel not found with that ID')
+			new AppError(HttpStatus.NOT_FOUND, 'Hotel not found with that ID'),
 		);
 	}
 
@@ -46,5 +55,21 @@ export const updateHotel = catchAsync(async (req, res, next) => {
 		success: true,
 		message: 'Hotel updated successfully',
 		data: updatedHotel,
+	});
+});
+
+export const deleteHotel = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const hotel = await Hotel.findByIdAndDelete(id);
+
+	if (!hotel) {
+		return next(
+			new AppError(HttpStatus.NOT_FOUND, 'Hotel not found with that ID'),
+		);
+	}
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Hotel deleted successfully',
 	});
 });

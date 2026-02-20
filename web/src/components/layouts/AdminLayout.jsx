@@ -1,9 +1,14 @@
 import { Outlet, Link } from 'react-router-dom';
 import {
+	HouseIcon,
 	BuildingsIcon,
 	BedIcon,
 	CalendarCheckIcon,
 	UsersIcon,
+	MoneyIcon,
+	StarIcon,
+	CreditCardIcon,
+	CurrencyCircleDollarIcon,
 	SignOutIcon,
 } from '@phosphor-icons/react';
 
@@ -58,6 +63,12 @@ const AdminLayout = () => {
 
 					{/* Navigation */}
 					<li>
+						<Link to="/admin/dashboard">
+							<HouseIcon size={24} />
+							Dashboard
+						</Link>
+					</li>
+					<li>
 						<Link to="/admin/bookings">
 							<CalendarCheckIcon size={24} />
 							Manage Bookings
@@ -79,6 +90,30 @@ const AdminLayout = () => {
 						<Link to="/admin/users">
 							<UsersIcon size={24} />
 							Manage Users
+						</Link>
+					</li>
+					<li>
+						<Link to="/admin/extra-fees">
+							<MoneyIcon size={24} />
+							Manage Extra Fees
+						</Link>
+					</li>
+					<li>
+						<Link to="/admin/reviews">
+							<StarIcon size={24} />
+							Manage Reviews
+						</Link>
+					</li>
+					<li>
+						<Link to="/admin/payments">
+							<CreditCardIcon size={24} />
+							Manage Payments
+						</Link>
+					</li>
+					<li>
+						<Link to="/admin/refunds">
+							<CurrencyCircleDollarIcon size={24} />
+							Manage Refunds
 						</Link>
 					</li>
 

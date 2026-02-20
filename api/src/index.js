@@ -2,7 +2,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import mongoose from 'mongoose';
-import bookingRoute from './routes/bookingRouter.js';
+	import bookingRoute from './routes/bookingRouter.js';
 import hotelRoute from './routes/hotelRouter.js';
 import roomRoute from './routes/roomRouter.js';
 import uploadRoute from './routes/uploadRouter.js';

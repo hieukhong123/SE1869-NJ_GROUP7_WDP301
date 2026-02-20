@@ -1,4 +1,4 @@
-import asyncHandler from 'express-async-handler';
+import { catchAsync } from '../middlewares/errorMiddleware.js';
 import User from '../models/User.js';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
@@ -6,28 +6,34 @@ import { HttpStatus } from '../utils/httpStatus.js';
 // @desc    Get all users
 // @route   GET /api/v1/users
 // @access  Private/Admin
-const getUsers = asyncHandler(async (req, res) => {
+const getUsers = catchAsync(async (req, res) => {
 	const users = await User.find({});
-	res.json(users);
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: users,
+	});
 });
 
 // @desc    Get user by ID
 // @route   GET /api/v1/users/:id
 // @access  Private/Admin
-const getUserById = asyncHandler(async (req, res) => {
+const getUserById = catchAsync(async (req, res, next) => {
 	const user = await User.findById(req.params.id).select('-password');
 
 	if (user) {
-		res.json(user);
+		res.status(HttpStatus.OK).json({
+			success: true,
+			data: user,
+		});
 	} else {
-		throw new AppError(HttpStatus.NOT_FOUND, 'User not found');
+		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
 	}
 });
 
 // @desc    Update user
 // @route   PUT /api/v1/users/:id
 // @access  Private/Admin
-const updateUser = asyncHandler(async (req, res) => {
+const updateUser = catchAsync(async (req, res, next) => {
 	const user = await User.findById(req.params.id);
 
 	if (user) {
@@ -38,43 +44,43 @@ const updateUser = asyncHandler(async (req, res) => {
 
 		const updatedUser = await user.save();
 
-		res.json({
-			_id: updatedUser._id,
-			fullName: updatedUser.fullName,
-			email: updatedUser.email,
-			role: updatedUser.role,
-			status: updatedUser.status,
+		res.status(HttpStatus.OK).json({
+			success: true,
+			data: updatedUser,
 		});
 	} else {
-		throw new AppError(HttpStatus.NOT_FOUND, 'User not found');
+		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
 	}
 });
 
 // @desc    Delete user
 // @route   DELETE /api/v1/users/:id
 // @access  Private/Admin
-const deleteUser = asyncHandler(async (req, res) => {
+const deleteUser = catchAsync(async (req, res, next) => {
 	const user = await User.findById(req.params.id);
 
 	if (user) {
 		await User.deleteOne({ _id: req.params.id });
-		res.json({ message: 'User removed' });
+		res.status(HttpStatus.OK).json({
+			success: true,
+			message: 'User removed',
+		});
 	} else {
-		throw new AppError(HttpStatus.NOT_FOUND, 'User not found');
+		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
 	}
 });
 
 // @desc    Create user
 // @route   POST /api/v1/users
 // @access  Private/Admin
-const createUser = asyncHandler(async (req, res) => {
+const createUser = catchAsync(async (req, res, next) => {
 	const { userName, email, password, fullName, phone, dob, address, role } =
 		req.body;
 
 	const userExists = await User.findOne({ email });
 
 	if (userExists) {
-		throw new AppError(HttpStatus.BAD_REQUEST, 'User already exists');
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'User already exists'));
 	}
 
 	const user = await User.create({
@@ -90,29 +96,29 @@ const createUser = asyncHandler(async (req, res) => {
 
 	if (user) {
 		res.status(HttpStatus.CREATED).json({
-			_id: user._id,
-			userName: user.userName,
-			email: user.email,
-			fullName: user.fullName,
-			role: user.role,
+			success: true,
+			data: user,
 		});
 	} else {
-		throw new AppError(HttpStatus.BAD_REQUEST, 'Invalid user data');
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Invalid user data'));
 	}
 });
 
 // @desc    Toggle user status
 // @route   PUT /api/v1/users/:id/toggle-status
 // @access  Private/Admin
-const toggleUserStatus = asyncHandler(async (req, res) => {
+const toggleUserStatus = catchAsync(async (req, res, next) => {
 	const user = await User.findById(req.params.id);
 
 	if (user) {
 		user.status = !user.status;
 		await user.save();
-		res.json({ message: 'User status updated' });
+		res.status(HttpStatus.OK).json({
+			success: true,
+			message: 'User status updated',
+		});
 	} else {
-		throw new AppError(HttpStatus.NOT_FOUND, 'User not found');
+		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
 	}
 });
 

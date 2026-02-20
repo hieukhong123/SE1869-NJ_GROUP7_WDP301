@@ -2,26 +2,42 @@ import { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
 import axiosClient from '../../services/axiosClient';
 import { capitalizeFirstLetter } from '../../utils/helpers';
+import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const BookingList = () => {
 	const [bookings, setBookings] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 
+	const fetchBookings = async () => {
+		try {
+			setLoading(true);
+			const response = await axiosClient.get('/bookings');
+			setBookings(response.data);
+		} catch (err) {
+			setError(err);
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	useEffect(() => {
-		const fetchBookings = async () => {
-			try {
-				setLoading(true);
-				const response = await axiosClient.get('/bookings');
-				setBookings(response.data);
-			} catch (err) {
-				setError(err);
-			} finally {
-				setLoading(false);
-			}
-		};
 		fetchBookings();
 	}, []);
+
+	const handleDelete = async (id) => {
+		if (window.confirm('Are you sure you want to delete this booking?')) {
+			try {
+				await axiosClient.delete(`/bookings/${id}`);
+				setBookings(bookings.filter((booking) => booking._id !== id));
+				toast.success('Booking deleted successfully');
+			} catch (err) {
+				setError(err);
+				toast.error('Failed to delete booking');
+			}
+		}
+	};
 
 	const columns = [
 		{ accessorKey: 'userId.fullName', header: 'Guest Name' },
@@ -37,8 +53,16 @@ const BookingList = () => {
 				</div>
 			),
 		},
-		{ accessorKey: 'checkIn', header: 'Check-in' },
-		{ accessorKey: 'checkOut', header: 'Check-out' },
+		{
+			accessorKey: 'checkIn',
+			header: 'Check-in',
+			cell: ({ row }) => new Date(row.original.checkIn).toDateString(),
+		},
+		{
+			accessorKey: 'checkOut',
+			header: 'Check-out',
+			cell: ({ row }) => new Date(row.original.checkOut).toDateString(),
+		},
 		{
 			accessorKey: 'status',
 			header: 'Status',
@@ -72,9 +96,18 @@ const BookingList = () => {
 			header: 'Actions',
 			cell: ({ row }) => (
 				<div className="flex space-x-2">
-					<button className="btn btn-sm btn-info">View</button>
-					<button className="btn btn-sm btn-warning">Edit</button>
-					<button className="btn btn-sm btn-error">Delete</button>
+					<Link
+						to={`/admin/bookings/${row.original._id}/view`}
+						className="btn btn-sm btn-info"
+					>
+						View
+					</Link>
+					<button
+						onClick={() => handleDelete(row.original._id)}
+						className="btn btn-sm btn-error"
+					>
+						Delete
+					</button>
 				</div>
 			),
 		},

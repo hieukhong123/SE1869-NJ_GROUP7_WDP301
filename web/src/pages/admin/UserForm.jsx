@@ -22,7 +22,7 @@ const UserForm = () => {
 				setLoading(true);
 				try {
 					const response = await axiosClient.get(`/users/${id}`);
-					setUser(response);
+					setUser(response.data);
 				} catch (err) {
 					setError(err);
 				} finally {

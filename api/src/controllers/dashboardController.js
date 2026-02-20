@@ -1,13 +1,14 @@
-import asyncHandler from 'express-async-handler';
+import { catchAsync } from '../middlewares/errorMiddleware.js';
 import User from '../models/User.js';
 import Hotel from '../models/Hotel.js';
 import Booking from '../models/Booking.js';
 import Payment from '../models/Payment.js';
+import { HttpStatus } from '../utils/httpStatus.js';
 
 // @desc    Get dashboard statistics
 // @route   GET /api/dashboard
 // @access  Private/Admin
-const getDashboardStats = asyncHandler(async (req, res) => {
+const getDashboardStats = catchAsync(async (req, res) => {
 	const totalUsers = await User.countDocuments();
 	const totalHotels = await Hotel.countDocuments();
 	const totalBookings = await Booking.countDocuments();
@@ -15,7 +16,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 	const confirmedPayments = await Payment.find({ status: 'confirmed' });
 	const totalRevenue = confirmedPayments.reduce(
 		(acc, payment) => acc + payment.amount,
-		0,
+		0
 	);
 
 	const bookingsByStatus = await Booking.aggregate([
@@ -50,13 +51,16 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 		},
 	]);
 
-	res.json({
-		totalUsers,
-		totalHotels,
-		totalBookings,
-		totalRevenue,
-		bookingsByStatus,
-		monthlyRevenue,
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: {
+			totalUsers,
+			totalHotels,
+			totalBookings,
+			totalRevenue,
+			bookingsByStatus,
+			monthlyRevenue,
+		},
 	});
 });
 

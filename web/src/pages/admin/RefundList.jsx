@@ -12,7 +12,7 @@ const RefundList = () => {
 			try {
 				setLoading(true);
 				const response = await axiosClient.get('/refunds');
-				setRefunds(response);
+				setRefunds(response.data);
 			} catch (err) {
 				setError(err);
 			} finally {

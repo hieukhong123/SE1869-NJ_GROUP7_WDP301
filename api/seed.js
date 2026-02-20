@@ -200,6 +200,8 @@ const seedData = async () => {
 				status: 'confirmed',
 				totalAmount: 175,
 				extraIds: [extraFees[0]._id],
+				checkIn: new Date('2024-03-10'),
+				checkOut: new Date('2024-03-12'),
 			},
 			{
 				userId: users[2]._id,
@@ -211,6 +213,8 @@ const seedData = async () => {
 				email: users[2].email,
 				status: 'confirmed',
 				totalAmount: 200,
+				checkIn: new Date('2024-04-01'),
+				checkOut: new Date('2024-04-07'),
 			},
 			{
 				userId: users[3]._id,
@@ -222,6 +226,8 @@ const seedData = async () => {
 				email: users[3].email,
 				status: 'cancelled',
 				totalAmount: 100,
+				checkIn: new Date('2024-03-20'),
+				checkOut: new Date('2024-03-22'),
 			},
 			{
 				userId: users[4]._id,
@@ -233,6 +239,8 @@ const seedData = async () => {
 				email: users[4].email,
 				status: 'pending',
 				totalAmount: 180,
+				checkIn: new Date('2024-05-01'),
+				checkOut: new Date('2024-05-05'),
 			},
 			{
 				userId: users[1]._id,
@@ -245,6 +253,8 @@ const seedData = async () => {
 				status: 'confirmed',
 				totalAmount: 260,
 				extraIds: [extraFees[4]._id],
+				checkIn: new Date('2024-06-15'),
+				checkOut: new Date('2024-06-20'),
 			},
 		]);
 		console.log(`✅ Created ${bookings.length} Bookings`);

@@ -52,6 +52,9 @@ const bookingSchema = new mongoose.Schema(
 			type: Date,
 			default: Date.now,
 		},
+		checkIn: {
+			type: Date,
+		},
 		checkOut: {
 			type: Date,
 		},
@@ -64,7 +67,7 @@ const bookingSchema = new mongoose.Schema(
 			type: Number,
 		},
 	},
-	{ timestamps: true }
+	{ timestamps: true },
 );
 
 export default mongoose.model('Booking', bookingSchema);

@@ -1,4 +1,4 @@
-import asyncHandler from 'express-async-handler';
+import { catchAsync } from '../middlewares/errorMiddleware.js';
 import ExtraFee from '../models/ExtraFee.js';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
@@ -6,28 +6,34 @@ import { HttpStatus } from '../utils/httpStatus.js';
 // @desc    Get all extra fees
 // @route   GET /api/v1/extra-fees
 // @access  Private/Admin
-const getExtraFees = asyncHandler(async (req, res) => {
+const getExtraFees = catchAsync(async (req, res) => {
 	const extraFees = await ExtraFee.find().populate('hotelId', 'name');
-	res.json(extraFees);
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: extraFees,
+	});
 });
 
 // @desc    Get extra fee by ID
 // @route   GET /api/v1/extra-fees/:id
 // @access  Private/Admin
-const getExtraFeeById = asyncHandler(async (req, res) => {
+const getExtraFeeById = catchAsync(async (req, res, next) => {
 	const extraFee = await ExtraFee.findById(req.params.id);
 
 	if (extraFee) {
-		res.json(extraFee);
+		res.status(HttpStatus.OK).json({
+			success: true,
+			data: extraFee,
+		});
 	} else {
-		throw new AppError(HttpStatus.NOT_FOUND, 'Extra fee not found');
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Extra fee not found'));
 	}
 });
 
 // @desc    Create an extra fee
 // @route   POST /api/v1/extra-fees
 // @access  Private/Admin
-const createExtraFee = asyncHandler(async (req, res) => {
+const createExtraFee = catchAsync(async (req, res) => {
 	const { hotelId, extraName, extraPrice } = req.body;
 
 	const extraFee = new ExtraFee({
@@ -37,13 +43,16 @@ const createExtraFee = asyncHandler(async (req, res) => {
 	});
 
 	const createdExtraFee = await extraFee.save();
-	res.status(HttpStatus.CREATED).json(createdExtraFee);
+	res.status(HttpStatus.CREATED).json({
+		success: true,
+		data: createdExtraFee,
+	});
 });
 
 // @desc    Update an extra fee
 // @route   PUT /api/v1/extra-fees/:id
 // @access  Private/Admin
-const updateExtraFee = asyncHandler(async (req, res) => {
+const updateExtraFee = catchAsync(async (req, res, next) => {
 	const { hotelId, extraName, extraPrice } = req.body;
 
 	const extraFee = await ExtraFee.findById(req.params.id);
@@ -54,23 +63,29 @@ const updateExtraFee = asyncHandler(async (req, res) => {
 		extraFee.extraPrice = extraPrice;
 
 		const updatedExtraFee = await extraFee.save();
-		res.json(updatedExtraFee);
+		res.status(HttpStatus.OK).json({
+			success: true,
+			data: updatedExtraFee,
+		});
 	} else {
-		throw new AppError(HttpStatus.NOT_FOUND, 'Extra fee not found');
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Extra fee not found'));
 	}
 });
 
 // @desc    Delete an extra fee
 // @route   DELETE /api/v1/extra-fees/:id
 // @access  Private/Admin
-const deleteExtraFee = asyncHandler(async (req, res) => {
+const deleteExtraFee = catchAsync(async (req, res, next) => {
 	const extraFee = await ExtraFee.findById(req.params.id);
 
 	if (extraFee) {
 		await ExtraFee.deleteOne({ _id: req.params.id });
-		res.json({ message: 'Extra fee removed' });
+		res.status(HttpStatus.OK).json({
+			success: true,
+			message: 'Extra fee removed',
+		});
 	} else {
-		throw new AppError(HttpStatus.NOT_FOUND, 'Extra fee not found');
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Extra fee not found'));
 	}
 });
 
@@ -81,3 +96,4 @@ export {
 	updateExtraFee,
 	deleteExtraFee,
 };
+

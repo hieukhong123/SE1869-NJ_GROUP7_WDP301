@@ -30,7 +30,7 @@ const Dashboard = () => {
 			try {
 				setLoading(true);
 				const response = await axiosClient.get('/dashboard');
-				setStats(response);
+				setStats(response.data);
 			} catch (err) {
 				setError(err);
 			} finally {

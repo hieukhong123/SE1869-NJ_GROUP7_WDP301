@@ -14,7 +14,7 @@ const PaymentList = () => {
 			try {
 				setLoading(true);
 				const response = await axiosClient.get('/payments');
-				setPayments(response);
+				setPayments(response.data);
 			} catch (err) {
 				setError(err);
 			} finally {

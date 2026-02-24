@@ -172,6 +172,71 @@ const registerUser = catchAsync(async (req, res, next) => {
 	}
 });
 
+// @desc    Login user
+// @route   POST /api/v1/users/login
+// @access  Public
+const loginUser = catchAsync(async (req, res, next) => {
+	const { username, password } = req.body;
+
+	// Validate required fields
+	if (!username || !password) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Please provide username or email and password'
+			)
+		);
+	}
+
+	// Find user by username or email
+	const user = await User.findOne({
+		$or: [{ userName: username }, { email: username }]
+	});
+
+	if (!user) {
+		return next(
+			new AppError(HttpStatus.UNAUTHORIZED, 'Invalid username/email or password')
+		);
+	}
+
+	// Check if user is active
+	if (!user.status) {
+		return next(
+			new AppError(
+				HttpStatus.FORBIDDEN,
+				'Your account has been deactivated. Please contact support.'
+			)
+		);
+	}
+
+	// Check password
+	const isPasswordValid = await bcrypt.compare(password, user.password);
+
+	if (!isPasswordValid) {
+		return next(
+			new AppError(HttpStatus.UNAUTHORIZED, 'Invalid username/email or password')
+		);
+	}
+
+	// Return user data (excluding password)
+	const userResponse = {
+		_id: user._id,
+		userName: user.userName,
+		email: user.email,
+		fullName: user.fullName,
+		phone: user.phone,
+		address: user.address,
+		role: user.role,
+		avatar: user.avartar,
+	};
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Login successful',
+		data: userResponse,
+	});
+});
+
 // @desc    Toggle user status
 // @route   PUT /api/v1/users/:id/toggle-status
 // @access  Private/Admin
@@ -197,5 +262,6 @@ export {
 	deleteUser,
 	createUser,
 	registerUser,
+	loginUser,
 	toggleUserStatus,
 };

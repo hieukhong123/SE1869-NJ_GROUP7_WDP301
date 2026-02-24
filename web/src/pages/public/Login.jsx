@@ -4,15 +4,11 @@ import { toast } from 'sonner';
 import axiosClient from '../../services/axiosClient';
 import { UserCircle } from '@phosphor-icons/react';
 
-const Register = () => {
+const Login = () => {
 	const navigate = useNavigate();
 	const [formData, setFormData] = useState({
-		userName: '',
-		email: '',
+		username: '',
 		password: '',
-		fullName: '',
-		phone: '',
-		address: '',
 	});
 	const [loading, setLoading] = useState(false);
 	const [errors, setErrors] = useState({});
@@ -54,30 +50,14 @@ const Register = () => {
 	const validateForm = () => {
 		const newErrors = {};
 
-		// Username validation
-		if (!formData.userName.trim()) {
-			newErrors.userName = 'Username is required';
-		} else if (formData.userName.length < 3) {
-			newErrors.userName = 'Username must be at least 3 characters';
-		}
-
-		// Email validation
-		if (!formData.email.trim()) {
-			newErrors.email = 'Email is required';
-		} else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-			newErrors.email = 'Email is invalid';
+		// Username/Email validation
+		if (!formData.username.trim()) {
+			newErrors.username = 'Username or Email is required';
 		}
 
 		// Password validation
 		if (!formData.password) {
 			newErrors.password = 'Password is required';
-		} else if (formData.password.length < 6) {
-			newErrors.password = 'Password must be at least 6 characters';
-		}
-
-		// Phone validation (optional but if provided must be valid)
-		if (formData.phone && !/^[0-9]{10,11}$/.test(formData.phone)) {
-			newErrors.phone = 'Phone number must be 10-11 digits';
 		}
 
 		setErrors(newErrors);
@@ -95,29 +75,36 @@ const Register = () => {
 		setLoading(true);
 
 		try {
-			const response = await axiosClient.post('/users/register', formData);
+			const response = await axiosClient.post('/users/login', formData);
 
-			toast.success(response.message || 'Registration successful!');
-			
+			toast.success(response.message || 'Login successful!');
+
+			// Store user data in localStorage
+			if (response.data) {
+				localStorage.setItem('user', JSON.stringify(response.data));
+				// Dispatch custom event to update navbar
+				window.dispatchEvent(new Event('userLogin'));
+			}
+
 			// Reset form
 			setFormData({
-				userName: '',
-				email: '',
+				username: '',
 				password: '',
-				fullName: '',
-				phone: '',
-				address: '',
 			});
 
-			// Redirect to home page after 1 second
+			// Redirect based on user role
 			setTimeout(() => {
-				navigate('/');
+				if (response.data.role === 'admin') {
+					navigate('/admin/dashboard');
+				} else {
+					navigate('/');
+				}
 			}, 1000);
 		} catch (error) {
 			const errorMessage =
 				error.response?.data?.message ||
 				error.message ||
-				'Registration failed. Please try again.';
+				'Login failed. Please try again.';
 			toast.error(errorMessage);
 		} finally {
 			setLoading(false);
@@ -132,12 +119,12 @@ const Register = () => {
 					<div className="hidden lg:flex items-center justify-center">
 						<img
 							src="https://www.propero.in/cdn/shop/files/Frame_35_1500x.png?v=1703917854"
-							alt="Registration"
+							alt="Login"
 							className="w-full max-w-lg"
 						/>
 					</div>
 
-					{/* Right side - Registration Form */}
+					{/* Right side - Login Form */}
 					<div className="w-full max-w-md mx-auto">
 						<div className="bg-warning rounded-3xl shadow-2xl p-8">
 							{/* Icon */}
@@ -147,90 +134,29 @@ const Register = () => {
 								</div>
 							</div>
 
+							{/* Title */}
+							<h2 className="text-3xl font-bold text-white text-center mb-8">
+								Login
+							</h2>
+
 							{/* Form */}
 							<form onSubmit={handleSubmit} className="space-y-4">
-								{/* Username */}
-								<div className="form-control">
-									<input
-										type="text"
-										name="userName"
-										value={formData.userName}
-										onChange={handleChange}
-										className={`input bg-white w-full ${
-											errors.userName ? 'input-error' : ''
-										}`}
-										placeholder="Username"
-									/>
-									{errors.userName && (
-										<label className="label">
-											<span className="label-text-alt text-white bg-error/80 px-2 py-1 rounded mt-1">
-												{errors.userName}
-											</span>
-										</label>
-									)}
-								</div>
-
-								{/* Full Name */}
-								<div className="form-control">
-									<input
-										type="text"
-										name="fullName"
-										value={formData.fullName}
-										onChange={handleChange}
-										className="input bg-white w-full"
-										placeholder="Full Name"
-									/>
-								</div>
-
-								{/* Address */}
-								<div className="form-control">
-									<input
-										type="text"
-										name="address"
-										value={formData.address}
-										onChange={handleChange}
-										className="input bg-white w-full"
-										placeholder="Address"
-									/>
-								</div>
-
-								{/* Phone */}
-								<div className="form-control">
-									<input
-										type="tel"
-										name="phone"
-										value={formData.phone}
-										onChange={handleChange}
-										className={`input bg-white w-full ${
-											errors.phone ? 'input-error' : ''
-										}`}
-										placeholder="Phone"
-									/>
-									{errors.phone && (
-										<label className="label">
-											<span className="label-text-alt text-white bg-error/80 px-2 py-1 rounded mt-1">
-												{errors.phone}
-											</span>
-										</label>
-									)}
-								</div>
-
-								{/* Email */}
-								<div className="form-control">
-									<input
-										type="email"
-										name="email"
-										value={formData.email}
-										onChange={handleChange}
-										className={`input bg-white w-full ${
-											errors.email ? 'input-error' : ''
-										}`}
-										placeholder="Email"
-									/>
-									{errors.email && (
-										<label className="label">
-											<span className="label-text-alt text-white bg-error/80 px-2 py-1 rounded mt-1">
-												{errors.email}
+					{/* Username or Email */}
+					<div className="form-control">
+						<input
+							type="text"
+							name="username"
+							value={formData.username}
+							onChange={handleChange}
+							className={`input bg-white w-full ${
+								errors.username ? 'input-error' : ''
+							}`}
+							placeholder="Username or Email"
+						/>
+						{errors.username && (
+							<label className="label">
+								<span className="label-text-alt text-white bg-error/80 px-2 py-1 rounded mt-1">
+									{errors.username}
 											</span>
 										</label>
 									)}
@@ -266,17 +192,33 @@ const Register = () => {
 										}`}
 										disabled={loading}
 									>
-										{loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
+										{loading ? 'LOGGING IN...' : 'LOGIN'}
 									</button>
 								</div>
 							</form>
 
-							{/* Already have account link */}
-							<div className="text-center mt-6">
+							{/* Forgot password link */}
+							<div className="text-center mt-4">
 								<p className="text-white text-sm">
-									Already have an account?{' '}
-									<Link to="/login" className="font-bold underline hover:no-underline">
-										Login
+									Forgot password?{' '}
+									<Link
+										to="/forgot-password"
+										className="font-bold underline hover:no-underline"
+									>
+										Reset password
+									</Link>
+								</p>
+							</div>
+
+							{/* Don't have account link */}
+							<div className="text-center mt-2">
+								<p className="text-white text-sm">
+									Don't have an account?{' '}
+									<Link
+										to="/register"
+										className="font-bold underline hover:no-underline"
+									>
+										Create
 									</Link>
 								</p>
 							</div>
@@ -295,4 +237,4 @@ const Register = () => {
 	);
 };
 
-export default Register;
+export default Login;

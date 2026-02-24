@@ -1,6 +1,50 @@
-import { Link, NavLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { UserCircle, SignOut } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 const Navbar = () => {
+	const navigate = useNavigate();
+	const [user, setUser] = useState(null);
+
+	useEffect(() => {
+		// Check if user is logged in
+		const checkUser = () => {
+			const storedUser = localStorage.getItem('user');
+			if (storedUser) {
+				try {
+					setUser(JSON.parse(storedUser));
+				} catch (error) {
+					console.error('Error parsing user data:', error);
+					localStorage.removeItem('user');
+					setUser(null);
+				}
+			} else {
+				setUser(null);
+			}
+		};
+
+		checkUser();
+
+		// Listen for login/logout events
+		window.addEventListener('userLogin', checkUser);
+		window.addEventListener('userLogout', checkUser);
+
+		return () => {
+			window.removeEventListener('userLogin', checkUser);
+			window.removeEventListener('userLogout', checkUser);
+		};
+	}, []);
+
+	const handleLogout = () => {
+		localStorage.removeItem('user');
+		setUser(null);
+		toast.success('Logged out successfully');
+		// Dispatch custom event for other components
+		window.dispatchEvent(new Event('userLogout'));
+		navigate('/');
+	};
+
 	return (
 		<nav className="navbar bg-base-100 shadow-sm px-6 sticky top-0 z-50">
 			<div className="navbar-start">
@@ -48,14 +92,65 @@ const Navbar = () => {
 				</ul>
 			</div>
 			<div className="navbar-end gap-2">
-				<button className="btn btn-warning btn-sm text-white">
-					LOGIN
-				</button>
-				<Link to="/register">
-					<button className="btn btn-warning btn-sm text-white">
-						REGISTER
-					</button>
-				</Link>
+				{user ? (
+					<>
+						{/* User Profile Dropdown */}
+						<div className="dropdown dropdown-end">
+							<div
+								tabIndex={0}
+								role="button"
+								className="btn btn-ghost btn-sm gap-2"
+							>
+								<UserCircle size={24} weight="fill" className="text-warning" />
+								<span className="hidden md:inline font-medium">
+									{user.userName || user.fullName || 'User'}
+								</span>
+							</div>
+							<ul
+								tabIndex={0}
+								className="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg mt-2"
+							>
+								<li className="menu-title">
+									<span className="text-sm">
+										{user.fullName || user.userName}
+									</span>
+								</li>
+								<li>
+									<a className="text-sm">
+										<UserCircle size={18} />
+										Profile
+									</a>
+								</li>
+								<li>
+									<a className="text-sm">My Bookings</a>
+								</li>
+								<div className="divider my-0"></div>
+								<li>
+									<a
+										onClick={handleLogout}
+										className="text-sm text-error hover:bg-error/10"
+									>
+										<SignOut size={18} />
+										Logout
+									</a>
+								</li>
+							</ul>
+						</div>
+					</>
+				) : (
+					<>
+						<Link to="/login">
+							<button className="btn btn-warning btn-sm text-white">
+								LOGIN
+							</button>
+						</Link>
+						<Link to="/register">
+							<button className="btn btn-warning btn-sm text-white">
+								REGISTER
+							</button>
+						</Link>
+					</>
+				)}
 			</div>
 		</nav>
 	);

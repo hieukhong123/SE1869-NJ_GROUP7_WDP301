@@ -10,6 +10,10 @@ const hotelSchema = new mongoose.Schema(
 			type: String,
 			required: true,
 		},
+		city: {
+			type: String,
+			required: true,
+		},
 		hotelPhone: {
 			type: Number,
 			required: true,
@@ -24,8 +28,27 @@ const hotelSchema = new mongoose.Schema(
 		description: {
 			type: String,
 		},
+		photos: {
+			type: [String],
+			default: [],
+		},
+		distance: {
+			type: String,
+			default: '',
+		},
+		featured: {
+			type: Boolean,
+			default: false,
+		},
 	},
-	{ timestamps: true }
+	{ timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
+
+// Virtual field for average rating
+hotelSchema.virtual('averageRating', {
+	ref: 'Review',
+	localField: '_id',
+	foreignField: 'hotelId',
+});
 
 export default mongoose.model('Hotel', hotelSchema);

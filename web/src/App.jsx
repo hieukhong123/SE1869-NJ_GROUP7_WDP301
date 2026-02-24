@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import AdminLayout from './components/layouts/AdminLayout';
+import PublicLayout from './components/layouts/PublicLayout';
 import Dashboard from './pages/admin/Dashboard';
 import BookingList from './pages/admin/BookingList';
 import BookingDetails from './pages/admin/BookingDetails';
@@ -16,7 +17,7 @@ import ReviewList from './pages/admin/ReviewList';
 import ReviewDetails from './pages/admin/ReviewDetails';
 import PaymentList from './pages/admin/PaymentList';
 import RefundList from './pages/admin/RefundList';
-import PublicHome from './pages/public/PublicHome';
+import HomePage from './pages/public/HomePage';
 
 function App() {
 	return (
@@ -24,8 +25,12 @@ function App() {
 			<Toaster richColors position="bottom-right" />
 
 			<Routes>
-				<Route path="/" element={<PublicHome />} />
+				{/* Public Routes */}
+				<Route path="/" element={<PublicLayout />}>
+					<Route index element={<HomePage />} />
+				</Route>
 
+				{/* Admin Routes */}
 				<Route path="/admin" element={<AdminLayout />}>
 					<Route
 						index

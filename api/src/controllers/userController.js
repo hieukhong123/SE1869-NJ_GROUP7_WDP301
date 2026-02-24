@@ -2,6 +2,7 @@ import { catchAsync } from '../middlewares/errorMiddleware.js';
 import User from '../models/User.js';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
+import bcrypt from 'bcryptjs';
 
 // @desc    Get all users
 // @route   GET /api/v1/users
@@ -83,10 +84,14 @@ const createUser = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.BAD_REQUEST, 'User already exists'));
 	}
 
+	// Hash password
+	const salt = await bcrypt.genSalt(10);
+	const hashedPassword = await bcrypt.hash(password, salt);
+
 	const user = await User.create({
 		userName,
 		email,
-		password, // In a real app, this should be hashed
+		password: hashedPassword,
 		fullName,
 		phone,
 		dob,
@@ -98,6 +103,69 @@ const createUser = catchAsync(async (req, res, next) => {
 		res.status(HttpStatus.CREATED).json({
 			success: true,
 			data: user,
+		});
+	} else {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Invalid user data'));
+	}
+});
+
+// @desc    Register new user
+// @route   POST /api/v1/users/register
+// @access  Public
+const registerUser = catchAsync(async (req, res, next) => {
+	const { userName, email, password, fullName, phone } = req.body;
+
+	// Validate required fields
+	if (!userName || !email || !password) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Please provide username, email and password'
+			)
+		);
+	}
+
+	// Check if user already exists
+	const userExists = await User.findOne({ $or: [{ email }, { userName }] });
+
+	if (userExists) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'User with this email or username already exists'
+			)
+		);
+	}
+
+	// Hash password
+	const salt = await bcrypt.genSalt(10);
+	const hashedPassword = await bcrypt.hash(password, salt);
+
+	// Create user with default role 'user'
+	const user = await User.create({
+		userName,
+		email,
+		password: hashedPassword,
+		fullName,
+		phone,
+		role: 'user',
+		status: true, 
+	});
+
+	if (user) {
+		const userResponse = {
+			_id: user._id,
+			userName: user.userName,
+			email: user.email,
+			fullName: user.fullName,
+			phone: user.phone,
+			role: user.role,
+		};
+
+		res.status(HttpStatus.CREATED).json({
+			success: true,
+			message: 'User registered successfully',
+			data: userResponse,
 		});
 	} else {
 		return next(new AppError(HttpStatus.BAD_REQUEST, 'Invalid user data'));
@@ -128,5 +196,6 @@ export {
 	updateUser,
 	deleteUser,
 	createUser,
+	registerUser,
 	toggleUserStatus,
 };

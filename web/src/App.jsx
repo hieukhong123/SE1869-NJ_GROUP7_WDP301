@@ -18,6 +18,7 @@ import ReviewDetails from './pages/admin/ReviewDetails';
 import PaymentList from './pages/admin/PaymentList';
 import RefundList from './pages/admin/RefundList';
 import HomePage from './pages/public/HomePage';
+import Register from './pages/public/Register';
 
 function App() {
 	return (
@@ -28,6 +29,7 @@ function App() {
 				{/* Public Routes */}
 				<Route path="/" element={<PublicLayout />}>
 					<Route index element={<HomePage />} />
+					<Route path="register" element={<Register />} />
 				</Route>
 
 				{/* Admin Routes */}

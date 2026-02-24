@@ -51,9 +51,11 @@ const Navbar = () => {
 				<button className="btn btn-warning btn-sm text-white">
 					LOGIN
 				</button>
-				<button className="btn btn-warning btn-sm text-white">
-					REGISTER
-				</button>
+				<Link to="/register">
+					<button className="btn btn-warning btn-sm text-white">
+						REGISTER
+					</button>
+				</Link>
 			</div>
 		</nav>
 	);

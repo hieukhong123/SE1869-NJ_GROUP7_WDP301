@@ -20,6 +20,8 @@ import RefundList from './pages/admin/RefundList';
 import HomePage from './pages/public/HomePage';
 import Register from './pages/public/Register';
 import Login from './pages/public/Login';
+import ForgotPassword from './pages/public/ForgotPassword';
+import ResetPassword from './pages/public/ResetPassword';
 
 function App() {
 	return (
@@ -32,6 +34,8 @@ function App() {
 					<Route index element={<HomePage />} />
 					<Route path="register" element={<Register />} />
 					<Route path="login" element={<Login />} />
+					<Route path="forgot-password" element={<ForgotPassword />} />
+					<Route path="reset-password" element={<ResetPassword />} />
 				</Route>
 
 				{/* Admin Routes */}

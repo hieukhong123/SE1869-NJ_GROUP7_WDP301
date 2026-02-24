@@ -1,4 +1,5 @@
 import Hotel from '../models/Hotel.js';
+import Review from '../models/Review.js';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
@@ -71,5 +72,35 @@ export const deleteHotel = catchAsync(async (req, res, next) => {
 	res.status(HttpStatus.OK).json({
 		success: true,
 		message: 'Hotel deleted successfully',
+	});
+});
+
+export const getFeaturedHotels = catchAsync(async (req, res, next) => {
+	// Get featured hotels
+	const hotels = await Hotel.find({ featured: true });
+
+	// Calculate average rating for each hotel
+	const hotelsWithRatings = await Promise.all(
+		hotels.map(async (hotel) => {
+			const reviews = await Review.find({ hotelId: hotel._id });
+			const averageRating =
+				reviews.length > 0
+					? reviews.reduce((sum, review) => sum + review.rating, 0) /
+					  reviews.length
+					: 0;
+			const reviewCount = reviews.length;
+
+			return {
+				...hotel.toObject(),
+				averageRating: averageRating > 0 ? averageRating.toFixed(1) : 'N/A',
+				reviewCount,
+			};
+		})
+	);
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		count: hotelsWithRatings.length,
+		data: hotelsWithRatings,
 	});
 });

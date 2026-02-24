@@ -194,155 +194,279 @@ const seedData = async () => {
 		// Create Hotels
 		const hotels = await Hotel.insertMany([
 			{
+				name: 'Ha Long Bay',
+				address: 'Tuan Chau, Ha Long',
+				city: 'Quang Ninh',
+				hotelPhone: 203567890,
+				hotelEmail: 'cruise@halongbay.com',
+				description: 'Stay on the water in a luxury cruise ship.',
+				photos: [
+					'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800',
+					'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
+				],
+				distance: '10 km',
+				featured: true,
+			},
+			{
+				name: 'Hoi An Ancient Town',
+				address: '22 Tran Hung Dao, Hoi An',
+				city: 'Quang Nam',
+				hotelPhone: 235678901,
+				hotelEmail: 'info@ancienttownhotel.com',
+				description: 'A charming hotel in the heart of Hoi An.',
+				photos: [
+					'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800',
+					'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800',
+				],
+				distance: '10 km',
+				featured: true,
+			},
+			{
+				name: 'Ho Chi Minh Mausoleum',
+				address: '77 Nguyen Hue, Ho Chi Minh City',
+				city: 'Hanoi',
+				hotelPhone: 281234567,
+				hotelEmail: 'reservations@saigonsignature.com',
+				description: 'Luxury and style in the bustling city center.',
+				photos: [
+					'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800',
+					'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800',
+				],
+				distance: '10 km',
+				featured: true,
+			},
+			{
+				name: 'Sapa Rice Terraces',
+				address: '789 Fansipan Road, Sapa',
+				city: 'Lao Cai',
+				hotelPhone: 212345678,
+				hotelEmail: 'reservations@mountainparadise.com',
+				description: 'Escape to the serene mountains of Sapa.',
+				photos: [
+					'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800',
+					'https://images.unsplash.com/photo-1561409106-7f2ca66bd4f3?w=800',
+				],
+				distance: '',
+				featured: true,
+			},
+			{
 				name: 'Grand Luxury Hanoi',
 				address: '123 Ba Dinh, Ha Noi',
+				city: 'Hanoi',
 				hotelPhone: 241234567,
 				hotelEmail: 'contact@grandluxury.com',
 				description: 'A 5-star experience in the heart of Hanoi.',
+				photos: [
+					'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
+				],
+				distance: '5 km',
+				featured: false,
 			},
 			{
 				name: 'Coastal Retreat Da Nang',
 				address: '456 Vo Nguyen Giap, Da Nang',
+				city: 'Da Nang',
 				hotelPhone: 234567890,
 				hotelEmail: 'info@coastalretreat.com',
 				description: 'Relax by the beach with stunning ocean views.',
-			},
-			{
-				name: 'Mountain Paradise Sapa',
-				address: '789 Fansipan Road, Sapa',
-				hotelPhone: 212345678,
-				hotelEmail: 'reservations@mountainparadise.com',
-				description: 'Escape to the serene mountains of Sapa.',
+				photos: [
+					'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800',
+				],
+				distance: '2 km',
+				featured: false,
 			},
 			{
 				name: 'Mekong Delta Resort',
 				address: '101 Can Tho River, Can Tho',
+				city: 'Can Tho',
 				hotelPhone: 292345678,
 				hotelEmail: 'contact@mekongresort.com',
 				description: 'Experience the beauty of the Mekong Delta.',
-			},
-			{
-				name: 'Ancient Town Boutique Hotel',
-				address: '22 Tran Hung Dao, Hoi An',
-				hotelPhone: 235678901,
-				hotelEmail: 'info@ancienttownhotel.com',
-				description: 'A charming hotel in the heart of Hoi An.',
-			},
-			{
-				name: 'Saigon Signature Hotel',
-				address: '77 Nguyen Hue, Ho Chi Minh City',
-				hotelPhone: 281234567,
-				hotelEmail: 'reservations@saigonsignature.com',
-				description: 'Luxury and style in the bustling city center.',
+				photos: [
+					'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800',
+				],
+				distance: '8 km',
+				featured: false,
 			},
 			{
 				name: 'Phu Quoc Beachfront Villas',
 				address: '88 Long Beach, Phu Quoc',
+				city: 'Phu Quoc',
 				hotelPhone: 297890123,
 				hotelEmail: 'contact@phuquocvillas.com',
 				description: 'Private villas on a pristine tropical island.',
+				photos: [
+					'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800',
+				],
+				distance: '12 km',
+				featured: false,
 			},
 			{
 				name: 'Nha Trang Ocean Getaway',
 				address: '99 Tran Phu, Nha Trang',
+				city: 'Nha Trang',
 				hotelPhone: 258901234,
 				hotelEmail: 'info@nhatranggetaway.com',
 				description: 'Modern hotel with direct beach access.',
+				photos: [
+					'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800',
+				],
+				distance: '3 km',
+				featured: false,
 			},
 			{
 				name: 'Dalat Highlands Retreat',
 				address: '110 Xuan Huong Lake, Da Lat',
+				city: 'Da Lat',
 				hotelPhone: 263456789,
 				hotelEmail: 'support@dalatretreat.com',
 				description: 'A peaceful retreat in the cool highlands.',
-			},
-			{
-				name: 'Halong Bay Cruise & Hotel',
-				address: '1 Tuan Chau, Ha Long',
-				hotelPhone: 203567890,
-				hotelEmail: 'cruise@halongbay.com',
-				description: 'Stay on the water in a luxury cruise ship.',
+				photos: [
+					'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
+				],
+				distance: '6 km',
+				featured: false,
 			},
 			{
 				name: 'Hue Imperial Hotel',
 				address: '5 Le Loi, Hue',
+				city: 'Hue',
 				hotelPhone: 234112233,
 				hotelEmail: 'contact@hueimperial.com',
 				description: 'Experience the ancient capital in style.',
+				photos: [
+					'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800',
+				],
+				distance: '4 km',
+				featured: false,
 			},
 			{
 				name: 'Con Dao Paradise Resort',
 				address: 'Beach Front, Con Dao',
+				city: 'Con Dao',
 				hotelPhone: 254123456,
 				hotelEmail: 'info@condaoparadise.com',
 				description: 'Secluded island paradise with stunning beaches.',
+				photos: [
+					'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800',
+				],
+				distance: '15 km',
+				featured: false,
 			},
 			{
 				name: 'Vung Tau Seaside Villa',
 				address: 'Tran Phu Street, Vung Tau',
+				city: 'Vung Tau',
 				hotelPhone: 254987654,
 				hotelEmail: 'bookings@vungtauvilla.com',
 				description: 'Private villas with ocean views in Vung Tau.',
+				photos: [
+					'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800',
+				],
+				distance: '7 km',
+				featured: false,
 			},
 			{
 				name: 'Can Tho Floating Market Hotel',
 				address: 'Cai Rang, Can Tho',
+				city: 'Can Tho',
 				hotelPhone: 292876543,
 				hotelEmail: 'reservations@canthofloating.com',
 				description:
 					'Unique experience near the famous floating market.',
+				photos: [
+					'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800',
+				],
+				distance: '9 km',
+				featured: false,
 			},
 			{
 				name: 'Phan Thiet Mui Ne Resort',
 				address: 'Nguyen Dinh Chieu, Phan Thiet',
+				city: 'Phan Thiet',
 				hotelPhone: 252123987,
 				hotelEmail: 'contact@muineresort.com',
 				description:
 					'Tropical resort perfect for kitesurfing and relaxation.',
+				photos: [
+					'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800',
+				],
+				distance: '11 km',
+				featured: false,
 			},
 			{
 				name: 'Ninh Binh Eco Lodge',
 				address: 'Tam Coc, Ninh Binh',
+				city: 'Ninh Binh',
 				hotelPhone: 229112233,
 				hotelEmail: 'info@ninhbinhecolodge.com',
 				description:
 					'Eco-friendly stay amidst beautiful limestone karsts.',
+				photos: [
+					'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
+				],
+				distance: '5 km',
+				featured: false,
 			},
 			{
 				name: 'Hanoi Old Quarter Gem',
 				address: '30 Hang Vai, Hanoi',
+				city: 'Hanoi',
 				hotelPhone: 243987654,
 				hotelEmail: 'bookings@hanoigem.com',
 				description:
 					'Charming hotel in the heart of Hanoi Old Quarter.',
+				photos: [
+					'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800',
+				],
+				distance: '1 km',
+				featured: false,
 			},
 			{
 				name: 'Cat Ba Island Resort',
 				address: 'Cat Ba Town, Hai Phong',
+				city: 'Hai Phong',
 				hotelPhone: 225654321,
 				hotelEmail: 'contact@catbaisland.com',
 				description: 'Relaxing resort with views of Lan Ha Bay.',
+				photos: [
+					'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800',
+				],
+				distance: '14 km',
+				featured: false,
 			},
 			{
 				name: 'Quy Nhon Beach Retreat',
 				address: 'Bai Xep, Quy Nhon',
+				city: 'Quy Nhon',
 				hotelPhone: 256789123,
 				hotelEmail: 'info@quynhonretreat.com',
 				description: 'Peaceful beachfront escape in Quy Nhon.',
+				photos: [
+					'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800',
+				],
+				distance: '6 km',
+				featured: false,
 			},
 			{
 				name: 'Vinh Long Homestay',
 				address: 'An Binh Islet, Vinh Long',
+				city: 'Vinh Long',
 				hotelPhone: 270123456,
 				hotelEmail: 'stay@vinhlonghomestay.com',
 				description: 'Authentic Mekong Delta homestay experience.',
+				photos: [
+					'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800',
+				],
+				distance: '10 km',
+				featured: false,
 			},
 		]);
 		console.log(`✅ Created ${hotels.length} Hotels`);
 
 		// Create Room Categories
 		const roomCategories = await RoomCategory.insertMany([
-			// Grand Luxury Hanoi
+			// Ha Long Bay
 			{
 				hotelId: hotels[0]._id,
 				roomName: 'Deluxe City View',
@@ -351,7 +475,7 @@ const seedData = async () => {
 				quantity: 15,
 				description: 'Spacious room with city views.',
 			},
-			// Coastal Retreat Da Nang
+			// Hoi An Ancient Town
 			{
 				hotelId: hotels[1]._id,
 				roomName: 'Ocean View King',
@@ -360,7 +484,7 @@ const seedData = async () => {
 				quantity: 10,
 				description: 'Direct ocean views with a king-size bed.',
 			},
-			// Mountain Paradise Sapa
+			// Ho Chi Minh Mausoleum
 			{
 				hotelId: hotels[2]._id,
 				roomName: 'Standard Mountain View',
@@ -369,7 +493,7 @@ const seedData = async () => {
 				quantity: 20,
 				description: 'Cozy room with beautiful mountain scenery.',
 			},
-			// Mekong Delta Resort
+			// Sapa Rice Terraces
 			{
 				hotelId: hotels[3]._id,
 				roomName: 'River View Bungalow',

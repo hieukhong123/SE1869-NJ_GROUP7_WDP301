@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axiosClient from "../../services/axiosClient";
 import {
     MapPinIcon,
@@ -7,6 +8,7 @@ import {
 } from "@phosphor-icons/react";
 
 const HomePage = () => {
+    const navigate = useNavigate();
     const [featuredHotels, setFeaturedHotels] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -207,7 +209,10 @@ const HomePage = () => {
 
                                         {/* Book Now Button */}
                                         <div className="card-actions mt-4">
-                                            <button className="btn btn-primary btn-sm w-full">
+                                            <button 
+                                                className="btn btn-primary btn-sm w-full"
+                                                onClick={() => navigate(`/hotels/${hotel._id}/book`)}
+                                            >
                                                 Book Now
                                             </button>
                                         </div>

@@ -1,5 +1,6 @@
 import express from 'express';
 import {
+  createBooking,
   getAllBookings,
   getBookingById,
   updateBookingStatus,
@@ -10,7 +11,7 @@ import {
 
 const router = express.Router();
 
-router.route('/').get(getAllBookings);
+router.route('/').get(getAllBookings).post(createBooking);
 router.route('/user/:userId').get(getUserBookings);
 router
   .route('/:id')

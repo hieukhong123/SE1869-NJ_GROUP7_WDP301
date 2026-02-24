@@ -3,6 +3,21 @@ import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import AppError from '../utils/AppError.js';
 
+export const createBooking = catchAsync(async (req, res, next) => {
+	const newBooking = await Booking.create(req.body);
+	
+	const booking = await Booking.findById(newBooking._id)
+		.populate('hotelId', 'name')
+		.populate('roomIds', 'roomName roomPrice')
+		.populate('extraIds', 'extraName extraPrice');
+
+	res.status(HttpStatus.CREATED).json({
+		success: true,
+		message: 'Booking created successfully',
+		data: booking,
+	});
+});
+
 export const getAllBookings = catchAsync(async (req, res, next) => {
 	const bookings = await Booking.find()
 		.populate('hotelId', 'name')

@@ -18,6 +18,7 @@ import ReviewDetails from './pages/admin/ReviewDetails';
 import PaymentList from './pages/admin/PaymentList';
 import RefundList from './pages/admin/RefundList';
 import HomePage from './pages/public/HomePage';
+import Location from './pages/public/Location';
 import Register from './pages/public/Register';
 import Login from './pages/public/Login';
 import ForgotPassword from './pages/public/ForgotPassword';
@@ -32,9 +33,7 @@ function App() {
 				{/* Public Routes */}
 				<Route path="/" element={<PublicLayout />}>
 					<Route index element={<HomePage />} />
-					<Route path="register" element={<Register />} />
-					<Route path="login" element={<Login />} />
-					<Route path="forgot-password" element={<ForgotPassword />} />
+				<Route path="location" element={<Location />} />
 					<Route path="reset-password" element={<ResetPassword />} />
 				</Route>
 

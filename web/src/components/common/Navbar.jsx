@@ -78,7 +78,16 @@ const Navbar = () => {
 						</NavLink>
 					</li>
 					<li>
-						<a className="font-medium">Location</a>
+						<NavLink
+							to="/location"
+							className={({ isActive }) =>
+								isActive
+									? 'font-medium text-warning'
+									: 'font-medium'
+							}
+						>
+							Location
+						</NavLink>
 					</li>
 					<li>
 						<a className="font-medium">About</a>

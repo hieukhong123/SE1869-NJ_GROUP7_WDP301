@@ -22,6 +22,8 @@ import Location from './pages/public/Location';
 import Contact from './pages/public/Contact';
 import Profile from './pages/public/Profile';
 import MyBookings from './pages/public/MyBookings';
+import HotelBooking from './pages/public/HotelBooking';
+import RoomCatalog from './pages/public/RoomCatalog';
 import Register from './pages/public/Register';
 import Login from './pages/public/Login';
 import ForgotPassword from './pages/public/ForgotPassword';
@@ -36,7 +38,9 @@ function App() {
 				{/* Public Routes */}
 				<Route path="/" element={<PublicLayout />}>
 					<Route index element={<HomePage />} />
-				<Route path="location" element={<Location />} />
+					<Route path="location" element={<Location />} />
+					<Route path="hotels/:id/book" element={<HotelBooking />} />
+					<Route path="rooms" element={<RoomCatalog />} />
 				<Route path="contact" element={<Contact />} />
 				<Route path="profile" element={<Profile />} />
 				<Route path="my-bookings" element={<MyBookings />} />

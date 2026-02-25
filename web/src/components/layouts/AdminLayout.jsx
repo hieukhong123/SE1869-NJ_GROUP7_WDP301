@@ -1,4 +1,4 @@
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
 import {
 	HouseIcon,
 	BuildingsIcon,
@@ -11,8 +11,23 @@ import {
 	CurrencyCircleDollarIcon,
 	SignOutIcon,
 } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 const AdminLayout = () => {
+	const navigate = useNavigate();
+
+	const handleLogout = () => {
+		// Clear all user data from localStorage
+		localStorage.removeItem('user');
+		localStorage.removeItem('token');
+		
+		// Show success message
+		toast.success('Logged out successfully');
+		
+		// Redirect to login page
+		navigate('/login');
+	};
+
 	return (
 		<div className="drawer lg:drawer-open">
 			<input id="my-drawer-2" type="checkbox" className="drawer-toggle" />
@@ -120,7 +135,7 @@ const AdminLayout = () => {
 					<div className="divider"></div>
 
 					<li className="mt-auto">
-						<button className="text-error">
+						<button className="text-error" onClick={handleLogout}>
 							<SignOutIcon size={24} />
 							Logout
 						</button>

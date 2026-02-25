@@ -402,6 +402,120 @@ const toggleUserStatus = catchAsync(async (req, res, next) => {
 	}
 });
 
+// @desc    Get current user profile
+// @route   GET /api/v1/users/profile/:userId
+// @access  Public (user accesses their own profile)
+const getUserProfile = catchAsync(async (req, res, next) => {
+	const user = await User.findById(req.params.userId).select('-password -resetPasswordToken -resetPasswordExpires');
+
+	if (!user) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
+	}
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: user,
+	});
+});
+
+// @desc    Update current user profile
+// @route   PUT /api/v1/users/profile/:userId
+// @access  Public (user updates their own profile)
+const updateUserProfile = catchAsync(async (req, res, next) => {
+	const user = await User.findById(req.params.userId);
+
+	if (!user) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
+	}
+
+	// Fields that user can update
+	const allowedUpdates = ['fullName', 'phone', 'dob', 'address', 'avartar'];
+	
+	// Update only allowed fields
+	allowedUpdates.forEach(field => {
+		if (req.body[field] !== undefined) {
+			user[field] = req.body[field];
+		}
+	});
+
+	const updatedUser = await user.save();
+
+	// Return updated user without password
+	const userResponse = {
+		_id: updatedUser._id,
+		userName: updatedUser.userName,
+		email: updatedUser.email,
+		fullName: updatedUser.fullName,
+		phone: updatedUser.phone,
+		dob: updatedUser.dob,
+		address: updatedUser.address,
+		role: updatedUser.role,
+		avartar: updatedUser.avartar,
+	};
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Profile updated successfully',
+		data: userResponse,
+	});
+});
+
+// @desc    Change user password
+// @route   PUT /api/v1/users/change-password/:userId
+// @access  Public (user changes their own password)
+const changePassword = catchAsync(async (req, res, next) => {
+	const { currentPassword, newPassword } = req.body;
+
+	// Validate required fields
+	if (!currentPassword || !newPassword) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Please provide current password and new password'
+			)
+		);
+	}
+
+	// Validate new password length
+	if (newPassword.length < 6) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'New password must be at least 6 characters'
+			)
+		);
+	}
+
+	// Find user with password field
+	const user = await User.findById(req.params.userId);
+
+	if (!user) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
+	}
+
+	// Verify current password
+	const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+
+	if (!isPasswordValid) {
+		return next(
+			new AppError(HttpStatus.UNAUTHORIZED, 'Current password is incorrect')
+		);
+	}
+
+	// Hash new password
+	const salt = await bcrypt.genSalt(10);
+	const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+	// Update password
+	user.password = hashedPassword;
+	await user.save();
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Password changed successfully',
+	});
+});
+
 export {
 	getUsers,
 	getUserById,
@@ -413,4 +527,7 @@ export {
 	forgotPassword,
 	resetPassword,
 	toggleUserStatus,
+	getUserProfile,
+	updateUserProfile,
+	changePassword,
 };

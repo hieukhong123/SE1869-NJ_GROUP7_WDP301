@@ -10,6 +10,9 @@ import {
   forgotPassword,
   resetPassword,
   toggleUserStatus,
+  getUserProfile,
+  updateUserProfile,
+  changePassword,
 } from '../controllers/userController.js';
 
 const router = express.Router();
@@ -19,6 +22,8 @@ router.route('/register').post(registerUser);
 router.route('/login').post(loginUser);
 router.route('/forgot-password').post(forgotPassword);
 router.route('/reset-password').post(resetPassword);
+router.route('/profile/:userId').get(getUserProfile).put(updateUserProfile);
+router.route('/change-password/:userId').put(changePassword);
 router.route('/:id').get(getUserById).put(updateUser).delete(deleteUser);
 router.route('/:id/toggle-status').put(toggleUserStatus);
 

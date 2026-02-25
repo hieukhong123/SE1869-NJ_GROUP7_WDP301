@@ -90,7 +90,16 @@ const Navbar = () => {
 						</NavLink>
 					</li>
 					<li>
-						<a className="font-medium">About</a>
+						<NavLink
+							to="/rooms"
+							className={({ isActive }) =>
+								isActive
+									? 'font-medium text-warning'
+									: 'font-medium'
+							}
+						>
+							Rooms
+						</NavLink>
 					</li>
 					<li>
 						<a className="font-medium">Promotion</a>

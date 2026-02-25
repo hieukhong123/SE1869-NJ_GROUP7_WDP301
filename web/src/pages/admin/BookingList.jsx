@@ -39,6 +39,20 @@ const BookingList = () => {
 		}
 	};
 
+	const handleStatusChange = async (id, newStatus) => {
+		try {
+			await axiosClient.put(`/bookings/${id}`, { status: newStatus });
+			setBookings(
+				bookings.map((booking) =>
+					booking._id === id ? { ...booking, status: newStatus } : booking
+				)
+			);
+			toast.success(`Booking status updated to ${newStatus}`);
+		} catch (err) {
+			toast.error(`Failed to update booking status: ${err.message}`);
+		}
+	};
+
 	const columns = [
 		{ accessorKey: 'userId.fullName', header: 'Guest Name' },
 		{ accessorKey: 'hotelId.name', header: 'Hotel' },
@@ -68,6 +82,26 @@ const BookingList = () => {
 			header: 'Status',
 			cell: ({ row }) => {
 				const status = row.original.status;
+				const id = row.original._id;
+
+				if (status === 'pending') {
+					return (
+						<div className="flex justify-center">
+							<select
+								className="select select-bordered select-xs w-full max-w-xs select-warning"
+								value={status}
+								onChange={(e) => handleStatusChange(id, e.target.value)}
+							>
+								<option value="pending" disabled>
+									Pending
+								</option>
+								<option value="confirmed">Confirmed</option>
+								<option value="cancelled">Cancelled</option>
+							</select>
+						</div>
+					);
+				}
+
 				let badgeClass = '';
 				switch (status) {
 					case 'confirmed':

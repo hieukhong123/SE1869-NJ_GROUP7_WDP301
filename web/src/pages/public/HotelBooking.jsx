@@ -4,6 +4,7 @@ import axiosClient from "../../services/axiosClient";
 import { toast } from "sonner";
 import HotelInfoCard from "../../components/booking/HotelInfoCard";
 import BookingFormCard from "../../components/booking/BookingFormCard";
+import Reviews from "../../components/booking/Reviews";
 
 const HotelBooking = () => {
     const { id } = useParams();
@@ -281,6 +282,11 @@ const HotelBooking = () => {
                             onSubmit={handleSubmit}
                         />
                     </div>
+                </div>
+
+                {/* Reviews Section */}
+                <div className="mt-8">
+                    <Reviews hotelId={id} />
                 </div>
             </div>
         </div>

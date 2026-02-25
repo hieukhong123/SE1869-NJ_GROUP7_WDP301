@@ -1,17 +1,26 @@
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import Review from '../models/Review.js';
+import Booking from '../models/Booking.js';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 
 // @desc    Get all reviews
-// @route   GET /api/v1/reviews
+// @route   GET /api/v1/reviews?hotelId=xxx
 // @access  Public
 const getReviews = catchAsync(async (req, res) => {
-	const reviews = await Review.find()
+	const filter = {};
+	if (req.query.hotelId) {
+		filter.hotelId = req.query.hotelId;
+	}
+	
+	const reviews = await Review.find(filter)
 		.populate('hotelId', 'name')
-		.populate('userId', 'fullName');
+		.populate('userId', 'fullName email')
+		.sort({ createdAt: -1 });
+		
 	res.status(HttpStatus.OK).json({
 		success: true,
+		count: reviews.length,
 		data: reviews,
 	});
 });
@@ -37,8 +46,35 @@ const getReviewById = catchAsync(async (req, res, next) => {
 // @desc    Create a review
 // @route   POST /api/v1/reviews
 // @access  Private
-const createReview = catchAsync(async (req, res) => {
+const createReview = catchAsync(async (req, res, next) => {
 	const { hotelId, userId, reviewText, rating } = req.body;
+
+	// Check if user has a confirmed booking for this hotel
+	const booking = await Booking.findOne({
+		userId,
+		hotelId,
+		status: 'confirmed',
+	});
+
+	if (!booking) {
+		return next(
+			new AppError(
+				HttpStatus.FORBIDDEN,
+				'You can only review hotels that you have booked',
+			),
+		);
+	}
+
+	// Check if user has already reviewed this hotel
+	const existingReview = await Review.findOne({ userId, hotelId });
+	if (existingReview) {
+		return next(
+			new AppError(
+				HttpStatus.CONFLICT,
+				'You have already reviewed this hotel',
+			),
+		);
+	}
 
 	const review = new Review({
 		hotelId,
@@ -48,6 +84,11 @@ const createReview = catchAsync(async (req, res) => {
 	});
 
 	const createdReview = await review.save();
+	
+	// Populate the created review before sending response
+	await createdReview.populate('userId', 'fullName email');
+	await createdReview.populate('hotelId', 'name');
+	
 	res.status(HttpStatus.CREATED).json({
 		success: true,
 		data: createdReview,

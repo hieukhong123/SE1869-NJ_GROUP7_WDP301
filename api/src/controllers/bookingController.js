@@ -74,3 +74,54 @@ export const deleteBooking = catchAsync(async (req, res, next) => {
 		message: 'Booking deleted successfully',
 	});
 });
+
+// @desc    Get bookings for a specific user
+// @route   GET /api/v1/bookings/user/:userId
+// @access  Public (user accesses their own bookings)
+export const getUserBookings = catchAsync(async (req, res, next) => {
+	const { userId } = req.params;
+
+	const bookings = await Booking.find({ userId })
+		.populate('hotelId', 'name location image')
+		.populate('roomIds', 'name pricePerNight')
+		.populate('extraIds', 'name price')
+		.sort({ createdAt: -1 });
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		count: bookings.length,
+		data: bookings,
+	});
+});
+
+// @desc    Cancel a booking
+// @route   PUT /api/v1/bookings/:id/cancel
+// @access  Public (user can cancel their own booking)
+export const cancelBooking = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+
+	const booking = await Booking.findById(id);
+
+	if (!booking) {
+		return next(
+			new AppError(HttpStatus.NOT_FOUND, 'Booking not found with that ID')
+		);
+	}
+
+	// Check if booking is already cancelled
+	if (booking.status === 'cancelled') {
+		return next(
+			new AppError(HttpStatus.BAD_REQUEST, 'Booking is already cancelled')
+		);
+	}
+
+	// Update status to cancelled
+	booking.status = 'cancelled';
+	await booking.save();
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Booking cancelled successfully',
+		data: booking,
+	});
+});

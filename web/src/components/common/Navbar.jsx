@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { UserCircle, SignOut } from '@phosphor-icons/react';
+import { UserCircleIcon, SignOutIcon, ReceiptIcon } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const Navbar = () => {
@@ -96,7 +96,16 @@ const Navbar = () => {
 						<a className="font-medium">Promotion</a>
 					</li>
 					<li>
-						<a className="font-medium">Contact</a>
+						<NavLink
+							to="/contact"
+							className={({ isActive }) =>
+								isActive
+									? 'font-medium text-warning'
+									: 'font-medium'
+							}
+						>
+							Contact
+						</NavLink>
 					</li>
 				</ul>
 			</div>
@@ -110,7 +119,7 @@ const Navbar = () => {
 								role="button"
 								className="btn btn-ghost btn-sm gap-2"
 							>
-								<UserCircle size={24} weight="fill" className="text-warning" />
+								<UserCircleIcon size={24} weight="fill" className="text-warning" />
 								<span className="hidden md:inline font-medium">
 									{user.userName || user.fullName || 'User'}
 								</span>
@@ -125,13 +134,16 @@ const Navbar = () => {
 									</span>
 								</li>
 								<li>
-									<a className="text-sm">
-										<UserCircle size={18} />
+									<Link to="/profile" className="text-sm">
+										<UserCircleIcon size={18} />
 										Profile
-									</a>
+									</Link>
 								</li>
 								<li>
-									<a className="text-sm">My Bookings</a>
+									<Link to="/my-bookings" className="text-sm">
+										<ReceiptIcon size={18} />
+										My Bookings
+									</Link>
 								</li>
 								<div className="divider my-0"></div>
 								<li>
@@ -139,7 +151,7 @@ const Navbar = () => {
 										onClick={handleLogout}
 										className="text-sm text-error hover:bg-error/10"
 									>
-										<SignOut size={18} />
+										<SignOutIcon size={18} />
 										Logout
 									</a>
 								</li>

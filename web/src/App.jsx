@@ -19,6 +19,9 @@ import PaymentList from './pages/admin/PaymentList';
 import RefundList from './pages/admin/RefundList';
 import HomePage from './pages/public/HomePage';
 import Location from './pages/public/Location';
+import Contact from './pages/public/Contact';
+import Profile from './pages/public/Profile';
+import MyBookings from './pages/public/MyBookings';
 import Register from './pages/public/Register';
 import Login from './pages/public/Login';
 import ForgotPassword from './pages/public/ForgotPassword';
@@ -34,18 +37,26 @@ function App() {
 				<Route path="/" element={<PublicLayout />}>
 					<Route index element={<HomePage />} />
 				<Route path="location" element={<Location />} />
-					<Route path="reset-password" element={<ResetPassword />} />
-				</Route>
+				<Route path="contact" element={<Contact />} />
+				<Route path="profile" element={<Profile />} />
+				<Route path="my-bookings" element={<MyBookings />} />
+			</Route>
 
-				{/* Admin Routes */}
-				<Route path="/admin" element={<AdminLayout />}>
-					<Route
-						index
-						element={<Navigate to="/admin/dashboard" replace />}
-					/>
-					<Route path="dashboard" element={<Dashboard />} />
+			{/* Auth Routes (without layout) */}
+			<Route path="/register" element={<Register />} />
+			<Route path="/login" element={<Login />} />
+			<Route path="/forgot-password" element={<ForgotPassword />} />
+			<Route path="/reset-password" element={<ResetPassword />} />
 
-					<Route path="bookings" element={<BookingList />} />
+			{/* Admin Routes */}
+			<Route path="/admin" element={<AdminLayout />}>
+				<Route
+					index
+					element={<Navigate to="/admin/dashboard" replace />}
+				/>
+				<Route path="dashboard" element={<Dashboard />} />
+
+				<Route path="bookings" element={<BookingList />} />
 					<Route
 						path="bookings/:id/view"
 						element={<BookingDetails />}

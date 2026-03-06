@@ -10,7 +10,7 @@ export const getRooms = catchAsync(async (req, res, next) => {
 		filter.hotelId = req.query.hotelId;
 	}
 
-	const rooms = await RoomCategory.find(filter).populate('hotelId', 'name city');
+	const rooms = await RoomCategory.find(filter).populate('hotelId', 'name city photos');
 
 	res.status(HttpStatus.OK).json({
 		success: true,

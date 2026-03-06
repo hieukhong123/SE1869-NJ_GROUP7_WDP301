@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import axiosClient from '../../services/axiosClient';
-import { UserCircle } from '@phosphor-icons/react';
+import { UserCircleIcon } from '@phosphor-icons/react';
 
 const Login = () => {
 	const navigate = useNavigate();
@@ -130,7 +130,7 @@ const Login = () => {
 							{/* Icon */}
 							<div className="flex justify-center mb-6">
 								<div className="bg-white rounded-full p-4">
-									<UserCircle size={64} weight="fill" className="text-warning" />
+									<UserCircleIcon size={64} weight="fill" className="text-warning" />
 								</div>
 							</div>
 

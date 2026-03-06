@@ -1,11 +1,34 @@
 import Booking from '../models/Booking.js';
+import RoomCategory from '../models/RoomCategory.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import AppError from '../utils/AppError.js';
 
 export const createBooking = catchAsync(async (req, res, next) => {
+	const { roomIds } = req.body;
+
+	// Check if all requested rooms are available
+	for (const roomId of roomIds) {
+		const room = await RoomCategory.findById(roomId);
+		if (!room || room.quantity <= 0 || room.status === 'unavailable') {
+			return next(new AppError(HttpStatus.BAD_REQUEST, `Room ${room?.roomName || roomId} is no longer available`));
+		}
+	}
+
 	const newBooking = await Booking.create(req.body);
 	
+	// Decrement quantity for each room
+	for (const roomId of roomIds) {
+		const room = await RoomCategory.findById(roomId);
+		if (room) {
+			room.quantity -= 1;
+			if (room.quantity === 0) {
+				room.status = 'unavailable';
+			}
+			await room.save();
+		}
+	}
+
 	const booking = await Booking.findById(newBooking._id)
 		.populate('hotelId', 'name')
 		.populate('roomIds', 'roomName roomPrice')
@@ -76,13 +99,27 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 
 export const deleteBooking = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const booking = await Booking.findByIdAndDelete(id);
+	const booking = await Booking.findById(id);
 
 	if (!booking) {
 		return next(
 			new AppError(HttpStatus.NOT_FOUND, 'Booking not found with that ID')
 		);
 	}
+
+	// If booking was not cancelled, increment room quantities back
+	if (booking.status !== 'cancelled') {
+		for (const roomId of booking.roomIds) {
+			const room = await RoomCategory.findById(roomId);
+			if (room) {
+				room.quantity += 1;
+				room.status = 'available';
+				await room.save();
+			}
+		}
+	}
+
+	await Booking.findByIdAndDelete(id);
 
 	res.status(HttpStatus.OK).json({
 		success: true,
@@ -133,6 +170,16 @@ export const cancelBooking = catchAsync(async (req, res, next) => {
 	// Update status to cancelled
 	booking.status = 'cancelled';
 	await booking.save();
+
+	// Increment quantity for each room back
+	for (const roomId of booking.roomIds) {
+		const room = await RoomCategory.findById(roomId);
+		if (room) {
+			room.quantity += 1;
+			room.status = 'available'; // Ensure it's available if we add back quantity
+			await room.save();
+		}
+	}
 
 	res.status(HttpStatus.OK).json({
 		success: true,

@@ -5,29 +5,58 @@ import { catchAsync } from '../middlewares/errorMiddleware.js';
 import AppError from '../utils/AppError.js';
 
 export const createBooking = catchAsync(async (req, res, next) => {
-	const { roomIds } = req.body;
+	const { roomIds, checkIn, checkOut } = req.body;
+	const start = new Date(checkIn);
+	const end = new Date(checkOut);
 
-	// Check if all requested rooms are available
-	for (const roomId of roomIds) {
+	// Group requested rooms to check availability for each category
+	const requestedRoomCounts = {};
+	roomIds.forEach((id) => {
+		requestedRoomCounts[id] = (requestedRoomCounts[id] || 0) + 1;
+	});
+
+	// Check availability for each unique room category in the requested date range
+	for (const [roomId, count] of Object.entries(requestedRoomCounts)) {
 		const room = await RoomCategory.findById(roomId);
-		if (!room || room.quantity <= 0 || room.status === 'unavailable') {
-			return next(new AppError(HttpStatus.BAD_REQUEST, `Room ${room?.roomName || roomId} is no longer available`));
+		if (!room || room.status === 'unavailable') {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					`Room category is no longer available`,
+				),
+			);
+		}
+
+		// Find existing bookings that overlap with this range
+		const overlappingBookings = await Booking.find({
+			roomIds: roomId,
+			status: { $ne: 'cancelled' },
+			$or: [
+				{ checkIn: { $lt: end, $gte: start } },
+				{ checkOut: { $gt: start, $lte: end } },
+				{ checkIn: { $lte: start }, checkOut: { $gte: end } },
+			],
+		});
+
+		let bookedCount = 0;
+		overlappingBookings.forEach((booking) => {
+			const countInBooking = booking.roomIds.filter(
+				(id) => id.toString() === roomId,
+			).length;
+			bookedCount += countInBooking;
+		});
+
+		if (bookedCount + count > room.quantity) {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					`Not enough rooms available for ${room.roomName} during these dates.`,
+				),
+			);
 		}
 	}
 
 	const newBooking = await Booking.create(req.body);
-	
-	// Decrement quantity for each room
-	for (const roomId of roomIds) {
-		const room = await RoomCategory.findById(roomId);
-		if (room) {
-			room.quantity -= 1;
-			if (room.quantity === 0) {
-				room.status = 'unavailable';
-			}
-			await room.save();
-		}
-	}
 
 	const booking = await Booking.findById(newBooking._id)
 		.populate('hotelId', 'name')
@@ -64,7 +93,10 @@ export const getBookingById = catchAsync(async (req, res, next) => {
 
 	if (!booking) {
 		return next(
-			new AppError(HttpStatus.NOT_FOUND, 'Booking not found with that ID')
+			new AppError(
+				HttpStatus.NOT_FOUND,
+				'Booking not found with that ID',
+			),
 		);
 	}
 
@@ -81,12 +113,15 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 	const updatedBooking = await Booking.findByIdAndUpdate(
 		id,
 		{ status },
-		{ new: true, runValidators: true }
+		{ new: true, runValidators: true },
 	);
 
 	if (!updatedBooking) {
 		return next(
-			new AppError(HttpStatus.NOT_FOUND, 'Booking not found with that ID')
+			new AppError(
+				HttpStatus.NOT_FOUND,
+				'Booking not found with that ID',
+			),
 		);
 	}
 
@@ -99,27 +134,16 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 
 export const deleteBooking = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const booking = await Booking.findById(id);
+	const booking = await Booking.findByIdAndDelete(id);
 
 	if (!booking) {
 		return next(
-			new AppError(HttpStatus.NOT_FOUND, 'Booking not found with that ID')
+			new AppError(
+				HttpStatus.NOT_FOUND,
+				'Booking not found with that ID',
+			),
 		);
 	}
-
-	// If booking was not cancelled, increment room quantities back
-	if (booking.status !== 'cancelled') {
-		for (const roomId of booking.roomIds) {
-			const room = await RoomCategory.findById(roomId);
-			if (room) {
-				room.quantity += 1;
-				room.status = 'available';
-				await room.save();
-			}
-		}
-	}
-
-	await Booking.findByIdAndDelete(id);
 
 	res.status(HttpStatus.OK).json({
 		success: true,
@@ -156,30 +180,26 @@ export const cancelBooking = catchAsync(async (req, res, next) => {
 
 	if (!booking) {
 		return next(
-			new AppError(HttpStatus.NOT_FOUND, 'Booking not found with that ID')
+			new AppError(
+				HttpStatus.NOT_FOUND,
+				'Booking not found with that ID',
+			),
 		);
 	}
 
 	// Check if booking is already cancelled
 	if (booking.status === 'cancelled') {
 		return next(
-			new AppError(HttpStatus.BAD_REQUEST, 'Booking is already cancelled')
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Booking is already cancelled',
+			),
 		);
 	}
 
 	// Update status to cancelled
 	booking.status = 'cancelled';
 	await booking.save();
-
-	// Increment quantity for each room back
-	for (const roomId of booking.roomIds) {
-		const room = await RoomCategory.findById(roomId);
-		if (room) {
-			room.quantity += 1;
-			room.status = 'available'; // Ensure it's available if we add back quantity
-			await room.save();
-		}
-	}
 
 	res.status(HttpStatus.OK).json({
 		success: true,

@@ -1,21 +1,66 @@
 import RoomCategory from '../models/RoomCategory.js';
 import Hotel from '../models/Hotel.js';
+import Booking from '../models/Booking.js';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 
 export const getRooms = catchAsync(async (req, res, next) => {
+	const { hotelId, checkIn, checkOut } = req.query;
 	const filter = {};
-	if (req.query.hotelId) {
-		filter.hotelId = req.query.hotelId;
+	if (hotelId) {
+		filter.hotelId = hotelId;
 	}
 
-	const rooms = await RoomCategory.find(filter).populate('hotelId', 'name city photos');
+	const rooms = await RoomCategory.find(filter).populate(
+		'hotelId',
+		'name city photos',
+	);
+
+	// If dates are provided, calculate actual availability
+	let roomsWithAvailability = rooms.map((room) => ({
+		...room.toObject(),
+		availableQuantity: room.quantity,
+	}));
+
+	if (checkIn && checkOut) {
+		const start = new Date(checkIn);
+		const end = new Date(checkOut);
+
+		for (let i = 0; i < roomsWithAvailability.length; i++) {
+			const room = roomsWithAvailability[i];
+
+			// Find bookings that overlap with requested range for this specific room category
+			const overlappingBookings = await Booking.find({
+				roomIds: room._id,
+				status: { $ne: 'cancelled' },
+				$or: [
+					{ checkIn: { $lt: end, $gte: start } },
+					{ checkOut: { $gt: start, $lte: end } },
+					{ checkIn: { $lte: start }, checkOut: { $gte: end } },
+				],
+			});
+
+			// Count how many of this room type are booked in each overlapping booking
+			let bookedCount = 0;
+			overlappingBookings.forEach((booking) => {
+				const countInBooking = booking.roomIds.filter(
+					(id) => id.toString() === room._id.toString(),
+				).length;
+				bookedCount += countInBooking;
+			});
+
+			roomsWithAvailability[i].availableQuantity = Math.max(
+				0,
+				room.quantity - bookedCount,
+			);
+		}
+	}
 
 	res.status(HttpStatus.OK).json({
 		success: true,
-		count: rooms.length,
-		data: rooms,
+		count: roomsWithAvailability.length,
+		data: roomsWithAvailability,
 	});
 });
 

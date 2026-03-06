@@ -33,7 +33,7 @@ const RoomCatalog = () => {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [searchParams.get("checkIn"), searchParams.get("checkOut")]); // Refetch when dates change
 
     // Sync state with URL changes
     useEffect(() => {
@@ -48,9 +48,14 @@ const RoomCatalog = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
+            const dateParams = {};
+            if (checkIn) dateParams.checkIn = checkIn;
+            if (checkOut) dateParams.checkOut = checkOut;
+            const queryStr = new URLSearchParams(dateParams).toString();
+
             const [hotelsResponse, roomsResponse] = await Promise.all([
                 axiosClient.get("/hotels"),
-                axiosClient.get("/rooms")
+                axiosClient.get(`/rooms?${queryStr}`)
             ]);
             setAllHotels(hotelsResponse.data || []);
             setRooms(roomsResponse.data || []);
@@ -80,7 +85,6 @@ const RoomCatalog = () => {
 
     // Group rooms by Hotel and apply search requirements
     const displayedHotels = useMemo(() => {
-        // 1. Group rooms by hotelId
         const hotelsMap = {};
         
         rooms.forEach(room => {
@@ -97,16 +101,18 @@ const RoomCatalog = () => {
                 }
             }
             
-            if (hotelsMap[hotelId] && room.status === "available" && room.quantity > 0) {
+            // Use availableQuantity from backend (which accounts for dates)
+            const available = room.availableQuantity !== undefined ? room.availableQuantity : room.quantity;
+
+            if (hotelsMap[hotelId] && room.status === "available" && available > 0) {
                 hotelsMap[hotelId].rooms.push(room);
-                hotelsMap[hotelId].totalAvailableQuantity += room.quantity;
+                hotelsMap[hotelId].totalAvailableQuantity += available;
                 if (room.roomPrice < hotelsMap[hotelId].minPrice) {
                     hotelsMap[hotelId].minPrice = room.roomPrice;
                 }
             }
         });
 
-        // 2. Filter hotels based on criteria
         let result = Object.values(hotelsMap).filter(hotel => {
             const matchesSearch = searchQuery === "" ||
                 hotel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -115,14 +121,11 @@ const RoomCatalog = () => {
             const matchesCity = !selectedCity || hotel.city === selectedCity;
             const matchesHotelFilter = !selectedHotel || hotel._id === selectedHotel;
             const matchesPrice = hotel.minPrice <= priceRange;
-            
-            // Critical: Hotel must have enough rooms to accommodate guests (max 2 per room)
             const hasEnoughRooms = hotel.totalAvailableQuantity >= roomsNeeded;
 
             return matchesSearch && matchesCity && matchesHotelFilter && matchesPrice && hasEnoughRooms;
         });
 
-        // 3. Apply Sorting
         if (sortBy === "Lowest Price First") {
             result.sort((a, b) => a.minPrice - b.minPrice);
         } else if (sortBy === "Highest Price First") {

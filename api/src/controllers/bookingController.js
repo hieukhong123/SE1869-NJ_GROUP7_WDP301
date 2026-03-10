@@ -4,10 +4,17 @@ import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import AppError from '../utils/AppError.js';
 
+// Helper to normalize date to start of day (midnight) in local time
+const normalizeDate = (dateStr) => {
+	const d = new Date(dateStr);
+	d.setHours(0, 0, 0, 0);
+	return d;
+};
+
 export const createBooking = catchAsync(async (req, res, next) => {
 	const { roomIds, checkIn, checkOut } = req.body;
-	const start = new Date(checkIn);
-	const end = new Date(checkOut);
+	const start = normalizeDate(checkIn);
+	const end = normalizeDate(checkOut);
 
 	// Group requested rooms to check availability for each category
 	const requestedRoomCounts = {};
@@ -31,11 +38,8 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		const overlappingBookings = await Booking.find({
 			roomIds: roomId,
 			status: { $ne: 'cancelled' },
-			$or: [
-				{ checkIn: { $lt: end, $gte: start } },
-				{ checkOut: { $gt: start, $lte: end } },
-				{ checkIn: { $lte: start }, checkOut: { $gte: end } },
-			],
+			checkIn: { $lt: end },
+			checkOut: { $gt: start }
 		});
 
 		let bookedCount = 0;
@@ -56,7 +60,11 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		}
 	}
 
-	const newBooking = await Booking.create(req.body);
+	const newBooking = await Booking.create({
+		...req.body,
+		checkIn: start,
+		checkOut: end
+	});
 
 	const booking = await Booking.findById(newBooking._id)
 		.populate('hotelId', 'name')
@@ -158,9 +166,9 @@ export const getUserBookings = catchAsync(async (req, res, next) => {
 	const { userId } = req.params;
 
 	const bookings = await Booking.find({ userId })
-		.populate('hotelId', 'name location image')
-		.populate('roomIds', 'name pricePerNight')
-		.populate('extraIds', 'name price')
+		.populate('hotelId', 'name location image city photos')
+		.populate('roomIds', 'roomName roomPrice')
+		.populate('extraIds', 'extraName extraPrice')
 		.sort({ createdAt: -1 });
 
 	res.status(HttpStatus.OK).json({

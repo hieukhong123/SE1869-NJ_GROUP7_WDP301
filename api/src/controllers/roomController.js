@@ -5,6 +5,13 @@ import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 
+// Helper to normalize date to start of day (midnight) in local time
+const normalizeDate = (dateStr) => {
+	const d = new Date(dateStr);
+	d.setHours(0, 0, 0, 0);
+	return d;
+};
+
 export const getRooms = catchAsync(async (req, res, next) => {
 	const { hotelId, checkIn, checkOut } = req.query;
 	const filter = {};
@@ -24,8 +31,8 @@ export const getRooms = catchAsync(async (req, res, next) => {
 	}));
 
 	if (checkIn && checkOut) {
-		const start = new Date(checkIn);
-		const end = new Date(checkOut);
+		const start = normalizeDate(checkIn);
+		const end = normalizeDate(checkOut);
 
 		for (let i = 0; i < roomsWithAvailability.length; i++) {
 			const room = roomsWithAvailability[i];
@@ -34,11 +41,8 @@ export const getRooms = catchAsync(async (req, res, next) => {
 			const overlappingBookings = await Booking.find({
 				roomIds: room._id,
 				status: { $ne: 'cancelled' },
-				$or: [
-					{ checkIn: { $lt: end, $gte: start } },
-					{ checkOut: { $gt: start, $lte: end } },
-					{ checkIn: { $lte: start }, checkOut: { $gte: end } },
-				],
+				checkIn: { $lt: end },
+				checkOut: { $gt: start }
 			});
 
 			// Count how many of this room type are booked in each overlapping booking

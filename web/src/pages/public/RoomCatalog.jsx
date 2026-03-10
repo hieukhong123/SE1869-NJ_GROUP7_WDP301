@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axiosClient from "../../services/axiosClient";
 import {
@@ -9,7 +9,8 @@ import {
     MagnifyingGlassIcon,
     CheckCircleIcon,
     FunnelIcon,
-    CalendarIcon
+    CalendarIcon,
+    InfoIcon
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
@@ -31,21 +32,7 @@ const RoomCatalog = () => {
 
     const navigate = useNavigate();
 
-    useEffect(() => {
-        fetchData();
-    }, [searchParams.get("checkIn"), searchParams.get("checkOut")]); // Refetch when dates change
-
-    // Sync state with URL changes
-    useEffect(() => {
-        setSelectedCity(searchParams.get("city") || "");
-        setSelectedHotel(searchParams.get("hotelId") || "");
-        setSearchQuery(searchParams.get("query") || "");
-        setCheckIn(searchParams.get("checkIn") || "");
-        setCheckOut(searchParams.get("checkOut") || "");
-        setGuests(parseInt(searchParams.get("guests")) || 2);
-    }, [searchParams]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             setLoading(true);
             const dateParams = {};
@@ -65,7 +52,11 @@ const RoomCatalog = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [checkIn, checkOut]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]); // Refetch when fetchData changes (which depends on dates)
 
     const cities = [...new Set(allHotels.map(hotel => hotel.city).filter(Boolean))];
 
@@ -154,67 +145,67 @@ const RoomCatalog = () => {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-base-200/50">
             {/* Top Search Bar */}
-            <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm py-4">
+            <div className="bg-base-100 border-b border-base-300 sticky top-0 z-20 shadow-sm py-4">
                 <div className="container mx-auto px-4 max-w-7xl">
                     <div className="flex flex-wrap gap-3 items-end">
-                        <div className="flex-1 min-w-[200px] relative">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Destination</label>
+                        <div className="flex-1 min-w-50 relative">
+                            <label className="text-[10px] font-black text-base-content/60 uppercase ml-1 tracking-widest">Destination</label>
                             <div className="relative mt-1">
                                 <input
                                     type="text"
                                     placeholder="Hotel or city"
-                                    className="input input-bordered input-sm w-full pl-10 focus:outline-primary"
+                                    className="input input-bordered input-sm w-full pl-10 focus:outline-primary bg-base-200/50 border-none"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
-                                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none" size={18} />
                             </div>
                         </div>
                         
                         <div className="w-full md:w-32">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Check-in</label>
+                            <label className="text-[10px] font-black text-base-content/60 uppercase ml-1 tracking-widest">Check-in</label>
                             <div className="relative mt-1">
                                 <input
                                     type="date"
-                                    className="input input-bordered input-sm w-full pl-9 focus:outline-primary"
+                                    className="input input-bordered input-sm w-full pl-9 focus:outline-primary bg-base-200/50 border-none"
                                     value={checkIn}
                                     onChange={(e) => setCheckIn(e.target.value)}
                                 />
-                                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none" size={16} />
                             </div>
                         </div>
 
                         <div className="w-full md:w-32">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Check-out</label>
+                            <label className="text-[10px] font-black text-base-content/60 uppercase ml-1 tracking-widest">Check-out</label>
                             <div className="relative mt-1">
                                 <input
                                     type="date"
-                                    className="input input-bordered input-sm w-full pl-9 focus:outline-primary"
+                                    className="input input-bordered input-sm w-full pl-9 focus:outline-primary bg-base-200/50 border-none"
                                     value={checkOut}
                                     onChange={(e) => setCheckOut(e.target.value)}
                                 />
-                                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none" size={16} />
                             </div>
                         </div>
 
                         <div className="w-full md:w-24">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Guests</label>
+                            <label className="text-[10px] font-black text-base-content/60 uppercase ml-1 tracking-widest">Guests</label>
                             <div className="relative mt-1">
                                 <input
                                     type="number"
                                     min="1"
-                                    className="input input-bordered input-sm w-full pl-9 focus:outline-primary"
+                                    className="input input-bordered input-sm w-full pl-9 focus:outline-primary bg-base-200/50 border-none"
                                     value={guests}
                                     onChange={(e) => setGuests(parseInt(e.target.value))}
                                 />
-                                <UsersIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                <UsersIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none" size={16} />
                             </div>
                         </div>
 
                         <button 
-                            className="btn btn-primary btn-sm px-6 font-bold"
+                            className="btn btn-primary btn-sm px-8 font-black uppercase tracking-widest shadow-lg shadow-primary/20"
                             onClick={handleSearchClick}
                         >
                             SEARCH
@@ -223,24 +214,28 @@ const RoomCatalog = () => {
                 </div>
             </div>
 
-            <div className="container mx-auto px-4 max-w-7xl py-6">
-                <div className="flex flex-col lg:flex-row gap-6">
+            <div className="container mx-auto px-4 max-w-7xl py-8">
+                <div className="flex flex-col lg:flex-row gap-8">
                     {/* Sidebar Filters */}
-                    <aside className="w-full lg:w-72 shrink-0 space-y-4">
-                        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-                            <div className="flex items-center gap-2 mb-4">
-                                <FunnelIcon size={18} weight="bold" />
-                                <span className="font-bold">Requirement</span>
-                            </div>
-                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                                <p className="text-xs text-blue-800 font-medium">
-                                    Booking for {guests} travelers requires at least {roomsNeeded} rooms (Max 2 guests per room).
-                                </p>
+                    <aside className="w-full lg:w-72 shrink-0 space-y-6">
+                        <div className="bg-base-100 rounded-2xl shadow-xl border border-base-300 p-6">
+                            <div className="flex items-center gap-2 mb-6">
+                                <FunnelIcon size={20} weight="bold" className="text-primary" />
+                                <span className="font-black uppercase tracking-widest text-sm">Filters</span>
                             </div>
                             
-                            <div className="mt-6 space-y-6">
+                            <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 mb-8">
+                                <div className="flex items-start gap-3">
+                                    <InfoIcon size={20} className="text-primary shrink-0" />
+                                    <p className="text-[11px] text-primary/80 font-bold uppercase leading-relaxed">
+                                        Booking for {guests} travelers requires {roomsNeeded} rooms.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-8">
                                 <div>
-                                    <h3 className="font-bold text-sm mb-4">Max Price: ${priceRange}</h3>
+                                    <h3 className="font-black text-[10px] uppercase tracking-widest text-base-content/40 mb-4">Max Price: ${priceRange}</h3>
                                     <input 
                                         type="range" 
                                         min="0" 
@@ -253,17 +248,17 @@ const RoomCatalog = () => {
                                 </div>
 
                                 <div>
-                                    <h3 className="font-bold text-sm mb-3">Popular Cities</h3>
-                                    <div className="space-y-2">
-                                        {cities.slice(0, 5).map(city => (
-                                            <label key={city} className="flex items-center gap-2 cursor-pointer hover:text-primary">
+                                    <h3 className="font-black text-[10px] uppercase tracking-widest text-base-content/40 mb-4">Cities</h3>
+                                    <div className="space-y-3">
+                                        {cities.slice(0, 8).map(city => (
+                                            <label key={city} className="flex items-center gap-3 cursor-pointer group">
                                                 <input 
                                                     type="checkbox" 
-                                                    className="checkbox checkbox-sm checkbox-primary"
+                                                    className="checkbox checkbox-sm checkbox-primary rounded-lg"
                                                     checked={selectedCity === city}
                                                     onChange={() => setSelectedCity(selectedCity === city ? "" : city)}
                                                 />
-                                                <span className="text-sm">{city}</span>
+                                                <span className="text-sm font-bold opacity-70 group-hover:opacity-100 transition-opacity">{city}</span>
                                             </label>
                                         ))}
                                     </div>
@@ -274,10 +269,12 @@ const RoomCatalog = () => {
 
                     {/* Main Results Area */}
                     <main className="flex-1">
-                        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-4 flex justify-between items-center">
-                            <h2 className="text-xl font-bold">{displayedHotels.length} hotels found</h2>
+                        <div className="bg-base-100 rounded-2xl shadow-xl border border-base-300 p-4 mb-6 flex justify-between items-center">
+                            <h2 className="text-lg font-black tracking-tight uppercase ml-2">
+                                {displayedHotels.length} hotels found
+                            </h2>
                             <select 
-                                className="select select-sm select-ghost font-bold"
+                                className="select select-sm font-black bg-base-200/50 border-none rounded-xl"
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value)}
                             >
@@ -289,78 +286,83 @@ const RoomCatalog = () => {
                         </div>
 
                         {displayedHotels.length === 0 ? (
-                            <div className="bg-white rounded-lg shadow-sm border border-slate-200 py-20 text-center">
-                                <BedIcon size={64} weight="thin" className="mx-auto text-slate-300 mb-4" />
-                                <h3 className="text-2xl font-bold text-slate-400">No hotels available</h3>
-                                <p className="text-slate-500 mt-2">Try reducing guests or changing dates.</p>
+                            <div className="bg-base-100 rounded-3xl shadow-xl border border-base-300 py-32 text-center">
+                                <div className="w-20 h-20 bg-base-200 rounded-3xl flex items-center justify-center mx-auto mb-6 text-base-content/20">
+                                    <BedIcon size={40} weight="duotone" />
+                                </div>
+                                <h3 className="text-2xl font-black uppercase tracking-tight mb-2">No hotels available</h3>
+                                <p className="text-base-content/40 font-medium max-w-xs mx-auto">Try adjusting your filters or changing your travel dates.</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 {displayedHotels.map((hotel) => (
                                     <div
                                         key={hotel._id}
-                                        className="bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col md:flex-row overflow-hidden hover:border-primary transition-colors group cursor-pointer"
+                                        className="bg-base-100 rounded-3xl shadow-xl border border-base-300 flex flex-col md:flex-row overflow-hidden hover:border-primary/30 transition-all duration-500 group cursor-pointer"
                                         onClick={() => handleViewHotel(hotel._id)}
                                     >
                                         {/* Hotel Image */}
-                                        <div className="w-full md:w-72 h-56 md:h-auto relative overflow-hidden shrink-0">
+                                        <div className="w-full md:w-80 h-64 md:h-auto relative overflow-hidden shrink-0">
                                             <img
                                                 src={hotel.photos?.[0] || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500"}
                                                 alt={hotel.name}
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                             />
-                                            <div className="absolute top-2 left-2 flex flex-col gap-1">
-                                                <span className="bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded">ROOMERANG CHOICE</span>
+                                            <div className="absolute top-4 left-4">
+                                                <span className="bg-primary text-primary-content text-[10px] font-black px-3 py-1.5 rounded-xl shadow-lg uppercase tracking-widest">PRO CHOICE</span>
                                             </div>
                                         </div>
 
                                         {/* Hotel Content */}
-                                        <div className="flex-1 p-4 flex flex-col md:flex-row gap-4">
-                                            <div className="flex-1 space-y-2">
-                                                <h3 className="text-xl font-bold group-hover:text-primary transition-colors">{hotel.name}</h3>
-                                                <div className="flex items-center gap-1">
-                                                    <div className="flex text-orange-400">
-                                                        {[...Array(5)].map((_, i) => (
-                                                            <StarIcon key={i} size={14} weight={i < 4 ? "fill" : "regular"} />
-                                                        ))}
+                                        <div className="flex-1 p-6 md:p-8 flex flex-col md:flex-row gap-8">
+                                            <div className="flex-1 space-y-4">
+                                                <div>
+                                                    <h3 className="text-2xl font-black tracking-tight mb-2 group-hover:text-primary transition-colors">{hotel.name}</h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex text-warning">
+                                                            {[...Array(5)].map((_, i) => (
+                                                                <StarIcon key={i} size={14} weight={i < 4 ? "fill" : "regular"} />
+                                                            ))}
+                                                        </div>
+                                                        <span className="text-[10px] font-black text-base-content/30 uppercase tracking-tighter">• {hotel.city}</span>
                                                     </div>
-                                                    <span className="text-xs text-slate-500">• {hotel.city}</span>
                                                 </div>
-                                                <div className="flex items-center gap-2 text-primary text-sm font-semibold">
-                                                    <MapPinIcon size={16} />
+
+                                                <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
+                                                    <MapPinIcon size={18} weight="bold" />
                                                     <span className="line-clamp-1">{hotel.address}</span>
                                                 </div>
                                                 
-                                                <div className="flex flex-wrap gap-2 pt-2">
-                                                    <div className="flex items-center gap-1 text-[11px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded border border-emerald-100">
-                                                        <CheckCircleIcon size={14} weight="fill" />
+                                                <div className="flex flex-wrap gap-2 pt-4">
+                                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase bg-success/10 text-success px-3 py-1.5 rounded-xl border border-success/20">
+                                                        <CheckCircleIcon size={16} weight="fill" />
                                                         <span>FREE Cancellation</span>
                                                     </div>
-                                                    <div className="bg-blue-50 text-blue-700 text-[11px] px-2 py-1 rounded border border-blue-100">
+                                                    <div className="bg-primary/10 text-primary text-[10px] font-black uppercase px-3 py-1.5 rounded-xl border border-primary/20">
                                                         {hotel.totalAvailableQuantity} rooms left
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div className="md:w-48 md:border-l border-slate-100 md:pl-4 flex flex-col justify-between text-right">
-                                                <div className="flex justify-end gap-2 items-start">
+                                            <div className="md:w-56 md:border-l border-base-300 md:pl-8 flex flex-col justify-between text-right">
+                                                <div className="flex justify-end gap-3 items-start">
                                                     <div className="text-right">
-                                                        <p className="font-bold text-sm">Excellent</p>
-                                                        <p className="text-[10px] text-slate-500">{hotel.reviewCount || 0} reviews</p>
+                                                        <p className="font-black text-sm uppercase tracking-tight">Excellent</p>
+                                                        <p className="text-[10px] font-bold opacity-30 uppercase">{hotel.reviewCount || 0} reviews</p>
                                                     </div>
-                                                    <div className="bg-primary text-white font-bold h-10 w-10 rounded-tr-lg rounded-bl-lg rounded-br-sm flex items-center justify-center">
+                                                    <div className="bg-primary text-primary-content font-black h-12 w-12 rounded-2xl flex items-center justify-center text-lg shadow-xl shadow-primary/20">
                                                         {hotel.averageRating || "8.5"}
                                                     </div>
                                                 </div>
 
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500">Starts from</p>
+                                                <div className="mt-8">
+                                                    <p className="text-[10px] font-black text-base-content/30 uppercase tracking-widest mb-1">Starts from</p>
                                                     <div className="flex items-center justify-end gap-1 text-primary leading-none">
-                                                        <span className="text-xs font-bold">US$</span>
-                                                        <span className="text-2xl font-black">{hotel.minPrice}</span>
+                                                        <span className="text-sm font-black">$</span>
+                                                        <span className="text-4xl font-black tracking-tighter">{hotel.minPrice}</span>
                                                     </div>
                                                     <button 
-                                                        className="btn btn-primary btn-md w-full mt-4"
+                                                        className="btn btn-primary w-full mt-6 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/20"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             handleViewHotel(hotel._id);

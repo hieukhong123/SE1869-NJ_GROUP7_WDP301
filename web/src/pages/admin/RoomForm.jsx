@@ -95,7 +95,7 @@ const RoomForm = () => {
 			});
 			setRoomData((prevData) => ({
 				...prevData,
-				photo: response.data.url,
+				photo: response.url,
 			}));
 			toast.success('Image uploaded successfully!');
 		} catch (err) {

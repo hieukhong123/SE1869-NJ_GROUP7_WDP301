@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { MapPinIcon, HeartIcon, StarIcon, PhoneIcon, EnvelopeSimpleIcon, X, CaretRight } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import axiosClient from "../../services/axiosClient";
@@ -190,11 +191,10 @@ const HotelInfoCard = ({ hotel, reviews = [] }) => {
                 </div>
             </div>
 
-            {isModalOpen && (
+            {isModalOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-                    <div 
-                        className="bg-white w-full sm:w-[90vw] md:w-[80vw] max-w-5xl h-[90vh] sm:h-[85vh] rounded-t-2xl sm:rounded-sm flex flex-col overflow-hidden animate-slide-up"
-                    >
+                    <div className="bg-white w-full sm:w-[90vw] md:w-[80vw] max-w-5xl h-[90vh] sm:h-[85vh] rounded-t-2xl sm:rounded-sm flex flex-col overflow-hidden animate-slide-up">
+                        
                         {/* Modal Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white sticky top-0">
                             <div>
@@ -209,6 +209,7 @@ const HotelInfoCard = ({ hotel, reviews = [] }) => {
                             </button>
                         </div>
 
+                        {/* Modal Body */}
                         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50">
                             <div className="columns-1 sm:columns-2 md:columns-3 gap-4 space-y-4">
                                 {photos.map((photo, index) => (
@@ -223,8 +224,10 @@ const HotelInfoCard = ({ hotel, reviews = [] }) => {
                                 ))}
                             </div>
                         </div>
+
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </>
     );

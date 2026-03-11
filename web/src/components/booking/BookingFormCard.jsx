@@ -182,12 +182,12 @@ const BookingFormCard = ({
                                             {room.roomName}
                                         </p>
                                         <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-sm font-light text-gray-500">
+                                            <span className="text-sm font-light text-gray-500" translate="no">
                                                 ${room.roomPrice?.toLocaleString()} / night
                                             </span>
                                             <span className="text-gray-300">•</span>
                                             {room.availableQuantity > 0 ? (
-                                                <span className="text-[10px] uppercase tracking-wider text-green-600">
+                                                <span className="text-[10px] uppercase tracking-wider text-green-600" translate="no">
                                                     {room.availableQuantity} left
                                                 </span>
                                             ) : (
@@ -206,7 +206,7 @@ const BookingFormCard = ({
                                         >
                                             <CaretDown size={14} weight="bold" />
                                         </button>
-                                        <span className="w-8 text-center font-light text-gray-900">
+                                        <span className="w-8 text-center font-light text-gray-900" translate="no">
                                             {roomSelections[room._id] || 0}
                                         </span>
                                         <button
@@ -252,7 +252,7 @@ const BookingFormCard = ({
                                             {extra.extraName}
                                         </span>
                                     </div>
-                                    <span className="text-sm font-light text-gray-500">
+                                    <span className="text-sm font-light text-gray-500" translate="no">
                                         + ${extra.extraPrice}
                                     </span>
                                 </label>
@@ -268,7 +268,7 @@ const BookingFormCard = ({
                             Estimated Total
                         </span>
                         <div className="flex flex-col items-end">
-                            <span className="text-2xl md:text-3xl font-serif text-gray-900 tracking-wide">
+                            <span className="text-2xl md:text-3xl font-serif text-gray-900 tracking-wide" translate="no" key={totalAmount}>
                                 ${Number(totalAmount).toLocaleString()}
                             </span>
                             <span className="text-[10px] text-gray-400 font-light mt-1">Taxes & fees included</span>

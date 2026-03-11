@@ -12,6 +12,8 @@ import extraFeeRoute from './routes/extraFeeRouter.js';
 import reviewRoute from './routes/reviewRouter.js';
 import paymentRoute from './routes/paymentRouter.js';
 import refundRoute from './routes/refundRouter.js';
+import favoriteRoute from './routes/favoriteRouter.js';
+import contactRoute from './routes/contactRouter.js';
 import { globalErrorHandler } from './middlewares/errorMiddleware.js';
 import AppError from './utils/AppError.js';
 import { HttpStatus } from './utils/httpStatus.js';
@@ -58,6 +60,8 @@ app.use('/api/v1/extra-fees', extraFeeRoute);
 app.use('/api/v1/reviews', reviewRoute);
 app.use('/api/v1/payments', paymentRoute);
 app.use('/api/v1/refunds', refundRoute);
+app.use('/api/v1/favorites', favoriteRoute);
+app.use('/api/v1/contacts', contactRoute);
 app.get('/', (req, res) => {
 	res.status(200).json({ message: 'Server is running!' });
 });

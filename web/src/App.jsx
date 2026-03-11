@@ -20,6 +20,8 @@ import RefundList from './pages/admin/RefundList';
 import HomePage from './pages/public/HomePage';
 import Location from './pages/public/Location';
 import Contact from './pages/public/Contact';
+import AboutUs from './pages/public/AboutUs';
+import MyFavorites from './pages/public/MyFavorites';
 import Profile from './pages/public/Profile';
 import MyBookings from './pages/public/MyBookings';
 import HotelBooking from './pages/public/HotelBooking';
@@ -42,11 +44,12 @@ function App() {
 					<Route path="location" element={<Location />} />
 					<Route path="hotels/:id/book" element={<HotelBooking />} />
 					<Route path="rooms" element={<RoomCatalog />} />
-					<Route path="contact" element={<Contact />} />
-					<Route path="profile" element={<Profile />} />
-					<Route path="my-bookings" element={<MyBookings />} />
-					<Route path="payment/return" element={<PaymentReturn />} />
-				</Route>
+				<Route path="contact" element={<Contact />} />
+				<Route path="about" element={<AboutUs />} />
+				<Route path="my-favorites" element={<MyFavorites />} />
+				<Route path="profile" element={<Profile />} />
+				<Route path="my-bookings" element={<MyBookings />} />
+			</Route>
 
 			{/* Auth Routes (without layout) */}
 			<Route path="/register" element={<Register />} />

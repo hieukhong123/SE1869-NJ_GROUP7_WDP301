@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { UserCircleIcon, SignOutIcon, ReceiptIcon } from '@phosphor-icons/react';
+import { UserCircleIcon, SignOutIcon, ReceiptIcon, HeartIcon } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const Navbar = () => {
@@ -13,7 +13,8 @@ const Navbar = () => {
 			const storedUser = localStorage.getItem('user');
 			if (storedUser) {
 				try {
-					setUser(JSON.parse(storedUser));
+					const parsedUser = JSON.parse(storedUser);
+					setUser(parsedUser);
 				} catch (error) {
 					console.error('Error parsing user data:', error);
 					localStorage.removeItem('user');
@@ -102,7 +103,16 @@ const Navbar = () => {
 						</NavLink>
 					</li>
 					<li>
-						<a className="font-medium">Promotion</a>
+						<NavLink
+							to="/about"
+							className={({ isActive }) =>
+								isActive
+									? 'font-medium text-warning'
+									: 'font-medium'
+							}
+						>
+							About Us
+						</NavLink>
 					</li>
 					<li>
 						<NavLink
@@ -135,7 +145,7 @@ const Navbar = () => {
 							</div>
 							<ul
 								tabIndex={0}
-								className="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow-lg mt-2"
+								className="dropdown-content menu bg-base-100 rounded-box z-[1] w-72 p-2 shadow-lg mt-2 max-h-[500px] overflow-y-auto"
 							>
 								<li className="menu-title">
 									<span className="text-sm">
@@ -154,7 +164,14 @@ const Navbar = () => {
 										My Bookings
 									</Link>
 								</li>
-								<div className="divider my-0"></div>
+								<li>
+									<Link to="/my-favorites" className="text-sm">
+										<HeartIcon size={18} weight="fill" className="text-error" />
+										My Favorites
+									</Link>
+								</li>
+								
+								<div className="divider my-1"></div>
 								<li>
 									<a
 										onClick={handleLogout}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosClient from '../../services/axiosClient';
+import { toast } from 'sonner';
 
 const HotelForm = () => {
 	const { id } = useParams();
@@ -8,12 +9,17 @@ const HotelForm = () => {
 	const [hotel, setHotel] = useState({
 		name: '',
 		address: '',
+		city: '',
 		hotelPhone: '',
 		hotelEmail: '',
 		description: '',
+		photos: [],
 	});
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
+	const [selectedFile, setSelectedFile] = useState(null);
+	const [isUploading, setIsUploading] = useState(false);
+
 
 	useEffect(() => {
 		if (id) {
@@ -38,6 +44,49 @@ const HotelForm = () => {
 			...hotel,
 			[name]: value,
 		});
+	};
+
+	const handleFileChange = (e) => {
+		setSelectedFile(e.target.files[0]);
+	};
+
+	const handleUpload = async () => {
+		if (!selectedFile) {
+			toast.error('Please select a file to upload.');
+			return;
+		}
+
+		setIsUploading(true);
+		const formData = new FormData();
+		formData.append('image', selectedFile);
+
+		try {
+			const response = await axiosClient.post('/upload', formData, {
+				headers: {
+					'Content-Type': 'multipart/form-data',
+				},
+			});
+			setHotel((prevData) => ({
+				...prevData,
+				photos: [...(prevData.photos || []), response.data.url],
+			}));
+			setSelectedFile(null);
+			toast.success('Image uploaded successfully!');
+		} catch (err) {
+			toast.error(
+				'Image upload failed: ' +
+					(err.response?.data?.message || err.message),
+			);
+		} finally {
+			setIsUploading(false);
+		}
+	};
+
+	const handleRemovePhoto = (index) => {
+		setHotel((prevData) => ({
+			...prevData,
+			photos: prevData.photos.filter((_, i) => i !== index),
+		}));
 	};
 
 	const handleSubmit = async (e) => {
@@ -100,6 +149,19 @@ const HotelForm = () => {
 				</div>
 				<div className="mb-4">
 					<label className="label">
+						<span className="label-text">City</span>
+					</label>
+					<input
+						type="text"
+						name="city"
+						value={hotel.city || ''}
+						onChange={handleChange}
+						className="input input-bordered w-full"
+						required
+					/>
+				</div>
+				<div className="mb-4">
+					<label className="label">
 						<span className="label-text">Phone</span>
 					</label>
 					<input
@@ -135,11 +197,52 @@ const HotelForm = () => {
 						className="textarea textarea-bordered w-full"
 					></textarea>
 				</div>
+				
+				{/* Photo Upload */}
+				<div className="mb-4">
+					<label className="label">
+						<span className="label-text">Hotel Images</span>
+					</label>
+					<input
+						type="file"
+						className="file-input file-input-bordered w-full mb-2"
+						onChange={handleFileChange}
+					/>
+					<button
+						type="button"
+						onClick={handleUpload}
+						className="btn btn-secondary w-full"
+						disabled={!selectedFile || isUploading}
+					>
+						{isUploading ? 'Uploading...' : 'Upload Image'}
+					</button>
+					{hotel.photos && hotel.photos.length > 0 && (
+						<div className="mt-4 grid grid-cols-3 gap-4">
+							{hotel.photos.map((photo, index) => (
+								<div key={index} className="relative">
+									<img
+										src={photo}
+										alt={`Hotel ${index + 1}`}
+										className="w-full h-32 object-cover rounded-lg shadow-md"
+									/>
+									<button
+										type="button"
+										onClick={() => handleRemovePhoto(index)}
+										className="btn btn-xs btn-error absolute top-2 right-2"
+									>
+										×
+									</button>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+				
 				<div className="flex gap-2 mt-4">
 					<button
 						type="submit"
 						className="btn btn-primary"
-						disabled={loading}
+						disabled={loading || isUploading}
 					>
 						{loading ? 'Saving...' : 'Save'}
 					</button>

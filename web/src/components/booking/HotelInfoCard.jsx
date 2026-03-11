@@ -1,7 +1,12 @@
-import { useState } from "react";
-import { MapPinIcon, ImageIcon } from "@phosphor-icons/react";
+import { useState, useEffect } from "react";
+import { MapPinIcon, HeartIcon, ImageIcon } from "@phosphor-icons/react";
+import { toast } from "sonner";
+import axiosClient from "../../services/axiosClient";
 
 const HotelInfoCard = ({ hotel, reviews = [] }) => {
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [loading, setLoading] = useState(false);
+    
     const [activePhoto, setActivePhoto] = useState(0);
     
     const calculateAverageRating = () => {
@@ -10,49 +15,82 @@ const HotelInfoCard = ({ hotel, reviews = [] }) => {
         return (sum / reviews.length).toFixed(1);
     };
 
-    const photos = hotel?.photos?.length > 0 
-        ? hotel.photos 
-        : ["https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800"];
+    // Check if hotel is in favorites
+    useEffect(() => {
+        const checkFavoriteStatus = async () => {
+            try {
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                if (!user._id) return;
+                
+                const response = await axiosClient.get(`/favorites/check/${hotel._id}?userId=${user._id}`);
+                setIsFavorite(response.isFavorite);
+            } catch (error) {
+                console.error('Error checking favorite status:', error);
+            }
+        };
+        
+        if (hotel?._id) {
+            checkFavoriteStatus();
+        }
+    }, [hotel?._id]);
+    
+    // Toggle favorite
+    const handleToggleFavorite = async () => {
+        try {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            if (!user._id) {
+                toast.error('Please login to add favorites');
+                return;
+            }
+            
+            setLoading(true);
+            
+            if (isFavorite) {
+                await axiosClient.delete(`/favorites/${hotel._id}?userId=${user._id}`);
+                setIsFavorite(false);
+                toast.success('Removed from favorites');
+            } else {
+                await axiosClient.post('/favorites', { hotelId: hotel._id, userId: user._id });
+                setIsFavorite(true);
+                toast.success('Added to favorites');
+            }
+            window.dispatchEvent(new Event('favoritesUpdated'));
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
+            toast.error(error.response?.data?.message || 'Failed to update favorites');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <div className="card bg-base-100 shadow-xl overflow-hidden border border-base-200">
-            {/* Image Gallery */}
-            <div className="relative group">
-                <figure className="h-64 overflow-hidden">
-                    <img
-                        src={photos[activePhoto]}
-                        alt={hotel?.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        <div className="card bg-base-100 shadow-xl sticky top-8">
+            {/* Hotel Image */}
+            <figure className="h-64 relative">
+                <img
+                    src={hotel.photos?.[0] || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800"}
+                    alt={hotel.name}
+                    className="w-full h-full object-cover"
+                />
+                <button
+                    onClick={handleToggleFavorite}
+                    disabled={loading}
+                    className="btn btn-circle btn-sm absolute top-4 right-4 bg-base-100/80 hover:bg-base-100 border-0"
+                    aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                >
+                    <HeartIcon 
+                        size={20} 
+                        weight={isFavorite ? "fill" : "regular"}
+                        className={isFavorite ? "text-error" : "text-base-content"}
                     />
-                </figure>
-                
-                {/* Thumbnails Row */}
-                {photos.length > 1 && (
-                    <div className="absolute bottom-4 left-4 right-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                        {photos.map((photo, index) => (
-                            <button
-                                key={index}
-                                onClick={() => setActivePhoto(index)}
-                                className={`w-14 h-10 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all ${
-                                    activePhoto === index ? "border-primary scale-110 shadow-lg" : "border-white/50 opacity-80"
-                                }`}
-                            >
-                                <img src={photo} className="w-full h-full object-cover" alt={`Thumbnail ${index + 1}`} />
-                            </button>
-                        ))}
-                    </div>
-                )}
+                </button>
+            </figure>
 
-                <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1">
-                    <ImageIcon size={14} />
-                    {photos.length} PHOTOS
-                </div>
-            </div>
-
-            <div className="card-body p-6">
-                <div className="flex items-start justify-between gap-4">
-                    <h2 className="card-title text-2xl font-black leading-tight">
-                        {hotel?.name}
+            <div className="card-body">
+                {/* Hotel Name and Rating */}
+                <div className="flex items-start justify-between gap-2">
+                    <h2 className="card-title text-2xl font-bold flex-1">
+                        {hotel.name}
                     </h2>
                     <div className="flex flex-col items-end shrink-0">
                         <div className="bg-primary text-primary-content font-black h-12 w-12 rounded-xl flex items-center justify-center text-lg shadow-lg">

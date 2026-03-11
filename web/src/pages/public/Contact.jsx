@@ -39,7 +39,7 @@ const Contact = () => {
 
             await axiosClient.post("/contacts", formData);
 
-            toast.success("Your message has been sent successfully! We'll get back to you soon.");
+            toast.success("Your message has been sent successfully. Our concierge will be in touch shortly.");
 
             // Reset form
             setFormData({
@@ -56,119 +56,145 @@ const Contact = () => {
     };
 
     return (
-        <div className="min-h-screen bg-base-200">
+        <div className="min-h-screen bg-white">
             {/* Hero Section */}
-            <div
-                className="relative h-64 bg-cover bg-center flex items-center justify-center"
-                style={{
-                    backgroundImage: `url('https://metaeventtravel.vn/wp-content/uploads/2022/10/40-hoat-dong-giai-tri-tot-nhat-o-Maldives.png')`,
-                }}
-            >
-                <div className="absolute inset-0 bg-black/40"></div>
-                <h1 className="relative text-white text-5xl font-bold">Contact</h1>
+            <div className="relative h-[50vh] min-h-[400px] w-full overflow-hidden">
+                <div 
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105"
+                    style={{
+                        backgroundImage: `url('https://metaeventtravel.vn/wp-content/uploads/2022/10/40-hoat-dong-giai-tri-tot-nhat-o-Maldives.png')`,
+                    }}
+                ></div>
+                <div className="absolute inset-0 bg-black/40 mix-blend-multiply"></div>
+                <div className="relative h-full flex flex-col items-center justify-center px-4 text-center">
+                    <span className="text-white/80 text-xs uppercase tracking-[0.2em] font-medium mb-4">
+                        At Your Service
+                    </span>
+                    <h1 className="text-white text-5xl md:text-6xl font-serif">Contact Concierge</h1>
+                </div>
             </div>
 
             {/* Contact Content */}
-            <div className="container mx-auto px-4 py-16 max-w-5xl">
-
-                <div className="card bg-base-100 shadow-xl">
-                    <div className="card-body p-8 md:p-12">
-                        <div className="grid md:grid-cols-2 gap-12">
-                            {/* Contact Information */}
+            <section className="py-24 md:py-32 px-4 max-w-7xl mx-auto">
+                <div className="grid lg:grid-cols-2 gap-16 lg:gap-24">
+                    
+                    {/* Contact Information */}
+                    <div className="flex flex-col justify-center">
+                        <h2 className="text-3xl md:text-4xl font-serif text-gray-900 mb-6">
+                            How can we assist you?
+                        </h2>
+                        <p className="text-gray-500 font-light leading-relaxed mb-12 max-w-md">
+                            Whether you are planning a future stay, have questions about our curated properties, or require personalized assistance, our dedicated team is at your disposal.
+                        </p>
+                        
+                        <div className="space-y-10">
                             <div>
-                                <h2 className="text-2xl font-bold mb-6">Contact information</h2>
-                                
-                                <div className="space-y-4">
-                                    <div>
-                                        <p className="font-semibold text-base-content mb-1">Address:</p>
-                                        <p className="text-base-content/70">FPT University - Hà Nội</p>
-                                    </div>
-
-                                    <div>
-                                        <p className="font-semibold text-base-content mb-1">Email:</p>
-                                        <p className="text-base-content/70">roomerangcorp@gmail.com</p>
-                                    </div>
-
-                                    <div>
-                                        <p className="font-semibold text-base-content mb-1">Phone:</p>
-                                        <p className="text-base-content/70">0123456789</p>
-                                    </div>
-                                </div>
+                                <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium mb-2">
+                                    Headquarters
+                                </h3>
+                                <p className="text-gray-900 font-light text-lg">
+                                    FPT University<br />
+                                    Hanoi, Vietnam
+                                </p>
                             </div>
 
-                            {/* Contact Form */}
                             <div>
-                                <h2 className="text-2xl font-bold mb-6">Send us a message</h2>
-                                
-                                <form onSubmit={handleSubmit} className="space-y-4">
-                                    {/* Name */}
-                                    <div className="form-control">
-                                        <label className="label">
-                                            <span className="label-text font-medium">Name:</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="name"
-                                            placeholder="Enter your full name"
-                                            className="input input-bordered w-full"
-                                            value={formData.name}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </div>
-
-                                    {/* Email */}
-                                    <div className="form-control">
-                                        <label className="label">
-                                            <span className="label-text font-medium">Email:</span>
-                                        </label>
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            placeholder="your.email@example.com"
-                                            className="input input-bordered w-full"
-                                            value={formData.email}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </div>
-
-                                    {/* Message */}
-                                    <div className="form-control">
-                                        <label className="label">
-                                            <span className="label-text font-medium">Message:</span>
-                                        </label>
-                                        <textarea
-                                            name="message"
-                                            placeholder="Please provide details about your inquiry, feedback, or issue..."
-                                            className="textarea textarea-bordered h-32 resize-none w-full"
-                                            value={formData.message}
-                                            onChange={handleInputChange}
-                                            required
-                                        ></textarea>
-                                    </div>
-
-                                    {/* Submit Button */}
-                                    <button
-                                        type="submit"
-                                        className="btn btn-primary w-full md:w-auto px-8"
-                                        disabled={submitting}
-                                    >
-                                        {submitting ? (
-                                            <>
-                                                <span className="loading loading-spinner loading-sm"></span>
-                                                Sending...
-                                            </>
-                                        ) : (
-                                            "SEND"
-                                        )}
-                                    </button>
-                                </form>
+                                <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium mb-2">
+                                    Direct Inquiries
+                                </h3>
+                                <a 
+                                    href="mailto:roomerangcorp@gmail.com" 
+                                    className="block text-gray-900 font-light text-lg hover:text-gray-500 transition-colors"
+                                >
+                                    roomerangcorp@gmail.com
+                                </a>
+                                <a 
+                                    href="tel:0123456789" 
+                                    className="block text-gray-900 font-light text-lg hover:text-gray-500 transition-colors mt-1"
+                                >
+                                    +84 123 456 789
+                                </a>
                             </div>
                         </div>
                     </div>
+
+                    {/* Contact Form */}
+                    <div className="bg-gray-50 p-8 md:p-12 lg:p-16 rounded-sm border border-gray-100">
+                        <h2 className="text-2xl font-serif text-gray-900 mb-8">
+                            Send a Message
+                        </h2>
+                        
+                        <form onSubmit={handleSubmit} className="space-y-8">
+                            {/* Name */}
+                            <div className="relative">
+                                <label htmlFor="name" className="block text-xs uppercase tracking-widest text-gray-500 mb-2">
+                                    Full Name
+                                </label>
+                                <input
+                                    id="name"
+                                    type="text"
+                                    name="name"
+                                    className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
+                                    placeholder="Full Name"
+                                    value={formData.name}
+                                    onChange={handleInputChange}
+                                    required
+                                />
+                            </div>
+
+                            {/* Email */}
+                            <div className="relative">
+                                <label htmlFor="email" className="block text-xs uppercase tracking-widest text-gray-500 mb-2">
+                                    Email Address
+                                </label>
+                                <input
+                                    id="email"
+                                    type="email"
+                                    name="email"
+                                    className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
+                                    placeholder="Email Address"
+                                    value={formData.email}
+                                    onChange={handleInputChange}
+                                    required
+                                />
+                            </div>
+
+                            {/* Message */}
+                            <div className="relative">
+                                <label htmlFor="message" className="block text-xs uppercase tracking-widest text-gray-500 mb-2">
+                                    Your Message
+                                </label>
+                                <textarea
+                                    id="message"
+                                    name="message"
+                                    className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300 resize-none h-24"
+                                    placeholder="Your Message"
+                                    value={formData.message}
+                                    onChange={handleInputChange}
+                                    required
+                                ></textarea>
+                            </div>
+
+                            {/* Submit Button */}
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="w-full py-4 px-8 bg-gray-900 hover:bg-black text-white text-sm uppercase tracking-widest transition-all duration-300 rounded-sm mt-4 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {submitting ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        Sending...
+                                    </>
+                                ) : (
+                                    "Send Inquiry"
+                                )}
+                            </button>
+                        </form>
+                    </div>
+
                 </div>
-            </div>
+            </section>
         </div>
     );
 };

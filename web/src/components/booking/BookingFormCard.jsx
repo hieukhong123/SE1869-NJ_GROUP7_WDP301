@@ -18,7 +18,6 @@ const BookingFormCard = ({
     const getMinCheckoutDate = () => {
         if (!formData.checkIn) return "";
         const checkInDate = new Date(formData.checkIn);
-        checkInDate.setDate(checkInDate.getDate() + 1);
         return checkInDate.toISOString().split('T')[0];
     };
 
@@ -169,8 +168,8 @@ const BookingFormCard = ({
                                     className="flex items-center justify-between bg-base-200/30 rounded-lg px-4 py-2 border border-transparent hover:border-primary/20 transition-colors"
                                 >
                                     <div className="flex-1">
-                                        <p className="font-bold text-sm text-slate-700">
-                                            {room.roomName} - <span className="text-primary">${room.roomPrice}</span>
+                                        <p className="font-medium text-sm text-base-content">
+                                            {room.roomName} - <span translate="no">$</span>{room.roomPrice}
                                         </p>
                                         <p className="text-[10px] font-black uppercase tracking-tighter mt-0.5">
                                             {room.availableQuantity > 0 ? (
@@ -229,8 +228,8 @@ const BookingFormCard = ({
                                         checked={selectedExtras.includes(extra._id)}
                                         onChange={() => onExtraToggle(extra._id)}
                                     />
-                                    <span className="text-sm text-slate-600 group-hover:text-primary transition-colors">
-                                        {extra.extraName} - <span className="font-bold">${extra.extraPrice}</span>
+                                    <span className="text-base-content">
+                                        {extra.extraName} - <span translate="no">$</span>{extra.extraPrice}
                                     </span>
                                 </label>
                             ))}
@@ -239,28 +238,34 @@ const BookingFormCard = ({
                 </div>
 
                 {/* Total Amount */}
-                <div className="flex items-center justify-between py-4 border-t border-base-300 mt-4">
-                    <div>
-                        <span className="font-black text-[10px] text-slate-400 uppercase block tracking-widest">
-                            TOTAL AMOUNT
-                        </span>
-                        <span className="text-2xl font-black text-primary leading-none">
-                            ${totalAmount.toFixed(0)}
-                        </span>
-                    </div>
-                    
-                    <button
-                        type="submit"
-                        className="btn btn-primary btn-md px-8 text-white font-black uppercase rounded-xl shadow-lg shadow-primary/20"
-                        disabled={submitting || rooms.length === 0}
+                <div className="flex items-center justify-between py-3 border-t border-base-300">
+                    <span className="font-bold text-base text-base-content">
+                        TOTAL AMOUNT:
+                    </span>
+                    <span 
+                        className="text-xl font-bold text-base-content" 
+                        key={totalAmount}
+                        data-amount={totalAmount.toFixed(0)}
                     >
-                        {submitting ? (
-                            <span className="loading loading-spinner"></span>
-                        ) : (
-                            "CONFIRM BOOKING"
-                        )}
-                    </button>
+                        <span translate="no">$</span>
+                        <span>{totalAmount.toFixed(0)}</span>
+                    </span>
                 </div>
+
+                {/* Submit Button */}
+                <button
+                    type="submit"
+                    className="btn btn-warning btn-lg w-full text-white font-bold uppercase rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                    disabled={submitting || rooms.length === 0}
+                >
+                    {submitting ? (
+                        <>
+                            <span className="loading loading-spinner"></span>
+                        </>
+                    ) : (
+                        "CONFIRM BOOKING"
+                    )}
+                </button>
             </div>
         </form>
     );

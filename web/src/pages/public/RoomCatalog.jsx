@@ -6,7 +6,9 @@ import {
     Bed,
     MagnifyingGlass,
     CaretDown,
-    CircleNotch
+    CircleNotch,
+    CaretLeft,
+    CaretRight
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
@@ -81,7 +83,10 @@ const RoomCatalog = () => {
     const [selectedCity, setSelectedCity] = useState(searchParams.get("city") || "");
     const [selectedHotel, setSelectedHotel] = useState(searchParams.get("hotelId") || "");
     const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
+    const [currentPage, setCurrentPage] = useState(1);
     const navigate = useNavigate();
+
+    const ROOMS_PER_PAGE = 9;
 
     const fetchData = useCallback(async () => {
         try {
@@ -113,6 +118,7 @@ const RoomCatalog = () => {
     const handleCityFilter = (cityValue) => {
         setSelectedCity(cityValue);
         setSelectedHotel("");
+        setCurrentPage(1);
 
         const params = {};
         if (cityValue) params.city = cityValue;
@@ -122,6 +128,7 @@ const RoomCatalog = () => {
 
     const handleHotelFilter = (hotelValue) => {
         setSelectedHotel(hotelValue);
+        setCurrentPage(1);
 
         const params = {};
         if (selectedCity) params.city = selectedCity;
@@ -132,6 +139,7 @@ const RoomCatalog = () => {
 
     const handleSearchChange = (value) => {
         setSearchQuery(value);
+        setCurrentPage(1);
         
         const params = {};
         if (selectedCity) params.city = selectedCity;
@@ -155,6 +163,17 @@ const RoomCatalog = () => {
 
     const handleViewHotel = (hotelId) => {
         navigate(`/hotels/${hotelId}/book`);
+    };
+
+    // Pagination logic
+    const totalPages = Math.ceil(filteredRooms.length / ROOMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ROOMS_PER_PAGE;
+    const endIndex = startIndex + ROOMS_PER_PAGE;
+    const currentRooms = filteredRooms.slice(startIndex, endIndex);
+
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const cityOptions = cities.map(city => ({ label: city, value: city }));
@@ -232,6 +251,11 @@ const RoomCatalog = () => {
                     <p className="text-sm font-light uppercase tracking-widest text-gray-500">
                         {filteredRooms.length} {filteredRooms.length === 1 ? "Accommodation" : "Accommodations"} found
                     </p>
+                    {totalPages > 1 && (
+                        <p className="text-xs font-light uppercase tracking-widest text-gray-400">
+                            Page {currentPage} of {totalPages}
+                        </p>
+                    )}
                 </div>
 
                 {filteredRooms.length === 0 ? (
@@ -246,6 +270,7 @@ const RoomCatalog = () => {
                                 setSearchQuery("");
                                 setSelectedCity("");
                                 setSelectedHotel("");
+                                setCurrentPage(1);
                                 setSearchParams({});
                             }}
                             className="mt-8 text-sm uppercase tracking-widest text-orange-800 hover:text-gray-900 transition-colors border-b border-orange-800 pb-1 hover:border-gray-900"
@@ -254,8 +279,9 @@ const RoomCatalog = () => {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
-                        {filteredRooms.map((room) => (
+                    <>
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
+                            {currentRooms.map((room) => (
                             <div
                                 key={room._id}
                                 className="group bg-white flex flex-col border border-gray-100 hover:shadow-xl transition-all duration-500 overflow-hidden rounded-sm"
@@ -323,8 +349,81 @@ const RoomCatalog = () => {
                                     </div>
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="mt-16 flex justify-center items-center gap-2">
+                                {/* Previous Button */}
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`p-2 border rounded-sm transition-all duration-300 ${
+                                        currentPage === 1
+                                            ? "border-gray-200 text-gray-300 cursor-not-allowed"
+                                            : "border-gray-300 text-gray-600 hover:border-orange-800 hover:text-orange-800"
+                                    }`}
+                                >
+                                    <CaretLeft size={18} weight="light" />
+                                </button>
+
+                                {/* Page Numbers */}
+                                <div className="flex gap-2">
+                                    {[...Array(totalPages)].map((_, index) => {
+                                        const pageNumber = index + 1;
+                                        
+                                        // Show first page, last page, current page, and pages around current
+                                        if (
+                                            pageNumber === 1 ||
+                                            pageNumber === totalPages ||
+                                            (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                                        ) {
+                                            return (
+                                                <button
+                                                    key={pageNumber}
+                                                    onClick={() => handlePageChange(pageNumber)}
+                                                    className={`min-w-[40px] h-[40px] border rounded-sm text-sm font-light transition-all duration-300 ${
+                                                        currentPage === pageNumber
+                                                            ? "bg-orange-800 text-white border-orange-800"
+                                                            : "border-gray-300 text-gray-600 hover:border-orange-800 hover:text-orange-800"
+                                                    }`}
+                                                >
+                                                    {pageNumber}
+                                                </button>
+                                            );
+                                        } else if (
+                                            pageNumber === currentPage - 2 ||
+                                            pageNumber === currentPage + 2
+                                        ) {
+                                            return (
+                                                <span
+                                                    key={pageNumber}
+                                                    className="min-w-[40px] h-[40px] flex items-center justify-center text-gray-400"
+                                                >
+                                                    ...
+                                                </span>
+                                            );
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+
+                                {/* Next Button */}
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`p-2 border rounded-sm transition-all duration-300 ${
+                                        currentPage === totalPages
+                                            ? "border-gray-200 text-gray-300 cursor-not-allowed"
+                                            : "border-gray-300 text-gray-600 hover:border-orange-800 hover:text-orange-800"
+                                    }`}
+                                >
+                                    <CaretRight size={18} weight="light" />
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>

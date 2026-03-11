@@ -25,6 +25,11 @@ const Table = ({ data, columns }) => {
 		getSortedRowModel: getSortedRowModel(),
 		getFilteredRowModel: getFilteredRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
+		initialState: {
+			pagination: {
+				pageSize: 9,
+			},
+		},
 	});
 
 	return (
@@ -126,7 +131,7 @@ const Table = ({ data, columns }) => {
 						table.setPageSize(Number(e.target.value));
 					}}
 				>
-					{[10, 20, 30, 40, 50].map((pageSize) => (
+					{[9, 18, 27, 36, 45].map((pageSize) => (
 						<option key={pageSize} value={pageSize}>
 							Show {pageSize}
 						</option>

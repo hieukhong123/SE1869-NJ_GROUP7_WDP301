@@ -104,3 +104,71 @@ export const getFeaturedHotels = catchAsync(async (req, res, next) => {
 		data: hotelsWithRatings,
 	});
 });
+
+export const getCitiesWithCount = catchAsync(async (req, res, next) => {
+	// Aggregate hotels by city
+	const citiesData = await Hotel.aggregate([
+		{
+			$group: {
+				_id: '$city',
+				count: { $sum: 1 },
+				image: { 
+					$first: { 
+						$ifNull: [
+							{ $arrayElemAt: ['$photos', 1] },
+							{ $arrayElemAt: ['$photos', 0] }
+						]
+					} 
+				}
+			}
+		},
+		{
+			$project: {
+				_id: 0,
+				name: '$_id',
+				count: 1,
+				image: 1
+			}
+		},
+		{
+			$sort: { count: -1 }
+		}
+	]);
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		count: citiesData.length,
+		data: citiesData,
+	});
+});
+
+export const getPropertyTypes = catchAsync(async (req, res, next) => {
+	// Aggregate hotels by property type
+	const typesData = await Hotel.aggregate([
+		{
+			$group: {
+				_id: '$propertyType',
+				count: { $sum: 1 },
+				// Get the first photo from hotels of this type as representative image
+				image: { $first: { $arrayElemAt: ['$photos', 0] } }
+			}
+		},
+		{
+			$project: {
+				_id: 0,
+				name: '$_id',
+				count: 1,
+				image: 1
+			}
+		},
+		{
+			$sort: { count: -1 }
+		}
+	]);
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		count: typesData.length,
+		data: typesData,
+	});
+});

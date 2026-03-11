@@ -14,27 +14,12 @@ import {
     ArrowLeft
 } from '@phosphor-icons/react';
 
-const POPULAR_CITIES = [
-    { name: "Hanoi", count: 124, image: "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=800" },
-    { name: "Ho Chi Minh City", count: 186, image: "https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=800" },
-    { name: "Da Nang", count: 95, image: "https://images.unsplash.com/photo-1558223611-6672daee0df1?w=800" },
-    { name: "Nha Trang", count: 82, image: "https://images.unsplash.com/photo-1596422846543-7ec4ab789b14?w=800" },
-    { name: "Hoi An", count: 64, image: "https://images.unsplash.com/photo-1559508551-44bff1de756b?w=800" },
-    { name: "Phu Quoc", count: 73, image: "https://images.unsplash.com/photo-1557456170-0cf4f4d0d362?w=800" }
-];
-
-const PROPERTY_TYPES = [
-    { name: "Hotels", count: 245, image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800" },
-    { name: "Resorts", count: 56, image: "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800" },
-    { name: "Villas", count: 89, image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800" },
-    { name: "Apartments", count: 120, image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800" },
-    { name: "Homestays", count: 210, image: "https://images.unsplash.com/photo-1502672260266-1c1de2d93688?w=800" }
-];
-
 const HomePage = () => {
     const navigate = useNavigate();
     const [featuredHotels, setFeaturedHotels] = useState([]);
     const [allHotels, setAllHotels] = useState([]);
+    const [cities, setCities] = useState([]);
+    const [propertyTypes, setPropertyTypes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -62,11 +47,17 @@ const HomePage = () => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const featuredResponse = await axiosClient.get("/hotels/featured");
-                setFeaturedHotels(featuredResponse.data);
+                const [featuredResponse, allResponse, citiesResponse, typesResponse] = await Promise.all([
+                    axiosClient.get("/hotels/featured"),
+                    axiosClient.get("/hotels"),
+                    axiosClient.get("/hotels/cities"),
+                    axiosClient.get("/hotels/property-types")
+                ]);
                 
-                const allResponse = await axiosClient.get("/hotels");
+                setFeaturedHotels(featuredResponse.data);
                 setAllHotels(allResponse.data);
+                setCities(citiesResponse.data);
+                setPropertyTypes(typesResponse.data);
             } catch (err) {
                 console.error("Error fetching hotels:", err);
             } finally {
@@ -351,36 +342,38 @@ const HomePage = () => {
                     </div>
                 </div>
 
-                <div 
-                    ref={citiesRef}
-                    className="w-full overflow-x-auto pb-8 hide-scrollbar scroll-smooth"
-                >
-                    <div className="flex gap-4 lg:gap-6 w-max mx-auto" style={{ paddingLeft: 'max(1rem, calc((100vw - 80rem) / 2))', paddingRight: 'max(1rem, calc((100vw - 80rem) / 2))' }}>
-                        {POPULAR_CITIES.map((city, index) => (
-                            <div 
-                                key={index}
-                                onClick={() => navigate(`/location?city=${encodeURIComponent(city.name)}`)}
-                                className="w-[260px] sm:w-[300px] md:w-[320px] flex-shrink-0 group relative h-72 md:h-80 lg:h-96 rounded-sm overflow-hidden cursor-pointer"
-                            >
-                                <img 
-                                    src={city.image} 
-                                    alt={city.name} 
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-500"></div>
-                                
-                                <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                                    <h3 className="text-white font-serif text-xl md:text-2xl mb-1 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
-                                        {city.name}
-                                    </h3>
-                                    <p className="text-white/80 font-light text-xs tracking-widest uppercase opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 delay-100">
-                                        {city.count} Properties
-                                    </p>
+                {cities.length > 0 && (
+                    <div 
+                        ref={citiesRef}
+                        className="w-full overflow-x-auto pb-8 hide-scrollbar scroll-smooth"
+                    >
+                        <div className="flex gap-4 lg:gap-6 w-max mx-auto" style={{ paddingLeft: 'max(1rem, calc((100vw - 80rem) / 2))', paddingRight: 'max(1rem, calc((100vw - 80rem) / 2))' }}>
+                            {cities.map((city, index) => (
+                                <div 
+                                    key={index}
+                                    onClick={() => navigate(`/location?city=${encodeURIComponent(city.name)}`)}
+                                    className="w-[260px] sm:w-[300px] md:w-[320px] flex-shrink-0 group relative h-72 md:h-80 lg:h-96 rounded-sm overflow-hidden cursor-pointer"
+                                >
+                                    <img 
+                                        src={city.image || "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=800"} 
+                                        alt={city.name} 
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-500"></div>
+                                    
+                                    <div className="absolute inset-0 p-6 flex flex-col justify-end">
+                                        <h3 className="text-white font-serif text-xl md:text-2xl mb-1 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+                                            {city.name}
+                                        </h3>
+                                        <p className="text-white/80 font-light text-xs tracking-widest uppercase opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 delay-100">
+                                            {city.count} {city.count === 1 ? 'Property' : 'Properties'}
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
             </section>
 
             <section className="py-16">
@@ -409,36 +402,38 @@ const HomePage = () => {
                     </div>
                 </div>
 
-                <div 
-                    ref={typesRef}
-                    className="w-full overflow-x-auto pb-8 hide-scrollbar scroll-smooth"
-                >
-                    <div className="flex gap-6 w-max mx-auto" style={{ paddingLeft: 'max(1rem, calc((100vw - 80rem) / 2))', paddingRight: 'max(1rem, calc((100vw - 80rem) / 2))' }}>
-                        {PROPERTY_TYPES.map((type, index) => (
-                            <div 
-                                key={index}
-                                className="w-[240px] sm:w-[280px] flex-shrink-0 group flex flex-col cursor-pointer"
-                            >
-                                <div className="relative h-56 rounded-sm overflow-hidden mb-4">
-                                    <img 
-                                        src={type.image} 
-                                        alt={type.name} 
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
-                                    />
-                                    <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors duration-500"></div>
+                {propertyTypes.length > 0 && (
+                    <div 
+                        ref={typesRef}
+                        className="w-full overflow-x-auto pb-8 hide-scrollbar scroll-smooth"
+                    >
+                        <div className="flex gap-6 w-max mx-auto" style={{ paddingLeft: 'max(1rem, calc((100vw - 80rem) / 2))', paddingRight: 'max(1rem, calc((100vw - 80rem) / 2))' }}>
+                            {propertyTypes.map((type, index) => (
+                                <div 
+                                    key={index}
+                                    className="w-[240px] sm:w-[280px] flex-shrink-0 group flex flex-col cursor-pointer"
+                                >
+                                    <div className="relative h-56 rounded-sm overflow-hidden mb-4">
+                                        <img 
+                                            src={type.image || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800"} 
+                                            alt={type.name} 
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
+                                        />
+                                        <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors duration-500"></div>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-serif text-gray-900 group-hover:text-orange-800 transition-colors">
+                                            {type.name}
+                                        </h3>
+                                        <p className="text-gray-500 font-light text-sm mt-1">
+                                            {type.count} {type.count === 1 ? 'accommodation' : 'accommodations'}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="text-lg font-serif text-gray-900 group-hover:text-orange-800 transition-colors">
-                                        {type.name}
-                                    </h3>
-                                    <p className="text-gray-500 font-light text-sm mt-1">
-                                        {type.count} accommodations
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
             </section>
 
         </div>

@@ -14,6 +14,11 @@ const hotelSchema = new mongoose.Schema(
 			type: String,
 			required: true,
 		},
+		propertyType: {
+			type: String,
+			enum: ['Hotel', 'Resort', 'Villa', 'Apartment', 'Homestay'],
+			default: 'Hotel',
+		},
 		hotelPhone: {
 			type: Number,
 			required: true,

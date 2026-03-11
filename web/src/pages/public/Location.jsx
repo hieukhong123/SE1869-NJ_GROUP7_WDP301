@@ -22,7 +22,7 @@ const Location = () => {
     const [cities, setCities] = useState([]);
     const [favorites, setFavorites] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const hotelsPerPage = 6;
+    const hotelsPerPage = 9;
 
     useEffect(() => {
         fetchHotels();

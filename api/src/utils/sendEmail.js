@@ -23,7 +23,7 @@ const sendEmail = async (options) => {
 		from: `${process.env.EMAIL_FROM_NAME || 'Roomerang'} <${
 			process.env.EMAIL_FROM || process.env.EMAIL_USER
 		}>`,
-		to: options.email,
+		to: options.email || options.to,
 		subject: options.subject,
 		html: options.html,
 		text: options.text,

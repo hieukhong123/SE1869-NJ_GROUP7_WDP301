@@ -28,7 +28,7 @@ const AdminLayout = () => {
     const adminMenu = [
         { path: '/admin/dashboard', name: 'Dashboard', icon: HouseIcon },
         { path: '/admin/bookings', name: 'Reservations', icon: CalendarCheckIcon },
-        { path: '/admin/hotels', name: 'Properties', icon: BuildingsIcon },
+        { path: '/admin/hotels', name: 'Hotels', icon: BuildingsIcon },
         { path: '/admin/rooms', name: 'Accommodations', icon: BedIcon },
         { path: '/admin/users', name: 'Guest Directory', icon: UsersIcon },
         { path: '/admin/extra-fees', name: 'Additional Services', icon: MoneyIcon },

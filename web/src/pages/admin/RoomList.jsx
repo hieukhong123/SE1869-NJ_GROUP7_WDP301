@@ -4,7 +4,7 @@ import Table from '../../components/common/Table';
 import axiosClient from '../../services/axiosClient';
 import { toast } from 'sonner';
 import { capitalizeFirstLetter } from '../../utils/helpers';
-import { PencilSimple, Trash, Plus, CircleNotch } from '@phosphor-icons/react';
+import { PencilSimple, Trash, Plus, CircleNotch, Bed } from '@phosphor-icons/react';
 
 const RoomList = () => {
     const [rooms, setRooms] = useState([]);
@@ -34,12 +34,9 @@ const RoomList = () => {
             try {
                 await axiosClient.delete(`/rooms/${roomId}`);
                 toast.success('Room removed successfully.');
-                fetchRooms(); // Refresh the list
+                fetchRooms();
             } catch (err) {
-                toast.error(
-                    'Failed to delete room: ' +
-                        (err.response?.data?.message || err.message)
-                );
+                toast.error('Failed to delete room: ' + (err.response?.data?.message || err.message));
             }
         }
     };
@@ -48,12 +45,9 @@ const RoomList = () => {
         try {
             await axiosClient.put(`/rooms/${roomId}/toggleStatus`);
             toast.success('Room status updated.');
-            fetchRooms(); // Refresh the list
+            fetchRooms();
         } catch (err) {
-            toast.error(
-                'Failed to update status: ' +
-                    (err.response?.data?.message || err.message)
-            );
+            toast.error('Failed to update status: ' + (err.response?.data?.message || err.message));
         }
     };
 
@@ -101,7 +95,7 @@ const RoomList = () => {
                 return (
                     <button
                         onClick={() => handleToggleStatus(row.original._id)}
-                        className={`text-xs uppercase tracking-widest px-3 py-1.5 rounded-sm transition-all duration-300 border ${
+                        className={`text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-sm transition-all duration-300 border ${
                             isAvailable
                                 ? 'bg-white text-gray-900 border-gray-300 hover:border-gray-900'
                                 : 'bg-gray-50 text-gray-400 border-gray-200 hover:border-gray-400'
@@ -117,7 +111,7 @@ const RoomList = () => {
             header: 'Actions',
             enableGlobalFilter: false,
             cell: ({ row }) => (
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-1">
                     <Link
                         to={`/admin/rooms/${row.original._id}/edit`}
                         className="p-2 text-gray-400 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-50"
@@ -139,7 +133,7 @@ const RoomList = () => {
 
     if (loading)
         return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 bg-[#FFFCFA]">
+            <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 bg-transparent">
                 <CircleNotch size={32} weight="light" className="text-orange-800 animate-spin" />
                 <p className="text-gray-500 font-light text-sm tracking-widest uppercase">
                     Loading Portfolio...
@@ -149,14 +143,14 @@ const RoomList = () => {
 
     if (error)
         return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 bg-[#FFFCFA]">
+            <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 bg-transparent">
                 <p className="text-red-500 font-serif text-xl">Unable to load data</p>
                 <p className="text-gray-500 font-light">{error.message}</p>
             </div>
         );
 
     return (
-        <div className="min-h-screen bg-[#FFFCFA] p-6 md:p-12 lg:px-24">
+        <div className="p-6 md:p-8 lg:p-12">
             <div className="max-w-7xl mx-auto">
                 {/* Header Section */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-10 pb-6 border-b border-gray-200 gap-6">
@@ -164,23 +158,38 @@ const RoomList = () => {
                         <h1 className="text-3xl md:text-4xl font-serif text-gray-900 mb-2">
                             Room Portfolio
                         </h1>
-                        <p className="text-sm font-light text-gray-500 uppercase tracking-widest">
+                        <p className="text-xs font-light text-gray-500 uppercase tracking-[0.2em]">
                             Manage Property Accommodations
                         </p>
                     </div>
                     <Link 
                         to="/admin/rooms/new" 
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white text-sm tracking-widest uppercase transition-colors rounded-sm"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white text-xs tracking-widest uppercase transition-colors rounded-sm"
                     >
-                        <Plus size={16} weight="bold" />
+                        <Plus size={16} weight="light" />
                         Add Room
                     </Link>
                 </div>
 
-                {/* Table Section */}
-                <div className="bg-white rounded-sm shadow-sm border border-gray-100 overflow-hidden">
-                    <Table data={rooms} columns={columns} />
-                </div>
+                {rooms.length === 0 ? (
+                    <div className="bg-white border border-gray-200 border-dashed rounded-sm py-32 flex flex-col items-center justify-center text-center px-4">
+                        <Bed size={48} weight="light" className="text-gray-300 mb-6" />
+                        <h3 className="text-xl font-serif text-gray-900 mb-2">No Accommodations Found</h3>
+                        <p className="text-gray-500 font-light max-w-md mx-auto mb-8">
+                            Your portfolio is currently empty. Start by adding your first room or suite to the system.
+                        </p>
+                        <Link 
+                            to="/admin/rooms/new" 
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-transparent border border-gray-300 hover:border-gray-900 text-gray-900 text-xs tracking-widest uppercase transition-colors rounded-sm"
+                        >
+                            Create First Room
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-sm shadow-sm border border-gray-100 overflow-hidden">
+                        <Table data={rooms} columns={columns} />
+                    </div>
+                )}
             </div>
         </div>
     );

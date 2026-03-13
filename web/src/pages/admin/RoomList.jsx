@@ -167,7 +167,7 @@ const RoomList = () => {
                         className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white text-xs tracking-widest uppercase transition-colors rounded-sm"
                     >
                         <Plus size={16} weight="light" />
-                        Add Room
+                        <span>Add Room</span>
                     </Link>
                 </div>
 

@@ -110,7 +110,7 @@ const MyFavorites = () => {
                             className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white text-sm tracking-wide uppercase transition-colors rounded-sm"
                         >
                             <BuildingsIcon size={18} weight="regular" />
-                            Discover Properties
+                            <span>Discover Properties</span>
                         </Link>
                     </div>
                 ) : (
@@ -161,7 +161,7 @@ const MyFavorites = () => {
                                             <div className="absolute top-4 left-4">
                                                 <div className="bg-gray-900/90 backdrop-blur-sm text-white text-xs px-3 py-1.5 uppercase tracking-widest font-medium flex items-center gap-1.5 rounded-sm">
                                                     <SparkleIcon size={12} weight="fill" />
-                                                    Featured
+                                                    <span>Featured</span>
                                                 </div>
                                             </div>
                                         )}

@@ -114,7 +114,7 @@ const PaymentReturn = () => {
                                 className="btn btn-primary w-full h-14 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-primary/20 gap-3"
                             >
                                 <Receipt size={22} weight="bold" />
-                                Go to My Bookings
+                                <span>Go to My Bookings</span>
                             </button>
                             
                             <button 
@@ -122,7 +122,7 @@ const PaymentReturn = () => {
                                 className="btn btn-ghost w-full h-14 rounded-2xl font-black uppercase tracking-widest gap-3 opacity-60"
                             >
                                 <House size={22} weight="bold" />
-                                Return Home
+                                <span>Return Home</span>
                             </button>
                         </div>
 

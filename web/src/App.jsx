@@ -16,7 +16,7 @@ import ExtraFeeForm from './pages/admin/ExtraFeeForm';
 import ReviewList from './pages/admin/ReviewList';
 import ReviewDetails from './pages/admin/ReviewDetails';
 import PaymentList from './pages/admin/PaymentList';
-import RefundList from './pages/admin/RefundList';
+import ContactList from './pages/admin/ContactList';
 import HomePage from './pages/public/HomePage';
 import Location from './pages/public/Location';
 import Contact from './pages/public/Contact';
@@ -98,7 +98,7 @@ function App() {
 					/>
 
 					<Route path="payments" element={<PaymentList />} />
-					<Route path="refunds" element={<RefundList />} />
+					<Route path="contacts" element={<ContactList />} />
 				</Route>
 
 				{/* 404 CATCH ALL */}

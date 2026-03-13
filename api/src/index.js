@@ -11,7 +11,6 @@ import userRoute from './routes/userRouter.js';
 import extraFeeRoute from './routes/extraFeeRouter.js';
 import reviewRoute from './routes/reviewRouter.js';
 import paymentRoute from './routes/paymentRouter.js';
-import refundRoute from './routes/refundRouter.js';
 import favoriteRoute from './routes/favoriteRouter.js';
 import contactRoute from './routes/contactRouter.js';
 import { globalErrorHandler } from './middlewares/errorMiddleware.js';
@@ -59,7 +58,6 @@ app.use('/api/v1/dashboard', dashboardRoute);
 app.use('/api/v1/extra-fees', extraFeeRoute);
 app.use('/api/v1/reviews', reviewRoute);
 app.use('/api/v1/payments', paymentRoute);
-app.use('/api/v1/refunds', refundRoute);
 app.use('/api/v1/favorites', favoriteRoute);
 app.use('/api/v1/contacts', contactRoute);
 app.get('/', (req, res) => {

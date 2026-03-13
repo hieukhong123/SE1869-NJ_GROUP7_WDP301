@@ -53,7 +53,7 @@ const Table = ({ data, columns }) => {
             </div>
 
             {/* Table Container */}
-            <div className="overflow-x-auto w-full hide-scrollbar">
+            <div className="overflow-x-auto w-full">
                 <table className="w-full text-left border-collapse">
                     
                     {/* Table Header */}

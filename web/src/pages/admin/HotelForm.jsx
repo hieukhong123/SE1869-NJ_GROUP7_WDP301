@@ -289,9 +289,9 @@ const HotelForm = () => {
                                 className="w-full sm:w-auto px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-xs tracking-widest uppercase transition-colors rounded-sm flex items-center justify-center gap-2 h-[45px] disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isUploading ? (
-                                    <><CircleNotch size={16} className="animate-spin" /> Uploading</>
+                                    <><CircleNotch size={16} className="animate-spin" /> <span>Uploading</span></>
                                 ) : (
-                                    <><UploadSimple size={16} /> Upload</>
+                                    <><UploadSimple size={16} /> <span>Upload</span></>
                                 )}
                             </button>
                         </div>
@@ -342,9 +342,9 @@ const HotelForm = () => {
                             className="px-8 py-3 bg-orange-800 hover:bg-orange-900 text-white text-xs tracking-widest uppercase transition-colors rounded-sm flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
                         >
                             {loading ? (
-                                <><CircleNotch size={16} className="animate-spin" /> Saving</>
+                                <><CircleNotch size={16} className="animate-spin" /> <span>Saving</span></>
                             ) : (
-                                <><FloppyDisk size={16} /> {id ? 'Save Changes' : 'Create Property'}</>
+                                <><FloppyDisk size={16} /> <span>{id ? 'Save Changes' : 'Create Property'}</span></>
                             )}
                         </button>
                     </div>

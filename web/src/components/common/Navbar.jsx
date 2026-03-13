@@ -148,19 +148,19 @@ const Navbar = () => {
                                 <li>
                                     <Link to="/profile" className="text-sm font-light text-gray-600 hover:text-orange-800 hover:bg-orange-50/50 rounded-sm py-3">
                                         <UserCircleIcon size={18} weight="light" />
-                                        Profile Settings
+                                        <span>Profile Settings</span>
                                     </Link>
                                 </li>
                                 <li>
                                     <Link to="/my-bookings" className="text-sm font-light text-gray-600 hover:text-orange-800 hover:bg-orange-50/50 rounded-sm py-3">
                                         <ReceiptIcon size={18} weight="light" />
-                                        My Reservations
+                                        <span>My Reservations</span>
                                     </Link>
                                 </li>
                                 <li>
                                     <Link to="/my-favorites" className="text-sm font-light text-gray-600 hover:text-orange-800 hover:bg-orange-50/50 rounded-sm py-3">
                                         <HeartIcon size={18} weight="light" />
-                                        Saved Properties
+                                        <span>Saved Properties</span>
                                     </Link>
                                 </li>
                                 
@@ -172,7 +172,7 @@ const Navbar = () => {
                                         className="text-sm font-light text-red-500 hover:bg-red-50 hover:text-red-600 rounded-sm py-3"
                                     >
                                         <SignOutIcon size={18} weight="light" />
-                                        Sign Out
+                                        <span>Sign Out</span>
                                     </button>
                                 </li>
                             </ul>

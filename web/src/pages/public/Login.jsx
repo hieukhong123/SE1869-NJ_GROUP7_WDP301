@@ -2,239 +2,231 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import axiosClient from '../../services/axiosClient';
-import { UserCircleIcon } from '@phosphor-icons/react';
+import { CaretLeft, CircleNotch, WarningCircle } from '@phosphor-icons/react';
 
 const Login = () => {
-	const navigate = useNavigate();
-	const [formData, setFormData] = useState({
-		username: '',
-		password: '',
-	});
-	const [loading, setLoading] = useState(false);
-	const [errors, setErrors] = useState({});
+    const navigate = useNavigate();
+    const [formData, setFormData] = useState({
+        username: '',
+        password: '',
+    });
+    const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
 
-	useEffect(() => {
-		// Check if user is already logged in
-		const storedUser = localStorage.getItem('user');
-		if (storedUser) {
-			try {
-				const user = JSON.parse(storedUser);
-				// Redirect based on role
-				if (user.role === 'admin') {
-					navigate('/admin/dashboard');
-				} else {
-					navigate('/');
-				}
-			} catch (error) {
-				console.error('Error parsing user data:', error);
-				localStorage.removeItem('user');
-			}
-		}
-	}, [navigate]);
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                if (user.role === 'admin') {
+                    navigate('/admin/dashboard');
+                } else {
+                    navigate('/');
+                }
+            } catch (error) {
+                console.error('Error parsing user data:', error);
+                localStorage.removeItem('user');
+            }
+        }
+    }, [navigate]);
 
-	const handleChange = (e) => {
-		const { name, value } = e.target;
-		setFormData((prev) => ({
-			...prev,
-			[name]: value,
-		}));
-		// Clear error for this field when user types
-		if (errors[name]) {
-			setErrors((prev) => ({
-				...prev,
-				[name]: '',
-			}));
-		}
-	};
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+        if (errors[name]) {
+            setErrors((prev) => ({
+                ...prev,
+                [name]: '',
+            }));
+        }
+    };
 
-	const validateForm = () => {
-		const newErrors = {};
+    const validateForm = () => {
+        const newErrors = {};
+        if (!formData.username.trim()) {
+            newErrors.username = 'Username or Email is required';
+        }
+        if (!formData.password) {
+            newErrors.password = 'Password is required';
+        }
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
-		// Username/Email validation
-		if (!formData.username.trim()) {
-			newErrors.username = 'Username or Email is required';
-		}
+    const handleSubmit = async (e) => {
+        e.preventDefault();
 
-		// Password validation
-		if (!formData.password) {
-			newErrors.password = 'Password is required';
-		}
+        if (!validateForm()) {
+            return;
+        }
 
-		setErrors(newErrors);
-		return Object.keys(newErrors).length === 0;
-	};
+        setLoading(true);
 
-	const handleSubmit = async (e) => {
-		e.preventDefault();
+        try {
+            const response = await axiosClient.post('/users/login', formData);
 
-		if (!validateForm()) {
-			toast.error('Please fix the errors in the form');
-			return;
-		}
+            toast.success(response.message || 'Authentication successful');
 
-		setLoading(true);
+            if (response.data) {
+                localStorage.setItem('user', JSON.stringify(response.data));
+                window.dispatchEvent(new Event('userLogin'));
+            }
 
-		try {
-			const response = await axiosClient.post('/users/login', formData);
+            setFormData({ username: '', password: '' });
 
-			toast.success(response.message || 'Login successful!');
+            setTimeout(() => {
+                if (response.data.role === 'admin') {
+                    navigate('/admin/dashboard');
+                } else {
+                    navigate('/');
+                }
+            }, 1000);
+        } catch (error) {
+            const errorMessage =
+                error.response?.data?.message ||
+                error.message ||
+                'Authentication failed. Please check your credentials.';
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-			// Store user data in localStorage
-			if (response.data) {
-				localStorage.setItem('user', JSON.stringify(response.data));
-				// Dispatch custom event to update navbar
-				window.dispatchEvent(new Event('userLogin'));
-			}
+    return (
+        <div className="min-h-screen flex flex-col lg:flex-row bg-[#FFFCFA]">
+            
+            {/* Left Side - Luxury Editorial Image (Hidden on mobile) */}
+            <div className="hidden lg:block lg:w-1/2 relative bg-gray-900 overflow-hidden">
+                <img
+                    src="https://images.unsplash.com/photo-1564501049412-61c2a3083791?q=80&w=2000"
+                    alt="Luxury Hotel Lobby"
+                    className="absolute inset-0 w-full h-full object-cover opacity-80"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                <div className="absolute bottom-16 left-16 right-16">
+                    <span className="text-[10px] text-white/70 uppercase tracking-[0.3em] mb-4 block">
+                        Members Portal
+                    </span>
+                    <h2 className="text-4xl md:text-5xl font-serif text-white leading-tight mb-4">
+                        Curated experiences await.
+                    </h2>
+                    <p className="text-white/80 font-light text-sm tracking-wide max-w-md">
+                        Sign in to access your personalized portfolio, manage reservations, and explore exclusive privileges.
+                    </p>
+                </div>
+            </div>
 
-			// Reset form
-			setFormData({
-				username: '',
-				password: '',
-			});
+            {/* Right Side - Login Form */}
+            <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 sm:px-16 md:px-24 lg:px-32 py-12 relative">
+                
+                {/* Back to Home Link */}
+                <Link 
+                    to="/" 
+                    className="absolute top-8 left-6 sm:left-16 md:left-24 lg:left-32 flex items-center gap-2 text-[10px] uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
+                >
+                    <CaretLeft size={14} /> Return to Homepage
+                </Link>
 
-			// Redirect based on user role
-			setTimeout(() => {
-				if (response.data.role === 'admin') {
-					navigate('/admin/dashboard');
-				} else {
-					navigate('/');
-				}
-			}, 1000);
-		} catch (error) {
-			const errorMessage =
-				error.response?.data?.message ||
-				error.message ||
-				'Login failed. Please try again.';
-			toast.error(errorMessage);
-		} finally {
-			setLoading(false);
-		}
-	};
+                <div className="w-full max-w-md mx-auto mt-12 lg:mt-0">
+                    <div className="mb-12">
+                        <h1 className="text-3xl md:text-4xl font-serif text-gray-900 mb-3">
+                            Sign In
+                        </h1>
+                        <p className="text-sm font-light text-gray-500">
+                            Enter your credentials to access your account.
+                        </p>
+                    </div>
 
-	return (
-		<div className="min-h-screen bg-base-200 py-12 px-4 sm:px-6 lg:px-8">
-			<div className="max-w-7xl mx-auto">
-				<div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-					{/* Left side - Illustration */}
-					<div className="hidden lg:flex items-center justify-center">
-						<img
-							src="https://www.propero.in/cdn/shop/files/Frame_35_1500x.png?v=1703917854"
-							alt="Login"
-							className="w-full max-w-lg"
-						/>
-					</div>
+                    <form onSubmit={handleSubmit} className="space-y-8">
+                        
+                        {/* Username/Email Field */}
+                        <div className="relative group">
+                            <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">
+                                Username or Email
+                            </label>
+                            <input
+                                type="text"
+                                name="username"
+                                value={formData.username}
+                                onChange={handleChange}
+                                className={`w-full bg-transparent border-0 border-b px-0 py-2 text-gray-900 font-light focus:ring-0 transition-colors placeholder-gray-300 ${
+                                    errors.username ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-gray-900'
+                                }`}
+                                placeholder="Enter your identity"
+                            />
+                            {errors.username && (
+                                <p className="absolute -bottom-5 left-0 text-[10px] text-red-500 flex items-center gap-1">
+                                    <WarningCircle size={12} weight="fill" /> {errors.username}
+                                </p>
+                            )}
+                        </div>
 
-					{/* Right side - Login Form */}
-					<div className="w-full max-w-md mx-auto">
-						<div className="bg-warning rounded-3xl shadow-2xl p-8">
-							{/* Icon */}
-							<div className="flex justify-center mb-6">
-								<div className="bg-white rounded-full p-4">
-									<UserCircleIcon size={64} weight="fill" className="text-warning" />
-								</div>
-							</div>
+                        {/* Password Field */}
+                        <div className="relative group">
+                            <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">
+                                Password
+                            </label>
+                            <input
+                                type="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                className={`w-full bg-transparent border-0 border-b px-0 py-2 text-gray-900 font-light focus:ring-0 transition-colors placeholder-gray-300 ${
+                                    errors.password ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-gray-900'
+                                }`}
+                                placeholder="Enter your password"
+                            />
+                            {errors.password && (
+                                <p className="absolute -bottom-5 left-0 text-[10px] text-red-500 flex items-center gap-1">
+                                    <WarningCircle size={12} weight="fill" /> {errors.password}
+                                </p>
+                            )}
+                        </div>
 
-							{/* Title */}
-							<h2 className="text-3xl font-bold text-white text-center mb-8">
-								Login
-							</h2>
+                        {/* Forgot Password Link */}
+                        <div className="flex justify-end pt-2">
+                            <Link
+                                to="/forgot-password"
+                                className="text-[10px] uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
+                            >
+                                Forgot password?
+                            </Link>
+                        </div>
 
-							{/* Form */}
-							<form onSubmit={handleSubmit} className="space-y-4">
-					{/* Username or Email */}
-					<div className="form-control">
-						<input
-							type="text"
-							name="username"
-							value={formData.username}
-							onChange={handleChange}
-							className={`input bg-white w-full ${
-								errors.username ? 'input-error' : ''
-							}`}
-							placeholder="Username or Email"
-						/>
-						{errors.username && (
-							<label className="label">
-								<span className="label-text-alt text-white bg-error/80 px-2 py-1 rounded mt-1">
-									{errors.username}
-											</span>
-										</label>
-									)}
-								</div>
+                        {/* Submit Button */}
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-4 bg-gray-900 hover:bg-black text-white text-xs tracking-widest uppercase transition-colors rounded-sm flex items-center justify-center gap-2 mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {loading ? (
+                                <><CircleNotch size={16} className="animate-spin" /> Authenticating</>
+                            ) : (
+                                'Sign In'
+                            )}
+                        </button>
+                    </form>
 
-								{/* Password */}
-								<div className="form-control">
-									<input
-										type="password"
-										name="password"
-										value={formData.password}
-										onChange={handleChange}
-										className={`input bg-white w-full ${
-											errors.password ? 'input-error' : ''
-										}`}
-										placeholder="Password"
-									/>
-									{errors.password && (
-										<label className="label">
-											<span className="label-text-alt text-white bg-error/80 px-2 py-1 rounded mt-1">
-												{errors.password}
-											</span>
-										</label>
-									)}
-								</div>
-
-								{/* Submit Button */}
-								<div className="form-control mt-6">
-									<button
-										type="submit"
-										className={`btn bg-black hover:bg-black/80 text-white border-none w-full ${
-											loading ? 'loading' : ''
-										}`}
-										disabled={loading}
-									>
-										{loading ? 'LOGGING IN...' : 'LOGIN'}
-									</button>
-								</div>
-							</form>
-
-							{/* Forgot password link */}
-							<div className="text-center mt-4">
-								<p className="text-white text-sm">
-									Forgot password?{' '}
-									<Link
-										to="/forgot-password"
-										className="font-bold underline hover:no-underline"
-									>
-										Reset password
-									</Link>
-								</p>
-							</div>
-
-							{/* Don't have account link */}
-							<div className="text-center mt-2">
-								<p className="text-white text-sm">
-									Don't have an account?{' '}
-									<Link
-										to="/register"
-										className="font-bold underline hover:no-underline"
-									>
-										Create
-									</Link>
-								</p>
-							</div>
-						</div>
-
-						{/* Back to home */}
-						<div className="text-center mt-6">
-							<Link to="/" className="link link-hover text-base-content/60 text-sm">
-								← Back to home
-							</Link>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	);
+                    {/* Registration Link */}
+                    <div className="mt-12 text-center border-t border-gray-100 pt-8">
+                        <p className="text-sm font-light text-gray-500">
+                            Don't have an account yet?{' '}
+                            <Link
+                                to="/register"
+                                className="font-medium text-gray-900 border-b border-gray-900 pb-0.5 hover:text-orange-800 hover:border-orange-800 transition-colors"
+                            >
+                                Create an account
+                            </Link>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    );
 };
 
 export default Login;

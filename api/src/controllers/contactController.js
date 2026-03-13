@@ -2,6 +2,7 @@ import { catchAsync } from '../middlewares/errorMiddleware.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import sendEmail from '../utils/sendEmail.js';
 import AppError from '../utils/AppError.js';
+import Contact from '../models/Contact.js';
 
 export const sendContactMessage = catchAsync(async (req, res, next) => {
 	const { name, email, message } = req.body;
@@ -19,6 +20,9 @@ export const sendContactMessage = catchAsync(async (req, res, next) => {
 			new AppError(HttpStatus.BAD_REQUEST, 'Invalid email address')
 		);
 	}
+
+	// Save to database
+	await Contact.create({ name, email, message });
 
 	try {
 		// Send email to admin
@@ -68,17 +72,84 @@ export const sendContactMessage = catchAsync(async (req, res, next) => {
 			`,
 		});
 
-		res.status(HttpStatus.OK).json({
-			success: true,
-			message: 'Your message has been sent successfully',
-		});
-	} catch (error) {
-		console.error('Email sending error:', error);
-		return next(
-			new AppError(
-				HttpStatus.INTERNAL_SERVER_ERROR,
-				'Failed to send email. Please try again later.'
-			)
-		);
+	} catch (emailError) {
+		// Email failure shouldn't block the response - message is already saved
+		console.error('Email sending error:', emailError);
 	}
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Your message has been sent successfully',
+	});
+});
+
+export const getContacts = catchAsync(async (req, res) => {
+	const contacts = await Contact.find().sort({ createdAt: -1 });
+	res.status(HttpStatus.OK).json({ success: true, data: contacts });
+});
+
+export const replyToContact = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const { reply } = req.body;
+
+	if (!reply || !reply.trim()) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Reply message is required'));
+	}
+
+	const contact = await Contact.findById(id);
+	if (!contact) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Contact message not found'));
+	}
+
+	// Send reply email to user
+	await sendEmail({
+		to: contact.email,
+		subject: 'Response from Roomerang Support',
+		html: `
+			<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+				<div style="background-color: #f59e0b; padding: 20px; text-align: center;">
+					<h1 style="color: white; margin: 0;">Roomerang</h1>
+				</div>
+				<div style="padding: 30px;">
+					<h2 style="color: #333;">We've responded to your inquiry</h2>
+					<p>Dear ${contact.name},</p>
+					<div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
+						<p style="margin: 0 0 8px; color: #666; font-size: 13px;"><strong>Your original message:</strong></p>
+						<p style="white-space: pre-wrap; color: #666; font-size: 13px; margin: 0;">${contact.message}</p>
+					</div>
+					<div style="background-color: #fff8ec; border-left: 3px solid #f59e0b; padding: 15px; border-radius: 4px; margin: 20px 0;">
+						<p style="margin: 0 0 8px; color: #666; font-size: 13px;"><strong>Our response:</strong></p>
+						<p style="white-space: pre-wrap; color: #333;">${reply}</p>
+					</div>
+					<p>Best regards,<br/>The Roomerang Support Team</p>
+				</div>
+				<div style="background-color: #f9f9f9; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+					<p>© 2026 Roomerang. All rights reserved.</p>
+				</div>
+			</div>
+		`,
+	});
+
+	contact.adminReply = reply.trim();
+	contact.status = 'replied';
+	await contact.save();
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Reply sent successfully',
+		data: contact,
+	});
+});
+
+export const markContactRead = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const contact = await Contact.findById(id);
+	if (!contact) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Contact message not found'));
+	}
+	if (contact.status === 'unread') {
+		contact.status = 'read';
+		await contact.save();
+	}
+	res.status(HttpStatus.OK).json({ success: true, data: contact });
 });

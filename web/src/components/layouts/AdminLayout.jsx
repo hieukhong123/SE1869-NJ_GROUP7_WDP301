@@ -8,7 +8,7 @@ import {
     MoneyIcon,
     StarIcon,
     CreditCardIcon,
-    CurrencyCircleDollarIcon,
+    EnvelopeIcon,
     SignOutIcon,
     ListIcon
 } from '@phosphor-icons/react';
@@ -34,7 +34,7 @@ const AdminLayout = () => {
         { path: '/admin/extra-fees', name: 'Additional Services', icon: MoneyIcon },
         { path: '/admin/reviews', name: 'Guest Reviews', icon: StarIcon },
         { path: '/admin/payments', name: 'Transactions', icon: CreditCardIcon },
-        { path: '/admin/refunds', name: 'Refunds', icon: CurrencyCircleDollarIcon },
+        { path: '/admin/contacts', name: 'Contact Messages', icon: EnvelopeIcon },
     ];
 
     return (
@@ -123,7 +123,7 @@ const AdminLayout = () => {
                             className="flex items-center gap-4 w-full px-4 py-3 text-sm font-light tracking-wide text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors rounded-sm"
                         >
                             <SignOutIcon size={20} weight="light" />
-                            Secure Logout
+                            <span>Secure Logout</span>
                         </button>
                     </div>
                 </div>

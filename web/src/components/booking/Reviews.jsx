@@ -118,7 +118,7 @@ const Reviews = ({ hotelId }) => {
                         Past Experiences
                     </h2>
                     <span className="text-sm font-light text-gray-500 uppercase tracking-widest">
-                        {reviews.length} {reviews.length === 1 ? "Review" : "Reviews"}
+                        <span>{reviews.length}</span>{" "}<span>{reviews.length === 1 ? "Review" : "Reviews"}</span>
                     </span>
                 </div>
             </div>
@@ -153,8 +153,8 @@ const Reviews = ({ hotelId }) => {
                                     onClick={() => setSelectedRating(rating)}
                                 >
                                     <Star size={12} weight="fill" className={selectedRating === rating ? "text-white" : "text-orange-800"} />
-                                    {rating}
-                                    <span className="ml-1 opacity-50">({getStarCount(rating)})</span>
+                                    <span>{rating}</span>
+                                    <span className="ml-1 opacity-50">(<span>{getStarCount(rating)}</span>)</span>
                                 </button>
                             ))}
                         </div>
@@ -201,12 +201,12 @@ const Reviews = ({ hotelId }) => {
                                     {submitting ? (
                                         <>
                                             <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                            Submitting...
+                                            <span>Submitting...</span>
                                         </>
                                     ) : (
                                         <>
                                             <PaperPlaneTilt size={16} weight="light" />
-                                            Submit Review
+                                            <span>Submit Review</span>
                                         </>
                                     )}
                                 </button>

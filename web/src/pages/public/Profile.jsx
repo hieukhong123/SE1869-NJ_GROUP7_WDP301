@@ -207,21 +207,21 @@ const Profile = () => {
                                 className="flex items-center gap-4 w-full py-3 px-4 text-sm font-light text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-sm text-left"
                             >
                                 <PencilSimple size={18} weight="light" className="text-gray-400" />
-                                Edit Profile
+                                <span>Edit Profile</span>
                             </button>
                             <button
                                 onClick={() => setShowPasswordModal(true)}
                                 className="flex items-center gap-4 w-full py-3 px-4 text-sm font-light text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-sm text-left"
                             >
                                 <Key size={18} weight="light" className="text-gray-400" />
-                                Security Settings
+                                <span>Security Settings</span>
                             </button>
                             <button
                                 onClick={() => navigate('/my-bookings')}
                                 className="flex items-center gap-4 w-full py-3 px-4 text-sm font-light text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-sm text-left"
                             >
                                 <Receipt size={18} weight="light" className="text-gray-400" />
-                                My Reservations
+                                <span>My Reservations</span>
                             </button>
                             
                             <div className="h-[1px] bg-gray-100 my-2 w-full"></div>
@@ -231,7 +231,7 @@ const Profile = () => {
                                 className="flex items-center gap-4 w-full py-3 px-4 text-sm font-light text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors rounded-sm text-left"
                             >
                                 <SignOut size={18} weight="light" />
-                                Sign Out
+                                <span>Sign Out</span>
                             </button>
                         </div>
                     </div>

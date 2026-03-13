@@ -181,6 +181,11 @@ const BookingFormCard = ({
                                         <p className="font-serif text-gray-900 group-hover:text-orange-800 transition-colors">
                                             {room.roomName}
                                         </p>
+                                        {room.description && (
+                                            <p className="text-xs font-light text-gray-500 mt-1 leading-relaxed line-clamp-2">
+                                                {room.description}
+                                            </p>
+                                        )}
                                         <div className="flex items-center gap-2 mt-1">
                                             <span className="text-sm font-light text-gray-500" translate="no">
                                                 ${room.roomPrice?.toLocaleString()} / night

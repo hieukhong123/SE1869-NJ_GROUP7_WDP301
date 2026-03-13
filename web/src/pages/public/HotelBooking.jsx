@@ -59,10 +59,14 @@ const HotelBooking = () => {
     const [roomSelections, setRoomSelections] = useState({});
     const [selectedExtras, setSelectedExtras] = useState([]);
     const [totalAmount, setTotalAmount] = useState(0);
+    const [showRoomRequirementModal, setShowRoomRequirementModal] = useState(false);
 
     // Derived requirements
     const currentTotalGuests = formData.adult + formData.children + formData.baby;
-    const currentRoomsNeeded = Math.ceil(currentTotalGuests / 2);
+    const currentChildGuests = formData.children + formData.baby;
+    const roomsForAdults = Math.ceil(formData.adult / 2);
+    const remainingChildGuests = Math.max(0, currentChildGuests - roomsForAdults);
+    const currentRoomsNeeded = roomsForAdults + remainingChildGuests;
     const totalSelectedRooms = Object.values(roomSelections).reduce((a, b) => a + b, 0);
 
     useEffect(() => {
@@ -148,12 +152,14 @@ const HotelBooking = () => {
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        setShowRoomRequirementModal(false);
         if (name === "checkIn" || name === "checkOut") {
             setRoomSelections({});
         }
     };
 
     const handleNumberChange = (name, value) => {
+        setShowRoomRequirementModal(false);
         setFormData(prev => ({ ...prev, [name]: Math.max(0, parseInt(value) || 0) }));
     };
 
@@ -161,6 +167,7 @@ const HotelBooking = () => {
         const room = rooms.find(r => r._id === roomId);
         const maxAvailable = room ? (room.availableQuantity !== undefined ? room.availableQuantity : room.quantity) : 0;
         const safeQty = Math.max(0, Math.min(quantity, maxAvailable));
+        setShowRoomRequirementModal(false);
         setRoomSelections(prev => ({ ...prev, [roomId]: safeQty }));
     };
 
@@ -173,7 +180,7 @@ const HotelBooking = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (totalSelectedRooms !== currentRoomsNeeded) {
-            toast.error(`Please select exactly ${currentRoomsNeeded} rooms for your party.`);
+            setShowRoomRequirementModal(true);
             return;
         }
         setSubmitting(true);
@@ -258,6 +265,9 @@ const HotelBooking = () => {
                                 <div>
                                     <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1 text-right">Required Rooms</p>
                                     <p className="font-serif text-xl text-orange-800 text-right">{currentRoomsNeeded} Rooms</p>
+                                    <p className="text-[11px] font-light text-gray-400 text-right mt-1">
+                                        1 room max 2 adults and 1 child
+                                    </p>
                                 </div>
                                 <div className="p-3 bg-orange-50 rounded-full text-orange-800">
                                     <Door size={24} weight="light" />
@@ -430,6 +440,35 @@ const HotelBooking = () => {
                     <Reviews hotelId={id} />
                 </div>
             </div>
+
+            {showRoomRequirementModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                    <div className="w-full max-w-md bg-white border border-gray-200 rounded-sm shadow-2xl p-6 sm:p-7">
+                        <span className="text-[10px] uppercase tracking-[0.2em] font-medium text-orange-800 block mb-2">
+                            Room Selection Required
+                        </span>
+                        <h3 className="text-2xl font-serif text-gray-900 mb-3">
+                            Please adjust your room quantity
+                        </h3>
+                        <p className="text-sm font-light text-gray-600 leading-relaxed mb-3">
+                            You selected <span className="font-medium text-gray-900">{totalSelectedRooms}</span> room(s),
+                            but your party currently needs <span className="font-medium text-gray-900">{currentRoomsNeeded}</span> room(s).
+                        </p>
+                        <p className="text-sm font-light text-gray-500 leading-relaxed mb-6">
+                            Rule: 1 room can accommodate a maximum of 2 adults and 1 child.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                className="px-4 py-2 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-400 transition-colors rounded-sm"
+                                onClick={() => setShowRoomRequirementModal(false)}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

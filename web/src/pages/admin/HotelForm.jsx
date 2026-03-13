@@ -75,9 +75,15 @@ const HotelForm = () => {
                     'Content-Type': 'multipart/form-data',
                 },
             });
+            const uploadedUrl = response?.url;
+
+            if (!uploadedUrl) {
+                throw new Error('Upload succeeded but no image URL was returned.');
+            }
+
             setHotel((prevData) => ({
                 ...prevData,
-                photos: [...(prevData.photos || []), response.url],
+                photos: [...(prevData.photos || []), uploadedUrl],
             }));
             
             // Reset file input

@@ -10,9 +10,27 @@ import {
     CircleNotch,
     CaretLeft,
     CaretRight,
+    MapPin
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
+// --- UTILS ---
+const formatDateForInput = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
+
+const getNextDateValue = (dateValue) => {
+    if (!dateValue) return "";
+    const [year, month, day] = dateValue.split("-").map(Number);
+    const nextDate = new Date(year, month - 1, day);
+    nextDate.setDate(nextDate.getDate() + 1);
+    return formatDateForInput(nextDate);
+};
+
+// --- CUSTOM COMPONENTS ---
 const LuxuryDropdown = ({ label, value, options, onChange, placeholder }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -31,46 +49,32 @@ const LuxuryDropdown = ({ label, value, options, onChange, placeholder }) => {
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <label className="block text-xs uppercase tracking-widest text-gray-400 mb-2">
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">
                 {label}
             </label>
-
             <div
-                className="relative flex items-center justify-between w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light cursor-pointer group"
+                className="relative flex items-center justify-between w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light cursor-pointer group transition-colors hover:border-gray-900"
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <span className={!value ? "text-gray-400" : "text-gray-900"}>
                     {selectedOption ? selectedOption.label : placeholder}
                 </span>
-                <CaretDown
-                    size={16}
-                    weight="light"
-                    className={`text-gray-400 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
-                />
-
-                <div className={`absolute bottom-[-1px] left-0 h-[1px] bg-orange-800 transition-all duration-300 ${isOpen ? "w-full" : "w-0 group-hover:w-full"}`}></div>
+                <CaretDown size={14} weight="light" className={`text-gray-400 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
             </div>
 
             {isOpen && (
-                <div className="absolute z-50 top-full left-0 mt-2 w-full bg-white border border-gray-100 shadow-xl rounded-sm py-2 max-h-64 overflow-y-auto">
+                <div className="absolute z-50 top-full left-0 mt-1 w-full bg-white border border-gray-100 shadow-2xl rounded-sm py-2 max-h-64 overflow-y-auto animate-fade-in">
                     <div
-                        className={`px-4 py-3 text-sm font-light cursor-pointer transition-colors ${!value ? "text-orange-800 bg-orange-50/50" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}
-                        onClick={() => {
-                            onChange("");
-                            setIsOpen(false);
-                        }}
+                        className={`px-4 py-2.5 text-sm font-light cursor-pointer transition-colors ${!value ? "text-orange-800 bg-orange-50/50" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}
+                        onClick={() => { onChange(""); setIsOpen(false); }}
                     >
                         {placeholder}
                     </div>
-
                     {options.map((option) => (
                         <div
                             key={option.value}
-                            className={`px-4 py-3 text-sm font-light cursor-pointer transition-colors ${value === option.value ? "text-orange-800 bg-orange-50/50" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}
-                            onClick={() => {
-                                onChange(option.value);
-                                setIsOpen(false);
-                            }}
+                            className={`px-4 py-2.5 text-sm font-light cursor-pointer transition-colors ${value === option.value ? "text-orange-800 bg-orange-50/50" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}
+                            onClick={() => { onChange(option.value); setIsOpen(false); }}
                         >
                             {option.label}
                         </div>
@@ -81,73 +85,54 @@ const LuxuryDropdown = ({ label, value, options, onChange, placeholder }) => {
     );
 };
 
-const LuxuryMultiSelectDropdown = ({
-    label,
-    selectedValues,
-    options,
-    onToggle,
-    placeholder,
-}) => {
+const LuxuryMultiSelectDropdown = ({ label, selectedValues, options, onToggle, placeholder }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false);
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const selectedLabel =
-        selectedValues.length === 0
-            ? placeholder
-            : selectedValues.length <= 2
-                ? selectedValues.join(", ")
-                : `${selectedValues.slice(0, 2).join(", ")} +${selectedValues.length - 2}`;
+    const selectedLabel = selectedValues.length === 0
+        ? placeholder
+        : selectedValues.length <= 2
+            ? selectedValues.join(", ")
+            : `${selectedValues.slice(0, 2).join(", ")} +${selectedValues.length - 2}`;
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <label className="block text-xs uppercase tracking-widest text-gray-400 mb-2">
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">
                 {label}
             </label>
-
             <div
-                className="relative flex items-center justify-between w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light cursor-pointer group"
+                className="relative flex items-center justify-between w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light cursor-pointer group transition-colors hover:border-gray-900"
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <span className={selectedValues.length === 0 ? "text-gray-400 truncate" : "text-gray-900 truncate"}>
+                <span className={selectedValues.length === 0 ? "text-gray-400 truncate" : "text-gray-900 truncate pr-4"}>
                     {selectedLabel}
                 </span>
-                <CaretDown
-                    size={16}
-                    weight="light"
-                    className={`text-gray-400 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
-                />
-
-                <div className={`absolute bottom-[-1px] left-0 h-[1px] bg-orange-800 transition-all duration-300 ${isOpen ? "w-full" : "w-0 group-hover:w-full"}`}></div>
+                <CaretDown size={14} weight="light" className={`text-gray-400 transition-transform duration-300 shrink-0 ${isOpen ? "rotate-180" : ""}`} />
             </div>
 
             {isOpen && (
-                <div className="absolute z-50 top-full left-0 mt-2 w-full bg-white border border-gray-100 shadow-xl rounded-sm py-2 max-h-64 overflow-y-auto">
+                <div className="absolute z-50 top-full left-0 mt-1 w-full bg-white border border-gray-100 shadow-2xl rounded-sm py-2 max-h-64 overflow-y-auto animate-fade-in">
                     {options.length === 0 && (
-                        <div className="px-4 py-3 text-sm font-light text-gray-400">
-                            No packages available
-                        </div>
+                        <div className="px-4 py-3 text-sm font-light text-gray-400">No options available</div>
                     )}
-
                     {options.map((option) => {
                         const isSelected = selectedValues.includes(option.value);
                         return (
                             <div
                                 key={option.value}
-                                className={`px-4 py-3 text-sm font-light cursor-pointer transition-colors flex items-center justify-between ${isSelected ? "text-orange-800 bg-orange-50/50" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}
+                                className={`px-4 py-2.5 text-sm font-light cursor-pointer transition-colors flex items-center justify-between ${isSelected ? "text-orange-800 bg-orange-50/50" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}
                                 onClick={() => onToggle(option.value)}
                             >
                                 <span className="truncate pr-4">{option.label}</span>
-                                <span className={`w-4 h-4 rounded-full border ${isSelected ? "border-orange-800 bg-orange-800" : "border-gray-300"}`}></span>
+                                <span className={`w-3.5 h-3.5 rounded-full border transition-colors ${isSelected ? "border-orange-800 bg-orange-800" : "border-gray-300"}`}></span>
                             </div>
                         );
                     })}
@@ -157,17 +142,17 @@ const LuxuryMultiSelectDropdown = ({
     );
 };
 
+// --- MAIN COMPONENT ---
 const RoomCatalog = () => {
+    // State Declarations
     const [allHotels, setAllHotels] = useState([]);
     const [allRooms, setAllRooms] = useState([]);
     const [allReviews, setAllReviews] = useState([]);
     const [allExtraFees, setAllExtraFees] = useState([]);
-
     const [loading, setLoading] = useState(true);
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
 
     const [searchParams, setSearchParams] = useSearchParams();
-
     const [selectedCity, setSelectedCity] = useState(searchParams.get("city") || "");
     const [selectedHotel, setSelectedHotel] = useState(searchParams.get("hotelId") || "");
     const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
@@ -179,35 +164,43 @@ const RoomCatalog = () => {
     const [selectedExtraPackages, setSelectedExtraPackages] = useState(
         (searchParams.get("extras") || "").split(",").filter(Boolean)
     );
-
     const [currentPage, setCurrentPage] = useState(1);
 
     const navigate = useNavigate();
-
     const HOTELS_PER_PAGE = 9;
 
+    // Date Logic
+    const todayDateValue = useMemo(() => formatDateForInput(new Date()), []);
+    const minimumCheckOutDate = checkIn ? getNextDateValue(checkIn) : todayDateValue;
+    const hasPastCheckIn = Boolean(checkIn && checkIn < todayDateValue);
+    const hasPastCheckOut = Boolean(checkOut && checkOut < todayDateValue);
     const hasDateRange = Boolean(checkIn && checkOut);
-    const hasInvalidDateRange =
-        hasDateRange && new Date(checkOut).getTime() <= new Date(checkIn).getTime();
+    const hasInvalidDateRange = hasDateRange && checkOut <= checkIn;
+    const hasDateValidationError = hasPastCheckIn || hasPastCheckOut || hasInvalidDateRange;
+
+    const dateValidationMessage = useMemo(() => {
+        if (hasPastCheckIn) return "Check-in date cannot be in the past.";
+        if (hasPastCheckOut) return "Check-out date cannot be in the past.";
+        if (hasInvalidDateRange) return "Check-out date must be after check-in date.";
+        return "";
+    }, [hasPastCheckIn, hasPastCheckOut, hasInvalidDateRange]);
 
     const guestsNeeded = Number(guestCount) || 0;
     const minimumRating = Number(selectedRating) || 0;
 
+    // Data Fetching
     const fetchBaseData = useCallback(async () => {
         try {
             setLoading(true);
-
-            const [hotelsResponse, reviewsResponse, extraFeesResponse] = await Promise.all([
+            const [hotelsRes, reviewsRes, extraFeesRes] = await Promise.all([
                 axiosClient.get("/hotels"),
                 axiosClient.get("/reviews"),
                 axiosClient.get("/extra-fees"),
             ]);
-
-            setAllHotels(hotelsResponse.data || []);
-            setAllReviews(reviewsResponse.data || []);
-            setAllExtraFees(extraFeesResponse.data || []);
+            setAllHotels(hotelsRes.data || []);
+            setAllReviews(reviewsRes.data || []);
+            setAllExtraFees(extraFeesRes.data || []);
         } catch (error) {
-            console.error("Error fetching catalog base data:", error);
             toast.error("Failed to load hotel portfolio");
         } finally {
             setLoading(false);
@@ -222,27 +215,23 @@ const RoomCatalog = () => {
         const fetchAvailabilityRooms = async () => {
             try {
                 setAvailabilityLoading(true);
-
-                const endpoint = hasDateRange && !hasInvalidDateRange
+                const endpoint = hasDateRange && !hasDateValidationError
                     ? `/rooms?checkIn=${checkIn}&checkOut=${checkOut}`
                     : "/rooms";
-
                 const roomsResponse = await axiosClient.get(endpoint);
                 setAllRooms(roomsResponse.data || []);
             } catch (error) {
-                console.error("Error fetching availability rooms:", error);
                 toast.error("Failed to refresh room availability");
             } finally {
                 setAvailabilityLoading(false);
             }
         };
-
         fetchAvailabilityRooms();
-    }, [checkIn, checkOut, hasDateRange, hasInvalidDateRange]);
+    }, [checkIn, checkOut, hasDateRange, hasDateValidationError]);
 
+    // URL Params Sync
     useEffect(() => {
         const params = {};
-
         if (searchQuery.trim()) params.search = searchQuery.trim();
         if (selectedCity) params.city = selectedCity;
         if (selectedHotel) params.hotelId = selectedHotel;
@@ -251,302 +240,178 @@ const RoomCatalog = () => {
         if (checkOut) params.checkOut = checkOut;
         if (selectedRating) params.rating = selectedRating;
         if (selectedPropertyType) params.propertyType = selectedPropertyType;
-        if (selectedExtraPackages.length > 0) {
-            params.extras = selectedExtraPackages.join(",");
-        }
-
+        if (selectedExtraPackages.length > 0) params.extras = selectedExtraPackages.join(",");
         setSearchParams(params, { replace: true });
-    }, [
-        searchQuery,
-        selectedCity,
-        selectedHotel,
-        guestCount,
-        checkIn,
-        checkOut,
-        selectedRating,
-        selectedPropertyType,
-        selectedExtraPackages,
-        setSearchParams,
-    ]);
+    }, [searchQuery, selectedCity, selectedHotel, guestCount, checkIn, checkOut, selectedRating, selectedPropertyType, selectedExtraPackages, setSearchParams]);
 
-    const cities = useMemo(
-        () => [...new Set(allHotels.map((hotel) => hotel.city).filter(Boolean))].sort(),
-        [allHotels]
-    );
+    // Data Processing (Memos)
+    const cities = useMemo(() => [...new Set(allHotels.map((h) => h.city).filter(Boolean))].sort(), [allHotels]);
+    const propertyTypes = useMemo(() => [...new Set(allHotels.map((h) => h.propertyType).filter(Boolean))].sort(), [allHotels]);
+    const extraPackageNames = useMemo(() => [...new Set(allExtraFees.map((f) => f.extraName).filter(Boolean))].sort(), [allExtraFees]);
 
-    const propertyTypes = useMemo(
-        () => [...new Set(allHotels.map((hotel) => hotel.propertyType).filter(Boolean))].sort(),
-        [allHotels]
-    );
-
-    const extraPackageNames = useMemo(
-        () => [...new Set(allExtraFees.map((fee) => fee.extraName).filter(Boolean))].sort(),
-        [allExtraFees]
-    );
-
-    const filteredHotelsForDropdown = useMemo(
-        () =>
-            allHotels.filter((hotel) => {
-                const matchesCity = !selectedCity || hotel.city === selectedCity;
-                const matchesPropertyType = !selectedPropertyType || hotel.propertyType === selectedPropertyType;
-                return matchesCity && matchesPropertyType;
-            }),
+    const filteredHotelsForDropdown = useMemo(() =>
+        allHotels.filter((hotel) => {
+            const matchesCity = !selectedCity || hotel.city === selectedCity;
+            const matchesPropertyType = !selectedPropertyType || hotel.propertyType === selectedPropertyType;
+            return matchesCity && matchesPropertyType;
+        }),
         [allHotels, selectedCity, selectedPropertyType]
     );
 
     useEffect(() => {
-        if (
-            selectedHotel &&
-            !filteredHotelsForDropdown.some((hotel) => hotel._id === selectedHotel)
-        ) {
+        if (selectedHotel && !filteredHotelsForDropdown.some((h) => h._id === selectedHotel)) {
             setSelectedHotel("");
         }
     }, [selectedHotel, filteredHotelsForDropdown]);
 
-    const ratingsByHotel = useMemo(
-        () =>
-            allReviews.reduce((accumulator, review) => {
-                const hotelId = review.hotelId?._id || review.hotelId;
-                if (!hotelId) return accumulator;
-
-                if (!accumulator[hotelId]) {
-                    accumulator[hotelId] = { total: 0, count: 0, average: 0 };
-                }
-
-                accumulator[hotelId].total += Number(review.rating) || 0;
-                accumulator[hotelId].count += 1;
-                accumulator[hotelId].average =
-                    accumulator[hotelId].total / accumulator[hotelId].count;
-
-                return accumulator;
-            }, {}),
+    const ratingsByHotel = useMemo(() =>
+        allReviews.reduce((acc, review) => {
+            const hotelId = review.hotelId?._id || review.hotelId;
+            if (!hotelId) return acc;
+            if (!acc[hotelId]) acc[hotelId] = { total: 0, count: 0, average: 0 };
+            acc[hotelId].total += Number(review.rating) || 0;
+            acc[hotelId].count += 1;
+            acc[hotelId].average = acc[hotelId].total / acc[hotelId].count;
+            return acc;
+        }, {}),
         [allReviews]
     );
 
     const normalizedExtrasByHotel = useMemo(() => {
-        const extrasByHotel = allExtraFees.reduce((accumulator, fee) => {
+        const extras = allExtraFees.reduce((acc, fee) => {
             const hotelId = fee.hotelId?._id || fee.hotelId;
-            if (!hotelId || !fee.extraName) return accumulator;
-
-            if (!accumulator[hotelId]) {
-                accumulator[hotelId] = new Set();
-            }
-
-            accumulator[hotelId].add(fee.extraName);
-            return accumulator;
+            if (!hotelId || !fee.extraName) return acc;
+            if (!acc[hotelId]) acc[hotelId] = new Set();
+            acc[hotelId].add(fee.extraName);
+            return acc;
         }, {});
-
-        return Object.keys(extrasByHotel).reduce((accumulator, hotelId) => {
-            accumulator[hotelId] = Array.from(extrasByHotel[hotelId]);
-            return accumulator;
+        return Object.keys(extras).reduce((acc, hotelId) => {
+            acc[hotelId] = Array.from(extras[hotelId]);
+            return acc;
         }, {});
     }, [allExtraFees]);
 
-    const roomStatsByHotel = useMemo(
-        () =>
-            allRooms.reduce((accumulator, room) => {
-                const hotelId = room.hotelId?._id || room.hotelId;
-                if (!hotelId) return accumulator;
+    const roomStatsByHotel = useMemo(() =>
+        allRooms.reduce((acc, room) => {
+            const hotelId = room.hotelId?._id || room.hotelId;
+            if (!hotelId) return acc;
+            if (!acc[hotelId]) acc[hotelId] = { hasAvailableRooms: false, availableUnits: 0, maxOccupancy: 0, minPrice: Infinity };
+            
+            const availableQuantity = Number(room.availableQuantity ?? room.quantity ?? 0);
+            const isBookable = room.status === "available" && availableQuantity > 0;
+            if (!isBookable) return acc;
 
-                if (!accumulator[hotelId]) {
-                    accumulator[hotelId] = {
-                        hasAvailableRooms: false,
-                        availableUnits: 0,
-                        maxOccupancy: 0,
-                        minPrice: Infinity,
-                    };
-                }
-
-                const availableQuantity = Number(room.availableQuantity ?? room.quantity ?? 0);
-                const isBookable = room.status === "available" && availableQuantity > 0;
-
-                if (!isBookable) return accumulator;
-
-                accumulator[hotelId].hasAvailableRooms = true;
-                accumulator[hotelId].availableUnits += availableQuantity;
-                accumulator[hotelId].maxOccupancy = Math.max(
-                    accumulator[hotelId].maxOccupancy,
-                    Number(room.maxOccupancy) || 0
-                );
-
-                const roomPrice = Number(room.roomPrice) || 0;
-                if (roomPrice > 0) {
-                    accumulator[hotelId].minPrice = Math.min(
-                        accumulator[hotelId].minPrice,
-                        roomPrice
-                    );
-                }
-
-                return accumulator;
-            }, {}),
+            acc[hotelId].hasAvailableRooms = true;
+            acc[hotelId].availableUnits += availableQuantity;
+            acc[hotelId].maxOccupancy = Math.max(acc[hotelId].maxOccupancy, Number(room.maxOccupancy) || 0);
+            
+            const roomPrice = Number(room.roomPrice) || 0;
+            if (roomPrice > 0) acc[hotelId].minPrice = Math.min(acc[hotelId].minPrice, roomPrice);
+            return acc;
+        }, {}),
         [allRooms]
     );
 
     const filteredHotels = useMemo(() => {
         return allHotels.filter((hotel) => {
-            if (hasInvalidDateRange) return false;
-
+            if (hasDateValidationError) return false;
             const hotelId = hotel._id;
             const roomStats = roomStatsByHotel[hotelId];
             const ratingInfo = ratingsByHotel[hotelId] || { average: 0, count: 0 };
             const hotelExtras = normalizedExtrasByHotel[hotelId] || [];
-
             const searchValue = searchQuery.trim().toLowerCase();
-            const matchesSearch =
-                !searchValue ||
+
+            const matchesSearch = !searchValue ||
                 hotel.name?.toLowerCase().includes(searchValue) ||
                 hotel.city?.toLowerCase().includes(searchValue) ||
                 hotel.address?.toLowerCase().includes(searchValue) ||
                 hotel.description?.toLowerCase().includes(searchValue);
-
             const matchesAvailability = Boolean(roomStats?.hasAvailableRooms);
             const matchesCity = !selectedCity || hotel.city === selectedCity;
             const matchesHotel = !selectedHotel || hotelId === selectedHotel;
-            const matchesGuests =
-                !guestsNeeded || (roomStats?.maxOccupancy || 0) >= guestsNeeded;
+            const matchesGuests = !guestsNeeded || (roomStats?.maxOccupancy || 0) >= guestsNeeded;
             const matchesRating = !minimumRating || ratingInfo.average >= minimumRating;
-            const matchesPropertyType =
-                !selectedPropertyType || hotel.propertyType === selectedPropertyType;
-            const matchesExtraPackages =
-                selectedExtraPackages.length === 0 ||
-                selectedExtraPackages.every((extraName) => hotelExtras.includes(extraName));
+            const matchesPropertyType = !selectedPropertyType || hotel.propertyType === selectedPropertyType;
+            const matchesExtraPackages = selectedExtraPackages.length === 0 ||
+                selectedExtraPackages.every((extra) => hotelExtras.includes(extra));
 
-            return (
-                matchesSearch &&
-                matchesAvailability &&
-                matchesCity &&
-                matchesHotel &&
-                matchesGuests &&
-                matchesRating &&
-                matchesPropertyType &&
-                matchesExtraPackages
-            );
+            return matchesSearch && matchesAvailability && matchesCity && matchesHotel && matchesGuests && matchesRating && matchesPropertyType && matchesExtraPackages;
         });
-    }, [
-        allHotels,
-        hasInvalidDateRange,
-        roomStatsByHotel,
-        ratingsByHotel,
-        normalizedExtrasByHotel,
-        searchQuery,
-        selectedCity,
-        selectedHotel,
-        guestsNeeded,
-        minimumRating,
-        selectedPropertyType,
-        selectedExtraPackages,
-    ]);
+    }, [allHotels, hasDateValidationError, roomStatsByHotel, ratingsByHotel, normalizedExtrasByHotel, searchQuery, selectedCity, selectedHotel, guestsNeeded, minimumRating, selectedPropertyType, selectedExtraPackages]);
 
+    // Pagination
     const totalPages = Math.ceil(filteredHotels.length / HOTELS_PER_PAGE);
     const startIndex = (currentPage - 1) * HOTELS_PER_PAGE;
-    const endIndex = startIndex + HOTELS_PER_PAGE;
-    const currentHotels = filteredHotels.slice(startIndex, endIndex);
+    const currentHotels = filteredHotels.slice(startIndex, startIndex + HOTELS_PER_PAGE);
 
     useEffect(() => {
-        if (currentPage > totalPages && totalPages > 0) {
-            setCurrentPage(totalPages);
-        }
+        if (currentPage > totalPages && totalPages > 0) setCurrentPage(totalPages);
     }, [currentPage, totalPages]);
 
-    const handleCityFilter = (cityValue) => {
-        setSelectedCity(cityValue);
-        setSelectedHotel("");
+    // Handlers
+    const handleCityFilter = (val) => { setSelectedCity(val); setSelectedHotel(""); setCurrentPage(1); };
+    const handleSearchChange = (val) => { setSearchQuery(val); setCurrentPage(1); };
+    const handlePropertyTypeFilter = (val) => { setSelectedPropertyType(val); setSelectedHotel(""); setCurrentPage(1); };
+    const handleRatingFilter = (val) => { setSelectedRating(val); setCurrentPage(1); };
+    const handleExtraPackageToggle = (val) => {
+        setSelectedExtraPackages((prev) => prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val]);
         setCurrentPage(1);
     };
-
-    const handleHotelFilter = (hotelValue) => {
-        setSelectedHotel(hotelValue);
-        setCurrentPage(1);
-    };
-
-    const handleSearchChange = (value) => {
-        setSearchQuery(value);
-        setCurrentPage(1);
-    };
-
     const handleGuestChange = (value) => {
-        const sanitizedValue = value === "" ? "" : Math.max(1, Number(value) || 1);
-        setGuestCount(String(sanitizedValue));
+        if (value === "") { setGuestCount(""); setCurrentPage(1); return; }
+        const parsedValue = Number(value);
+        if (!Number.isFinite(parsedValue)) return;
+        setGuestCount(String(Math.max(1, Math.floor(parsedValue))));
         setCurrentPage(1);
     };
-
     const handleCheckInChange = (value) => {
+        if (value && value < todayDateValue) { toast.error("Check-in date cannot be in the past"); return; }
         setCheckIn(value);
+        if (checkOut && value && checkOut <= value) { setCheckOut(""); toast.info("Check-out cleared. Please choose a new date."); }
         setCurrentPage(1);
     };
-
     const handleCheckOutChange = (value) => {
+        if (value && value < todayDateValue) { toast.error("Check-out date cannot be in the past"); return; }
+        if (checkIn && value && value <= checkIn) { toast.error("Check-out must be after check-in"); return; }
         setCheckOut(value);
         setCurrentPage(1);
     };
-
-    const handleRatingFilter = (value) => {
-        setSelectedRating(value);
-        setCurrentPage(1);
-    };
-
-    const handlePropertyTypeFilter = (value) => {
-        setSelectedPropertyType(value);
-        setSelectedHotel("");
-        setCurrentPage(1);
-    };
-
-    const handleExtraPackageToggle = (value) => {
-        setSelectedExtraPackages((previous) =>
-            previous.includes(value)
-                ? previous.filter((item) => item !== value)
-                : [...previous, value]
-        );
-        setCurrentPage(1);
-    };
-
     const clearAllFilters = () => {
-        setSelectedCity("");
-        setSelectedHotel("");
-        setSearchQuery("");
-        setGuestCount("");
-        setCheckIn("");
-        setCheckOut("");
-        setSelectedRating("");
-        setSelectedPropertyType("");
-        setSelectedExtraPackages([]);
-        setCurrentPage(1);
-        setSearchParams({}, { replace: true });
+        setSelectedCity(""); setSelectedHotel(""); setSearchQuery(""); setGuestCount("");
+        setCheckIn(""); setCheckOut(""); setSelectedRating(""); setSelectedPropertyType("");
+        setSelectedExtraPackages([]); setCurrentPage(1); setSearchParams({}, { replace: true });
+    };
+    
+    // Nút TÌM KIẾM (Cuộn xuống list kết quả)
+    const handleSearchSubmit = () => {
+        const resultsSection = document.getElementById("results-section");
+        if (resultsSection) {
+            window.scrollTo({ top: resultsSection.offsetTop - 100, behavior: "smooth" });
+        }
     };
 
     const handleViewHotel = (hotelId) => {
         const params = new URLSearchParams();
         if (checkIn) params.set("checkIn", checkIn);
         if (checkOut) params.set("checkOut", checkOut);
-        if (guestCount) params.set("adult", guestCount);
-
-        const queryString = params.toString();
-        navigate(`/hotels/${hotelId}/book${queryString ? `?${queryString}` : ""}`);
+        if (guestCount) params.set("guests", guestCount); 
+        navigate(`/hotels/${hotelId}/book${params.toString() ? `?${params.toString()}` : ""}`);
     };
-
     const handlePageChange = (page) => {
         setCurrentPage(page);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        const resultsSection = document.getElementById("results-section");
+        if (resultsSection) {
+            window.scrollTo({ top: resultsSection.offsetTop - 100, behavior: "smooth" });
+        }
     };
 
+    // Options
     const cityOptions = cities.map((city) => ({ label: city, value: city }));
-    const hotelOptions = filteredHotelsForDropdown.map((hotel) => ({
-        label: hotel.name,
-        value: hotel._id,
-    }));
-    const ratingOptions = [1, 2, 3, 4, 5].map((starValue) => ({
-        label: `${starValue}+ stars`,
-        value: String(starValue),
-    }));
-    const propertyTypeOptions = propertyTypes.map((propertyType) => ({
-        label: propertyType,
-        value: propertyType,
-    }));
-    const extraPackageOptions = extraPackageNames.map((packageName) => ({
-        label: packageName,
-        value: packageName,
-    }));
+    const ratingOptions = [1, 2, 3, 4, 5].map((star) => ({ label: `${star}+ Stars`, value: String(star) }));
+    const propertyTypeOptions = propertyTypes.map((type) => ({ label: type, value: type }));
+    const extraPackageOptions = extraPackageNames.map((pkg) => ({ label: pkg, value: pkg }));
 
+    // --- RENDER ---
     if (loading) {
         return (
             <div className="min-h-screen bg-[#FFFCFA] flex flex-col items-center justify-center gap-4">
@@ -559,362 +424,302 @@ const RoomCatalog = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#FFFCFA] py-24">
-            <div className="container mx-auto px-4 max-w-7xl">
+        <div className="min-h-screen bg-[#FFFCFA] pt-32 pb-24">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+                
+                {/* Hero Section */}
                 <div className="mb-16 text-center">
-                    <span className="text-xs uppercase tracking-[0.2em] font-medium text-orange-800 mb-4 block">
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-medium text-orange-800 mb-4 block">
                         Our Collection
                     </span>
-                    <h1 className="text-4xl md:text-5xl font-serif text-gray-900 mb-4">
+                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif text-gray-900 mb-6">
                         Hotel Portfolio
                     </h1>
-                    <p className="text-gray-500 font-light max-w-2xl mx-auto">
-                        Browse available properties and refine results with advanced booking filters.
+                    <p className="text-gray-500 font-light text-sm tracking-wide max-w-2xl mx-auto">
+                        Discover extraordinary properties tailored to your needs. Refine your search below to uncover the perfect stay.
                     </p>
                 </div>
 
-                <div className="mb-12 py-8 border-y border-gray-200">
-                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                        <div className="relative group">
-                            <label className="block text-xs uppercase tracking-widest text-gray-400 mb-2">
-                                Search
-                            </label>
-                            <div className="relative flex items-center border-b border-gray-300">
-                                <MagnifyingGlass size={18} weight="light" className="absolute left-0 text-gray-400" />
+                {/* Main Search Bar (Horizontal) */}
+                <section className="mb-12 bg-white border border-gray-100 rounded-sm p-6 md:p-8 shadow-2xl shadow-gray-200/40 relative z-20">
+                    <div className="flex justify-between items-end mb-6 border-b border-gray-100 pb-4">
+                        <h2 className="text-xl font-serif text-gray-900">Find Your Stay</h2>
+                        <button
+                            onClick={clearAllFilters}
+                            className="text-[10px] uppercase tracking-widest text-orange-800 hover:text-gray-900 transition-colors border-b border-orange-800 pb-0.5 hover:border-gray-900"
+                        >
+                            Reset Fields
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-end">
+                        
+                        {/* Search Keyword */}
+                        <div className="relative group lg:col-span-4">
+                            <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Destination or Property</label>
+                            <div className="relative flex items-center border-b border-gray-300 hover:border-gray-900 transition-colors">
+                                <MagnifyingGlass size={16} weight="light" className="absolute left-0 text-gray-400" />
                                 <input
                                     type="text"
-                                    placeholder="Hotel, city, address..."
-                                    className="w-full bg-transparent border-0 pl-8 pr-0 py-2 text-gray-900 font-light focus:ring-0 placeholder-gray-400"
+                                    placeholder="Search city, address..."
+                                    className="w-full bg-transparent border-0 pl-7 pr-0 py-2 text-gray-900 font-light focus:ring-0 placeholder-gray-300"
                                     value={searchQuery}
-                                    onChange={(event) => handleSearchChange(event.target.value)}
+                                    onChange={(e) => handleSearchChange(e.target.value)}
                                 />
-                                <div className="absolute bottom-[-1px] left-0 w-0 h-[1px] bg-orange-800 transition-all duration-300 group-hover:w-full group-focus-within:w-full"></div>
                             </div>
                         </div>
 
-                        <LuxuryDropdown
-                            label="Destination"
-                            placeholder="All Destinations"
-                            options={cityOptions}
-                            value={selectedCity}
-                            onChange={handleCityFilter}
-                        />
+                        {/* Check-in */}
+                        <div className="relative group lg:col-span-2">
+                            <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Check-in</label>
+                            <div className="relative border-b border-gray-300 hover:border-gray-900 transition-colors">
+                                <input
+                                    type="date"
+                                    min={todayDateValue}
+                                    className="w-full bg-transparent border-0 px-0 py-2 text-gray-900 font-light focus:ring-0 cursor-pointer"
+                                    value={checkIn}
+                                    onChange={(e) => handleCheckInChange(e.target.value)}
+                                />
+                            </div>
+                        </div>
 
-                        <LuxuryDropdown
-                            label="Property Type"
-                            placeholder="All Types"
-                            options={propertyTypeOptions}
-                            value={selectedPropertyType}
-                            onChange={handlePropertyTypeFilter}
-                        />
-                    </div>
+                        {/* Check-out */}
+                        <div className="relative group lg:col-span-2">
+                            <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Check-out</label>
+                            <div className="relative border-b border-gray-300 hover:border-gray-900 transition-colors">
+                                <input
+                                    type="date"
+                                    min={minimumCheckOutDate}
+                                    className="w-full bg-transparent border-0 px-0 py-2 text-gray-900 font-light focus:ring-0 cursor-pointer"
+                                    value={checkOut}
+                                    onChange={(e) => handleCheckOutChange(e.target.value)}
+                                />
+                            </div>
+                        </div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8 mt-8">
-                        <div className="relative group">
-                            <label className="block text-xs uppercase tracking-widest text-gray-400 mb-2">
-                                Guests
-                            </label>
-                            <div className="relative flex items-center border-b border-gray-300">
-                                <Users size={18} weight="light" className="absolute left-0 text-gray-400" />
+                        {/* Guests (Moved from Sidebar) */}
+                        <div className="relative group lg:col-span-2">
+                            <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Guests</label>
+                            <div className="relative flex items-center border-b border-gray-300 hover:border-gray-900 transition-colors">
+                                <Users size={16} weight="light" className="absolute left-0 text-gray-400" />
                                 <input
                                     type="number"
                                     min="1"
-                                    placeholder="Any"
-                                    className="w-full bg-transparent border-0 pl-8 pr-0 py-2 text-gray-900 font-light focus:ring-0 placeholder-gray-400"
+                                    placeholder="Add guests"
+                                    className="w-full bg-transparent border-0 pl-7 pr-0 py-2 text-gray-900 font-light focus:ring-0 placeholder-gray-300"
                                     value={guestCount}
-                                    onChange={(event) => handleGuestChange(event.target.value)}
+                                    onChange={(e) => handleGuestChange(e.target.value)}
                                 />
-                                <div className="absolute bottom-[-1px] left-0 w-0 h-[1px] bg-orange-800 transition-all duration-300 group-hover:w-full group-focus-within:w-full"></div>
                             </div>
                         </div>
 
-                        <div className="relative group">
-                            <label className="block text-xs uppercase tracking-widest text-gray-400 mb-2">
-                                Check-in
-                            </label>
-                            <div className="relative border-b border-gray-300">
-                                <input
-                                    type="date"
-                                    className="w-full bg-transparent border-0 px-0 py-2 text-gray-900 font-light focus:ring-0"
-                                    value={checkIn}
-                                    onChange={(event) => handleCheckInChange(event.target.value)}
-                                />
-                                <div className="absolute bottom-[-1px] left-0 w-0 h-[1px] bg-orange-800 transition-all duration-300 group-hover:w-full group-focus-within:w-full"></div>
-                            </div>
+                        {/* Search Button */}
+                        <div className="lg:col-span-2">
+                            <button
+                                onClick={handleSearchSubmit}
+                                className="w-full py-[11px] bg-gray-900 hover:bg-black text-white text-xs tracking-widest uppercase transition-colors rounded-sm flex items-center justify-center gap-2"
+                            >
+                                <MagnifyingGlass size={14} weight="light" /> Search
+                            </button>
                         </div>
 
-                        <div className="relative group">
-                            <label className="block text-xs uppercase tracking-widest text-gray-400 mb-2">
-                                Check-out
-                            </label>
-                            <div className="relative border-b border-gray-300">
-                                <input
-                                    type="date"
-                                    className="w-full bg-transparent border-0 px-0 py-2 text-gray-900 font-light focus:ring-0"
-                                    value={checkOut}
-                                    onChange={(event) => handleCheckOutChange(event.target.value)}
-                                />
-                                <div className="absolute bottom-[-1px] left-0 w-0 h-[1px] bg-orange-800 transition-all duration-300 group-hover:w-full group-focus-within:w-full"></div>
-                            </div>
-                        </div>
-
-                        <LuxuryDropdown
-                            label="Rating"
-                            placeholder="All Ratings"
-                            options={ratingOptions}
-                            value={selectedRating}
-                            onChange={handleRatingFilter}
-                        />
-
-                        <LuxuryMultiSelectDropdown
-                            label="Extra Packages"
-                            placeholder="Any Package"
-                            options={extraPackageOptions}
-                            selectedValues={selectedExtraPackages}
-                            onToggle={handleExtraPackageToggle}
-                        />
                     </div>
 
-                    {hasInvalidDateRange && (
-                        <p className="mt-6 text-sm text-red-500 font-light">
-                            Check-out date must be after check-in date.
+                    {dateValidationMessage && (
+                        <p className="mt-4 text-[11px] text-red-500 font-light uppercase tracking-wide">
+                            * {dateValidationMessage}
                         </p>
                     )}
-                </div>
+                </section>
 
-                <div className="mb-8 flex justify-between items-end">
-                    <p className="text-sm font-light uppercase tracking-widest text-gray-500">
-                        {filteredHotels.length} {filteredHotels.length === 1 ? "Property" : "Properties"} found
-                    </p>
-                    <div className="text-right">
-                        {availabilityLoading && (
-                            <p className="text-xs font-light uppercase tracking-widest text-gray-400 flex items-center justify-end gap-2 mb-1">
-                                <CircleNotch size={12} className="animate-spin" /> Refreshing availability
+                {/* Content Grid (Sidebar + List) */}
+                <div id="results-section" className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-10 lg:gap-16 items-start relative z-10 pt-4">
+                    
+                    {/* Filter Sidebar */}
+                    <aside className="bg-white border border-gray-100 rounded-sm p-6 shadow-sm lg:sticky lg:top-24">
+                        <h3 className="text-sm font-serif text-gray-900 mb-8 pb-4 border-b border-gray-100">Refine Results</h3>
+                        
+                        <div className="space-y-8">
+                            {/* Guests Input removed from here and moved to top bar */}
+                            
+                            <LuxuryDropdown
+                                label="Location"
+                                placeholder="Any City"
+                                options={cityOptions}
+                                value={selectedCity}
+                                onChange={handleCityFilter}
+                            />
+                            <LuxuryDropdown
+                                label="Property Style"
+                                placeholder="Any Style"
+                                options={propertyTypeOptions}
+                                value={selectedPropertyType}
+                                onChange={handlePropertyTypeFilter}
+                            />
+                            <LuxuryDropdown
+                                label="Guest Rating"
+                                placeholder="Any Rating"
+                                options={ratingOptions}
+                                value={selectedRating}
+                                onChange={handleRatingFilter}
+                            />
+                            <LuxuryMultiSelectDropdown
+                                label="Amenities"
+                                placeholder="Any Amenity"
+                                options={extraPackageOptions}
+                                selectedValues={selectedExtraPackages}
+                                onToggle={handleExtraPackageToggle}
+                            />
+                        </div>
+                    </aside>
+
+                    {/* Hotel List */}
+                    <div>
+                        {/* Results Header */}
+                        <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-gray-100">
+                            <p className="text-[10px] uppercase tracking-widest text-gray-500 font-medium">
+                                Showing {filteredHotels.length} {filteredHotels.length === 1 ? "Property" : "Properties"}
                             </p>
-                        )}
-                        {totalPages > 1 && (
-                            <p className="text-xs font-light uppercase tracking-widest text-gray-400">
-                                Page {currentPage} of {totalPages}
-                            </p>
-                        )}
-                    </div>
-                </div>
-
-                {filteredHotels.length === 0 ? (
-                    <div className="text-center py-24 flex flex-col items-center">
-                        <Bed size={64} weight="light" className="text-gray-300 mb-6" />
-                        <h3 className="text-2xl font-serif text-gray-900 mb-2">
-                            {hasInvalidDateRange ? "Invalid date range" : "No availability"}
-                        </h3>
-                        <p className="text-gray-500 font-light max-w-md mx-auto">
-                            {hasInvalidDateRange
-                                ? "Please choose a valid check-in and check-out range."
-                                : "We couldn't find any hotels matching your criteria. Please adjust filters and try again."}
-                        </p>
-                        <button
-                            onClick={clearAllFilters}
-                            className="mt-8 text-sm uppercase tracking-widest text-orange-800 hover:text-gray-900 transition-colors border-b border-orange-800 pb-1 hover:border-gray-900"
-                        >
-                            Clear Filters
-                        </button>
-                    </div>
-                ) : (
-                    <>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
-                            {currentHotels.map((hotel) => {
-                                const roomStats = roomStatsByHotel[hotel._id] || {
-                                    availableUnits: 0,
-                                    maxOccupancy: 0,
-                                    minPrice: Infinity,
-                                };
-
-                                const ratingInfo = ratingsByHotel[hotel._id] || {
-                                    average: 0,
-                                    count: 0,
-                                };
-
-                                const roundedRating = Math.round(ratingInfo.average);
-                                const hotelPackages = (normalizedExtrasByHotel[hotel._id] || []).slice(0, 3);
-
-                                return (
-                                    <div
-                                        key={hotel._id}
-                                        className="group bg-white flex flex-col border border-gray-100 hover:shadow-xl transition-all duration-500 overflow-hidden rounded-sm"
-                                    >
-                                        <figure className="relative h-64 bg-gray-50 overflow-hidden">
-                                            {hotel.photos?.[0] ? (
-                                                <img
-                                                    src={hotel.photos[0]}
-                                                    alt={hotel.name}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center">
-                                                    <Bed size={48} weight="light" className="text-gray-300" />
-                                                </div>
-                                            )}
-                                            <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-500"></div>
-                                        </figure>
-
-                                        <div className="p-8 flex flex-col flex-grow">
-                                            <div className="text-xs uppercase tracking-[0.15em] text-orange-800 font-medium mb-3">
-                                                {hotel.city}
-                                                {hotel.propertyType ? ` • ${hotel.propertyType}` : ""}
-                                            </div>
-
-                                            <h2 className="text-2xl font-serif text-gray-900 mb-3 line-clamp-1">
-                                                {hotel.name}
-                                            </h2>
-
-                                            <div className="flex items-center gap-0.5 mb-4">
-                                                {[1, 2, 3, 4, 5].map((starNumber) => (
-                                                    <Star
-                                                        key={starNumber}
-                                                        size={14}
-                                                        weight="fill"
-                                                        className={starNumber <= roundedRating ? "text-orange-800" : "text-gray-200"}
-                                                    />
-                                                ))}
-                                                <span className="ml-2 text-xs font-light text-gray-500">
-                                                    {ratingInfo.count > 0
-                                                        ? `${ratingInfo.average.toFixed(1)} (${ratingInfo.count})`
-                                                        : "No reviews"}
-                                                </span>
-                                            </div>
-
-                                            {hotel.description && (
-                                                <p className="text-sm font-light text-gray-500 line-clamp-2 mb-6 leading-relaxed">
-                                                    {hotel.description}
-                                                </p>
-                                            )}
-
-                                            <div className="flex items-center gap-6 mb-6 text-sm font-light text-gray-500">
-                                                <div className="flex items-center gap-2">
-                                                    <Users size={16} weight="light" className="text-gray-400" />
-                                                    <span>Up to {roomStats.maxOccupancy || "-"} guests</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Bed size={16} weight="light" className="text-gray-400" />
-                                                    <span>{roomStats.availableUnits} rooms</span>
-                                                </div>
-                                            </div>
-
-                                            {hotelPackages.length > 0 && (
-                                                <div className="flex flex-wrap gap-2 mb-8">
-                                                    {hotelPackages.map((packageName) => (
-                                                        <span
-                                                            key={`${hotel._id}-${packageName}`}
-                                                            className="text-[10px] uppercase tracking-widest font-medium text-gray-500 border border-gray-200 px-2.5 py-1 rounded-sm"
-                                                        >
-                                                            {packageName}
-                                                        </span>
-                                                    ))}
-                                                    {(normalizedExtrasByHotel[hotel._id] || []).length > 3 && (
-                                                        <span className="text-[10px] uppercase tracking-widest font-medium text-gray-400 border border-gray-200 px-2.5 py-1 rounded-sm">
-                                                            +{(normalizedExtrasByHotel[hotel._id] || []).length - 3}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            <div className="mt-auto flex items-center justify-between pt-6 border-t border-gray-100">
-                                                <div className="flex flex-col">
-                                                    <div className="flex items-baseline gap-1">
-                                                        <span className="text-lg text-gray-900 font-medium tracking-wide">
-                                                            {roomStats.minPrice !== Infinity
-                                                                ? `$${roomStats.minPrice.toLocaleString()}`
-                                                                : "Contact"}
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-[10px] uppercase tracking-widest text-gray-400">
-                                                        {roomStats.minPrice !== Infinity ? "From / Night" : "Pricing"}
-                                                    </span>
-                                                </div>
-
-                                                <button
-                                                    className="px-6 py-2.5 bg-transparent border border-orange-800 text-orange-800 hover:bg-orange-800 hover:text-white transition-colors duration-300 text-xs tracking-widest uppercase rounded-sm"
-                                                    onClick={() => handleViewHotel(hotel._id)}
-                                                >
-                                                    Reserve
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                            <div className="flex items-center gap-4">
+                                {availabilityLoading && (
+                                    <p className="text-[10px] text-orange-800 uppercase tracking-widest flex items-center gap-1.5">
+                                        <CircleNotch size={12} className="animate-spin" /> Syncing Availability
+                                    </p>
+                                )}
+                            </div>
                         </div>
 
-                        {totalPages > 1 && (
-                            <div className="mt-16 flex justify-center items-center gap-2">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className={`p-2 border rounded-sm transition-all duration-300 ${
-                                        currentPage === 1
-                                            ? "border-gray-200 text-gray-300 cursor-not-allowed"
-                                            : "border-gray-300 text-gray-600 hover:border-orange-800 hover:text-orange-800"
-                                    }`}
-                                >
-                                    <CaretLeft size={18} weight="light" />
-                                </button>
+                        {/* List or Empty State */}
+                        {filteredHotels.length === 0 ? (
+                            <div className="bg-white border border-gray-100 rounded-sm py-24 flex flex-col items-center text-center px-6 shadow-sm">
+                                <MagnifyingGlass size={48} weight="light" className="text-gray-300 mb-6" />
+                                <h3 className="text-xl font-serif text-gray-900 mb-2">No Matches Found</h3>
+                                <p className="text-gray-500 font-light max-w-sm mx-auto text-sm">
+                                    {hasDateValidationError
+                                        ? "Please adjust your travel dates to see available properties."
+                                        : "Try removing some filters to explore more options in our collection."}
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="grid md:grid-cols-2 gap-8 mb-12">
+                                    {currentHotels.map((hotel) => {
+                                        const roomStats = roomStatsByHotel[hotel._id] || { availableUnits: 0, maxOccupancy: 0, minPrice: Infinity };
+                                        const ratingInfo = ratingsByHotel[hotel._id] || { average: 0, count: 0 };
+                                        const roundedRating = Math.round(ratingInfo.average);
+                                        const hotelPackages = (normalizedExtrasByHotel[hotel._id] || []).slice(0, 3);
 
-                                <div className="flex gap-2">
-                                    {[...Array(totalPages)].map((_, index) => {
-                                        const pageNumber = index + 1;
+                                        return (
+                                            <div key={hotel._id} className="group bg-white border border-gray-100 hover:shadow-2xl hover:shadow-gray-200/50 transition-all duration-500 rounded-sm overflow-hidden flex flex-col animate-fade-in">
+                                                
+                                                {/* Image */}
+                                                <figure className="relative h-64 bg-gray-50 overflow-hidden">
+                                                    {hotel.photos?.[0] ? (
+                                                        <img
+                                                            src={hotel.photos[0]}
+                                                            alt={hotel.name}
+                                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
+                                                            loading="lazy"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center">
+                                                            <Bed size={32} weight="light" className="text-gray-300" />
+                                                        </div>
+                                                    )}
+                                                    <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors duration-500"></div>
+                                                    
+                                                    {/* Location Badge */}
+                                                    <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-sm flex items-center gap-1.5 shadow-sm">
+                                                        <MapPin size={12} weight="fill" className="text-orange-800" />
+                                                        <span className="text-[10px] uppercase tracking-widest font-medium text-gray-900">{hotel.city}</span>
+                                                    </div>
+                                                </figure>
 
-                                        if (
-                                            pageNumber === 1 ||
-                                            pageNumber === totalPages ||
-                                            (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
-                                        ) {
-                                            return (
-                                                <button
-                                                    key={pageNumber}
-                                                    onClick={() => handlePageChange(pageNumber)}
-                                                    className={`min-w-[40px] h-[40px] border rounded-sm text-sm font-light transition-all duration-300 ${
-                                                        currentPage === pageNumber
-                                                            ? "bg-orange-800 text-white border-orange-800"
-                                                            : "border-gray-300 text-gray-600 hover:border-orange-800 hover:text-orange-800"
-                                                    }`}
-                                                >
-                                                    {pageNumber}
-                                                </button>
-                                            );
-                                        }
+                                                {/* Details */}
+                                                <div className="p-6 md:p-8 flex flex-col flex-grow">
+                                                    <h2 className="text-2xl font-serif text-gray-900 mb-3 group-hover:text-orange-800 transition-colors line-clamp-1">
+                                                        {hotel.name}
+                                                    </h2>
 
-                                        if (
-                                            pageNumber === currentPage - 2 ||
-                                            pageNumber === currentPage + 2
-                                        ) {
-                                            return (
-                                                <span
-                                                    key={pageNumber}
-                                                    className="min-w-[40px] h-[40px] flex items-center justify-center text-gray-400"
-                                                >
-                                                    ...
-                                                </span>
-                                            );
-                                        }
+                                                    <div className="flex items-center gap-1 mb-5">
+                                                        {[1, 2, 3, 4, 5].map((star) => (
+                                                            <Star key={star} size={12} weight="fill" className={star <= roundedRating ? "text-orange-800" : "text-gray-200"} />
+                                                        ))}
+                                                        <span className="ml-2 text-[10px] text-gray-400 uppercase tracking-widest">
+                                                            {ratingInfo.count > 0 ? `${ratingInfo.average.toFixed(1)} / 5` : "New"}
+                                                        </span>
+                                                    </div>
 
-                                        return null;
+                                                    <div className="flex flex-wrap gap-4 mb-6 text-sm font-light text-gray-600">
+                                                        <div className="flex items-center gap-2">
+                                                            <Users size={16} weight="light" className="text-gray-400" />
+                                                            <span>Up to {roomStats.maxOccupancy || "-"} guests</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Bed size={16} weight="light" className="text-gray-400" />
+                                                            <span>{roomStats.availableUnits} rooms left</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {hotelPackages.length > 0 && (
+                                                        <div className="flex flex-wrap gap-2 mb-8">
+                                                            {hotelPackages.map((pkg) => (
+                                                                <span key={pkg} className="text-[9px] uppercase tracking-widest font-medium text-gray-500 bg-gray-50 border border-gray-100 px-2 py-1 rounded-sm">
+                                                                    {pkg}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Footer: Price & Action */}
+                                                    <div className="mt-auto pt-6 border-t border-gray-100 flex items-center justify-between">
+                                                        <div>
+                                                            <span className="block text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">Starting at</span>
+                                                            <span className="text-xl font-serif text-gray-900">
+                                                                {roomStats.minPrice !== Infinity ? `$${roomStats.minPrice.toLocaleString()}` : "N/A"}
+                                                            </span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleViewHotel(hotel._id)}
+                                                            className="px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-xs tracking-widest uppercase transition-colors rounded-sm"
+                                                        >
+                                                            Reserve
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
                                     })}
                                 </div>
 
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className={`p-2 border rounded-sm transition-all duration-300 ${
-                                        currentPage === totalPages
-                                            ? "border-gray-200 text-gray-300 cursor-not-allowed"
-                                            : "border-gray-300 text-gray-600 hover:border-orange-800 hover:text-orange-800"
-                                    }`}
-                                >
-                                    <CaretRight size={18} weight="light" />
-                                </button>
-                            </div>
+                                {/* Pagination */}
+                                {totalPages > 1 && (
+                                    <div className="flex justify-center items-center gap-2 pt-8 border-t border-gray-200">
+                                        <button
+                                            onClick={() => handlePageChange(currentPage - 1)}
+                                            disabled={currentPage === 1}
+                                            className="w-10 h-10 flex items-center justify-center border border-gray-200 rounded-sm transition-colors text-gray-400 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+                                        >
+                                            <CaretLeft size={16} weight="light" />
+                                        </button>
+                                        
+                                        <span className="px-4 text-[10px] uppercase tracking-widest text-gray-500 font-medium">
+                                            Page {currentPage} of {totalPages}
+                                        </span>
+
+                                        <button
+                                            onClick={() => handlePageChange(currentPage + 1)}
+                                            disabled={currentPage === totalPages}
+                                            className="w-10 h-10 flex items-center justify-center border border-gray-200 rounded-sm transition-colors text-gray-400 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+                                        >
+                                            <CaretRight size={16} weight="light" />
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         )}
-                    </>
-                )}
+                    </div>
+                </div>
             </div>
         </div>
     );

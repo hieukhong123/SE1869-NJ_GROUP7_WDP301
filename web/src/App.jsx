@@ -43,7 +43,7 @@ function App() {
 					<Route index element={<HomePage />} />
 					<Route path="location" element={<Location />} />
 					<Route path="hotels/:id/book" element={<HotelBooking />} />
-					<Route path="rooms" element={<RoomCatalog />} />
+					<Route path="hotels" element={<RoomCatalog />} />
 				<Route path="contact" element={<Contact />} />
 				<Route path="about" element={<AboutUs />} />
 				<Route path="my-favorites" element={<MyFavorites />} />

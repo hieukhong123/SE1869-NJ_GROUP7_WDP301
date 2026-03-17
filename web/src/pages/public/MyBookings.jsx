@@ -16,6 +16,43 @@ import {
 } from '@phosphor-icons/react';
 import axiosClient from '../../services/axiosClient';
 
+const PaymentTimer = ({ expiresAt, onExpire }) => {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      if (!expiresAt) return '00:00';
+      const expiryTime = new Date(expiresAt).getTime();
+      const now = new Date().getTime();
+      const difference = expiryTime - now;
+
+      if (difference <= 0) {
+        onExpire();
+        return '00:00';
+      }
+
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const initialTime = calculateTimeLeft();
+    setTimeLeft(initialTime);
+
+    if (initialTime === '00:00') return;
+
+    const timer = setInterval(() => {
+      const newTime = calculateTimeLeft();
+      setTimeLeft(newTime);
+      if (newTime === '00:00') clearInterval(timer);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [expiresAt, onExpire]);
+
+  return <span className="font-mono tabular-nums text-red-500 font-medium ml-2">{timeLeft}</span>;
+};
+
 const MyBookings = () => {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
@@ -78,6 +115,18 @@ const MyBookings = () => {
     }
   };
 
+  const handleExpireBooking = (bookingId) => {
+    setBookings((prev) => 
+      prev.map((b) => b._id === bookingId ? { ...b, status: 'expired' } : b)
+    );
+    // Silent refetch to sync with backend auto-expiration
+    if (user) {
+      axiosClient.get(`/bookings/user/${user._id}`).then((res) => {
+        setBookings(res.data.data || []);
+      }).catch(() => {});
+    }
+  };
+
   const handlePayment = async (booking) => {
     try {
       setProcessingBookingId(booking._id);
@@ -130,6 +179,11 @@ const MyBookings = () => {
         text: 'Cancelled',
         icon: <X size={14} weight="light" />,
       },
+      expired: {
+        color: 'text-red-800 bg-red-50 border-red-200',
+        text: 'Expired',
+        icon: <X size={14} weight="light" />,
+      },
     };
     return maps[status] || { color: 'text-gray-500 bg-gray-100 border-gray-200', text: status, icon: null };
   };
@@ -175,7 +229,7 @@ const MyBookings = () => {
           
           {/* Tabs */}
           <div className="flex gap-6 md:gap-8 overflow-x-auto w-full md:w-auto hide-scrollbar border-b border-gray-200">
-            {['all', 'pending', 'confirmed', 'cancelled'].map((tab) => (
+            {['all', 'pending', 'confirmed', 'cancelled', 'expired'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -285,9 +339,16 @@ const MyBookings = () => {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-wrap justify-end gap-3 w-full sm:w-auto">
+                        <div className="flex flex-wrap justify-end items-center gap-3 w-full sm:w-auto">
                             {booking.status === 'pending' && (
                                 <>
+                                    <div className="text-[10px] text-gray-500 uppercase tracking-widest flex flex-col items-end mr-2">
+                                        <span>Expires in:</span>
+                                        <PaymentTimer 
+                                            expiresAt={booking.expiresAt} 
+                                            onExpire={() => handleExpireBooking(booking._id)} 
+                                        />
+                                    </div>
                                     <button 
                                         className="px-6 py-2.5 bg-transparent border border-gray-300 text-gray-600 hover:border-gray-900 hover:text-gray-900 text-xs tracking-widest uppercase transition-colors rounded-sm flex items-center gap-2" 
                                         onClick={() => handleCancelBooking(booking._id)} 

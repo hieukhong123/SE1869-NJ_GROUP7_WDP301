@@ -53,6 +53,14 @@ const createVnpayPayment = catchAsync(async (req, res, next) => {
         return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
     }
 
+	if (booking.status === 'expired' || booking.status === 'cancelled') {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Booking is no longer valid for payment'));
+	}
+
+	if (booking.status === 'confirmed') {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Booking is already confirmed'));
+	}
+
     let ipAddr = req.headers['x-forwarded-for'] ||
         req.connection?.remoteAddress ||
         req.socket?.remoteAddress ||
@@ -142,12 +150,18 @@ const vnpayReturn = catchAsync(async (req, res) => {
 			success: true,
 			message: 'Payment verified successfully',
 			bookingId,
+			amount: amountUsd
 		});
 	} else {
+		// Even if failed, pass the amount if it's available in the query
+		const amountVnd = parseInt(req.query.vnp_Amount || 0);
+        const amountUsd = amountVnd / 25000;
+		
 		res.status(HttpStatus.OK).json({
 			success: false,
 			message: 'Payment verification failed',
-            bookingId
+			bookingId,
+			amount: amountUsd
 		});
 	}
 });

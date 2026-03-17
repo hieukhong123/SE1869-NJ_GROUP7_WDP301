@@ -1,6 +1,7 @@
 import Booking from '../models/Booking.js';
 import Hotel from '../models/Hotel.js';
 import RoomCategory from '../models/RoomCategory.js';
+import RoomReservation from '../models/RoomReservation.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import AppError from '../utils/AppError.js';
@@ -21,6 +22,15 @@ export const createBooking = catchAsync(async (req, res, next) => {
 	const hotel = await Hotel.findById(hotelId);
 	if (!hotel || hotel.status === false) {
 		return next(new AppError(HttpStatus.BAD_REQUEST, 'This hotel is no longer available for booking'));
+	}
+
+	// Validate the temporary reservation if provided
+	let activeReservation = null;
+	if (req.body.reservationId) {
+		activeReservation = await RoomReservation.findById(req.body.reservationId);
+		if (!activeReservation || activeReservation.expiresAt < new Date()) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Your room hold has expired. Please try again.'));
+		}
 	}
 
 	// Group requested rooms to check availability for each category
@@ -44,13 +54,17 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		// Find existing bookings that overlap with this range
 		const overlappingBookings = await Booking.find({
 			roomIds: roomId,
-			status: { $ne: 'cancelled' },
+			status: { $nin: ['cancelled', 'expired'] },
 			checkIn: { $lt: end },
 			checkOut: { $gt: start }
 		});
 
 		let bookedCount = 0;
 		overlappingBookings.forEach((booking) => {
+			// Ignore pending bookings that have expired but haven't been updated yet
+			if (booking.status === 'pending' && booking.expiresAt && booking.expiresAt < new Date()) {
+				return;
+			}
 			const countInBooking = booking.roomIds.filter(
 				(id) => id.toString() === roomId,
 			).length;
@@ -67,11 +81,21 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		}
 	}
 
+	const expiresAt = activeReservation 
+		? activeReservation.expiresAt 
+		: new Date(Date.now() + 5 * 60 * 1000);
+
 	const newBooking = await Booking.create({
 		...req.body,
 		checkIn: start,
-		checkOut: end
+		checkOut: end,
+		expiresAt
 	});
+
+	// Release the temporary hold now that booking is confirmed
+	if (activeReservation) {
+		await RoomReservation.findByIdAndDelete(activeReservation._id);
+	}
 
 	const booking = await Booking.findById(newBooking._id)
 		.populate('hotelId', 'name')
@@ -113,6 +137,11 @@ export const getBookingById = catchAsync(async (req, res, next) => {
 				'Booking not found with that ID',
 			),
 		);
+	}
+
+	if (booking.status === 'pending' && booking.expiresAt && booking.expiresAt < new Date()) {
+		booking.status = 'expired';
+		await booking.save();
 	}
 
 	res.status(HttpStatus.OK).json({
@@ -172,11 +201,23 @@ export const deleteBooking = catchAsync(async (req, res, next) => {
 export const getUserBookings = catchAsync(async (req, res, next) => {
 	const { userId } = req.params;
 
-	const bookings = await Booking.find({ userId })
+	let bookings = await Booking.find({ userId })
 		.populate('hotelId', 'name location image city photos')
 		.populate('roomIds', 'roomName roomPrice')
 		.populate('extraIds', 'extraName extraPrice')
 		.sort({ createdAt: -1 });
+
+	// Auto-expire pending bookings
+	let updated = false;
+	const now = new Date();
+	bookings = await Promise.all(bookings.map(async (booking) => {
+		if (booking.status === 'pending' && booking.expiresAt && booking.expiresAt < now) {
+			booking.status = 'expired';
+			updated = true;
+			return await booking.save();
+		}
+		return booking;
+	}));
 
 	res.status(HttpStatus.OK).json({
 		success: true,

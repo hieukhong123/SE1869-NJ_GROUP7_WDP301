@@ -1,6 +1,7 @@
 import RoomCategory from '../models/RoomCategory.js';
 import Hotel from '../models/Hotel.js';
 import Booking from '../models/Booking.js';
+import RoomReservation from '../models/RoomReservation.js';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
@@ -40,7 +41,7 @@ export const getRooms = catchAsync(async (req, res, next) => {
 			// Find bookings that overlap with requested range for this specific room category
 			const overlappingBookings = await Booking.find({
 				roomIds: room._id,
-				status: { $ne: 'cancelled' },
+				status: { $nin: ['cancelled', 'expired'] },
 				checkIn: { $lt: end },
 				checkOut: { $gt: start }
 			});
@@ -48,15 +49,33 @@ export const getRooms = catchAsync(async (req, res, next) => {
 			// Count how many of this room type are booked in each overlapping booking
 			let bookedCount = 0;
 			overlappingBookings.forEach((booking) => {
+				// Ignore pending bookings that have expired but haven't been updated yet
+				if (booking.status === 'pending' && booking.expiresAt && booking.expiresAt < new Date()) {
+					return;
+				}
 				const countInBooking = booking.roomIds.filter(
 					(id) => id.toString() === room._id.toString(),
 				).length;
 				bookedCount += countInBooking;
 			});
 
+			// Also count rooms held by active (unexpired) reservations
+			const activeReservations = await RoomReservation.find({
+				roomIds: room._id,
+				checkIn: { $lt: end },
+				checkOut: { $gt: start },
+				expiresAt: { $gt: new Date() },
+			});
+			let reservedCount = 0;
+			activeReservations.forEach((rsv) => {
+				reservedCount += rsv.roomIds.filter(
+					(rid) => rid.toString() === room._id.toString()
+				).length;
+			});
+
 			roomsWithAvailability[i].availableQuantity = Math.max(
 				0,
-				room.quantity - bookedCount,
+				room.quantity - bookedCount - reservedCount,
 			);
 		}
 	}

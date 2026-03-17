@@ -13,6 +13,7 @@ import reviewRoute from './routes/reviewRouter.js';
 import paymentRoute from './routes/paymentRouter.js';
 import favoriteRoute from './routes/favoriteRouter.js';
 import contactRoute from './routes/contactRouter.js';
+import reservationRoute from './routes/reservationRouter.js';
 import { globalErrorHandler } from './middlewares/errorMiddleware.js';
 import AppError from './utils/AppError.js';
 import { HttpStatus } from './utils/httpStatus.js';
@@ -60,6 +61,7 @@ app.use('/api/v1/reviews', reviewRoute);
 app.use('/api/v1/payments', paymentRoute);
 app.use('/api/v1/favorites', favoriteRoute);
 app.use('/api/v1/contacts', contactRoute);
+app.use('/api/v1/reservations', reservationRoute);
 app.get('/', (req, res) => {
 	res.status(200).json({ message: 'Server is running!' });
 });

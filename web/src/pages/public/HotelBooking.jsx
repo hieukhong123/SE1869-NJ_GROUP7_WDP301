@@ -61,6 +61,12 @@ const HotelBooking = () => {
     const [totalAmount, setTotalAmount] = useState(0);
     const [showRoomRequirementModal, setShowRoomRequirementModal] = useState(false);
 
+    // Confirmation & reservation hold
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [reservation, setReservation] = useState(null);
+    const [countdown, setCountdown] = useState(null);
+    const [reserving, setReserving] = useState(false);
+
     // Derived requirements
     const currentTotalGuests = formData.adult + formData.children + formData.baby;
     const currentChildGuests = formData.children + formData.baby;
@@ -149,6 +155,32 @@ const HotelBooking = () => {
         setTotalAmount(total);
     }, [roomSelections, selectedExtras, rooms, extraFees, formData.checkIn, formData.checkOut]);
 
+    // Countdown timer — auto-releases hold when it reaches 0
+    useEffect(() => {
+        if (countdown === null) return;
+        if (countdown <= 0) {
+            if (reservation) {
+                axiosClient.delete(`/reservations/${reservation._id}`).catch(() => {});
+            }
+            setReservation(null);
+            setCountdown(null);
+            setShowConfirmModal(false);
+            toast.error('Your room hold has expired. Please try again.');
+            return;
+        }
+        
+        // Recalculate accurately based on expiresAt instead of blind interval if possible
+        const timer = setTimeout(() => {
+            if (reservation?.expiresAt) {
+                const diff = Math.max(0, Math.floor((new Date(reservation.expiresAt).getTime() - Date.now()) / 1000));
+                setCountdown(diff);
+            } else {
+                setCountdown((c) => c - 1);
+            }
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [countdown, reservation]);
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -183,32 +215,84 @@ const HotelBooking = () => {
             setShowRoomRequirementModal(true);
             return;
         }
+        setShowConfirmModal(true);
+    };
+
+    const handleConfirmReservation = async () => {
+        setReserving(true);
+        try {
+            const roomIds = [];
+            Object.entries(roomSelections).forEach(([roomId, qty]) => {
+                for (let i = 0; i < qty; i++) roomIds.push(roomId);
+            });
+            const res = await axiosClient.post('/reservations', {
+                userId: user._id,
+                hotelId: id,
+                roomIds,
+                checkIn: formData.checkIn,
+                checkOut: formData.checkOut,
+            });
+            setReservation(res.data);
+            
+            // Calculate exact seconds
+            const diff = Math.max(0, Math.floor((new Date(res.data.expiresAt).getTime() - Date.now()) / 1000));
+            setCountdown(diff);
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to hold rooms. Please try again.');
+            setShowConfirmModal(false);
+        } finally {
+            setReserving(false);
+        }
+    };
+
+    const handleProceedToPayment = async () => {
         setSubmitting(true);
         try {
             const roomIds = [];
             Object.entries(roomSelections).forEach(([roomId, qty]) => {
                 for (let i = 0; i < qty; i++) roomIds.push(roomId);
             });
-
-            const bookingData = { ...formData, hotelId: id, userId: user._id, roomIds, extraIds: selectedExtras, totalAmount, status: "pending" };
-            const response = await axiosClient.post("/bookings", bookingData);
+            const bookingData = {
+                ...formData,
+                hotelId: id,
+                userId: user._id,
+                roomIds,
+                extraIds: selectedExtras,
+                totalAmount,
+                status: 'pending',
+                reservationId: reservation?._id,
+            };
+            const response = await axiosClient.post('/bookings', bookingData);
             const newBooking = response.data;
-
             const paymentResponse = await axiosClient.post('/payments/vnpay/create', {
                 bookingId: newBooking._id,
-                amount: totalAmount, 
+                amount: totalAmount,
             });
-
             if (paymentResponse?.paymentUrl) {
                 window.location.href = paymentResponse.paymentUrl;
             } else {
-                navigate("/my-bookings");
+                navigate('/my-bookings');
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || "Reservation failed to process.");
+            toast.error(error.response?.data?.message || 'Reservation failed to process.');
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const handleCancelConfirm = () => {
+        if (reservation) {
+            axiosClient.delete(`/reservations/${reservation._id}`).catch(() => {});
+        }
+        setReservation(null);
+        setCountdown(null);
+        setShowConfirmModal(false);
+    };
+
+    const formatCountdown = (secs) => {
+        const m = Math.floor(secs / 60).toString().padStart(2, '0');
+        const s = (secs % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
     };
 
     if (loading && !hotel) {
@@ -466,6 +550,151 @@ const HotelBooking = () => {
                                 Close
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Booking Confirmation Modal */}
+            {showConfirmModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                    <div className="w-full max-w-lg bg-white border border-gray-200 rounded-sm shadow-2xl p-6 sm:p-8">
+
+                        {!reservation ? (
+                            /* Phase 1: Booking Summary */
+                            <>
+                                <span className="text-[10px] uppercase tracking-[0.2em] font-medium text-gray-500 block mb-2">
+                                    Confirm Reservation
+                                </span>
+                                <h3 className="text-2xl font-serif text-gray-900 mb-5">
+                                    Review your booking
+                                </h3>
+
+                                {/* Hotel & Dates */}
+                                <div className="border border-gray-100 rounded-sm p-4 mb-4 space-y-2 text-sm font-light text-gray-600">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400 uppercase tracking-widest text-[10px]">Property</span>
+                                        <span className="text-gray-900 font-medium">{hotel?.name}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400 uppercase tracking-widest text-[10px]">Check-in</span>
+                                        <span>{formData.checkIn}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400 uppercase tracking-widest text-[10px]">Check-out</span>
+                                        <span>{formData.checkOut}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400 uppercase tracking-widest text-[10px]">Guests</span>
+                                        <span>
+                                            {formData.adult} adult{formData.adult !== 1 ? 's' : ''}
+                                            {formData.children > 0 ? `, ${formData.children} child` : ''}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Selected Rooms */}
+                                <div className="border border-gray-100 rounded-sm p-4 mb-4 space-y-1 text-sm font-light text-gray-600">
+                                    <span className="text-gray-400 uppercase tracking-widest text-[10px] block mb-2">Selected Rooms</span>
+                                    {Object.entries(roomSelections).filter(([, qty]) => qty > 0).map(([roomId, qty]) => {
+                                        const room = rooms.find((r) => r._id === roomId);
+                                        return room ? (
+                                            <div key={roomId} className="flex justify-between">
+                                                <span>{room.roomName}</span>
+                                                <span className="text-gray-900 font-medium">${room.roomPrice} × {qty}</span>
+                                            </div>
+                                        ) : null;
+                                    })}
+                                </div>
+
+                                {/* Selected Extras */}
+                                {selectedExtras.length > 0 && (
+                                    <div className="border border-gray-100 rounded-sm p-4 mb-4 space-y-1 text-sm font-light text-gray-600">
+                                        <span className="text-gray-400 uppercase tracking-widest text-[10px] block mb-2">Selected Extras</span>
+                                        {selectedExtras.map((extraId) => {
+                                            const extra = extraFees.find((e) => e._id === extraId);
+                                            return extra ? (
+                                                <div key={extraId} className="flex justify-between">
+                                                    <span>{extra.extraName}</span>
+                                                    <span className="text-gray-900 font-medium">${extra.extraPrice}</span>
+                                                </div>
+                                            ) : null;
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Total */}
+                                <div className="flex justify-between items-center mb-6 pt-2 border-t border-gray-100">
+                                    <span className="text-[10px] uppercase tracking-widest text-gray-400">Total Amount</span>
+                                    <span className="text-xl font-serif text-gray-900">${totalAmount?.toLocaleString()}</span>
+                                </div>
+
+                                <div className="flex gap-3 justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelConfirm}
+                                        className="px-4 py-2 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-400 transition-colors rounded-sm"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleConfirmReservation}
+                                        disabled={reserving}
+                                        className="px-5 py-2 bg-gray-900 text-white text-xs uppercase tracking-widest hover:bg-gray-700 transition-colors rounded-sm disabled:opacity-50"
+                                    >
+                                        {reserving ? 'Holding...' : 'Confirm & Hold Room'}
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            /* Phase 2: Room Held — Countdown */
+                            <>
+                                <span className="text-[10px] uppercase tracking-[0.2em] font-medium text-green-600 block mb-2">
+                                    Room Reserved
+                                </span>
+                                <h3 className="text-2xl font-serif text-gray-900 mb-2">
+                                    Your room is held!
+                                </h3>
+                                <p className="text-sm font-light text-gray-500 mb-6">
+                                    Complete your payment before the timer expires or your hold will be automatically released.
+                                </p>
+
+                                {/* Countdown */}
+                                <div className="flex flex-col items-center justify-center py-6 mb-6 border border-gray-100 rounded-sm bg-gray-50">
+                                    <span className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Time Remaining</span>
+                                    <span className={`text-5xl font-mono font-light tabular-nums ${countdown <= 60 ? 'text-red-500' : 'text-gray-900'}`}>
+                                        {formatCountdown(countdown)}
+                                    </span>
+                                    <div className="w-full mt-4 px-8">
+                                        <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full rounded-full transition-all duration-1000 ${countdown <= 60 ? 'bg-red-400' : 'bg-green-500'}`}
+                                                style={{ width: `${(countdown / 300) * 100}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelConfirm}
+                                        className="px-4 py-2 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-400 transition-colors rounded-sm"
+                                    >
+                                        Release Hold
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleProceedToPayment}
+                                        disabled={submitting}
+                                        className="px-5 py-2 bg-gray-900 text-white text-xs uppercase tracking-widest hover:bg-gray-700 transition-colors rounded-sm disabled:opacity-50"
+                                    >
+                                        {submitting ? 'Processing...' : 'Proceed to Payment →'}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
                     </div>
                 </div>
             )}

@@ -166,6 +166,18 @@ const RoomCatalog = () => {
     );
     const [currentPage, setCurrentPage] = useState(1);
 
+    const [appliedFilters, setAppliedFilters] = useState({
+        city: selectedCity,
+        hotelId: selectedHotel,
+        searchQuery: searchQuery,
+        guestCount: guestCount,
+        checkIn: checkIn,
+        checkOut: checkOut,
+        rating: selectedRating,
+        propertyType: selectedPropertyType,
+        extras: selectedExtraPackages
+    });
+
     const navigate = useNavigate();
     const HOTELS_PER_PAGE = 9;
 
@@ -187,6 +199,11 @@ const RoomCatalog = () => {
 
     const guestsNeeded = Number(guestCount) || 0;
     const minimumRating = Number(selectedRating) || 0;
+
+    const appliedHasPastCheckIn = Boolean(appliedFilters.checkIn && appliedFilters.checkIn < todayDateValue);
+    const appliedHasPastCheckOut = Boolean(appliedFilters.checkOut && appliedFilters.checkOut < todayDateValue);
+    const appliedIsInvalidRange = Boolean(appliedFilters.checkIn && appliedFilters.checkOut && appliedFilters.checkOut <= appliedFilters.checkIn);
+    const appliedHasDateValidationError = appliedHasPastCheckIn || appliedHasPastCheckOut || appliedIsInvalidRange;
 
     // Data Fetching
     const fetchBaseData = useCallback(async () => {
@@ -213,10 +230,13 @@ const RoomCatalog = () => {
 
     useEffect(() => {
         const fetchAvailabilityRooms = async () => {
+            const hasAppliedDateRange = Boolean(appliedFilters.checkIn && appliedFilters.checkOut);
+            const isInvalidRange = hasAppliedDateRange && appliedFilters.checkOut <= appliedFilters.checkIn;
+            
             try {
                 setAvailabilityLoading(true);
-                const endpoint = hasDateRange && !hasDateValidationError
-                    ? `/rooms?checkIn=${checkIn}&checkOut=${checkOut}`
+                const endpoint = hasAppliedDateRange && !isInvalidRange
+                    ? `/rooms?checkIn=${appliedFilters.checkIn}&checkOut=${appliedFilters.checkOut}`
                     : "/rooms";
                 const roomsResponse = await axiosClient.get(endpoint);
                 setAllRooms(roomsResponse.data || []);
@@ -227,22 +247,7 @@ const RoomCatalog = () => {
             }
         };
         fetchAvailabilityRooms();
-    }, [checkIn, checkOut, hasDateRange, hasDateValidationError]);
-
-    // URL Params Sync
-    useEffect(() => {
-        const params = {};
-        if (searchQuery.trim()) params.search = searchQuery.trim();
-        if (selectedCity) params.city = selectedCity;
-        if (selectedHotel) params.hotelId = selectedHotel;
-        if (guestCount) params.guests = guestCount;
-        if (checkIn) params.checkIn = checkIn;
-        if (checkOut) params.checkOut = checkOut;
-        if (selectedRating) params.rating = selectedRating;
-        if (selectedPropertyType) params.propertyType = selectedPropertyType;
-        if (selectedExtraPackages.length > 0) params.extras = selectedExtraPackages.join(",");
-        setSearchParams(params, { replace: true });
-    }, [searchQuery, selectedCity, selectedHotel, guestCount, checkIn, checkOut, selectedRating, selectedPropertyType, selectedExtraPackages, setSearchParams]);
+    }, [appliedFilters.checkIn, appliedFilters.checkOut]);
 
     // Data Processing (Memos)
     const cities = useMemo(() => [...new Set(allHotels.map((h) => h.city).filter(Boolean))].sort(), [allHotels]);
@@ -314,12 +319,12 @@ const RoomCatalog = () => {
 
     const filteredHotels = useMemo(() => {
         return allHotels.filter((hotel) => {
-            if (hasDateValidationError) return false;
+            if (appliedHasDateValidationError) return false;
             const hotelId = hotel._id;
             const roomStats = roomStatsByHotel[hotelId];
             const ratingInfo = ratingsByHotel[hotelId] || { average: 0, count: 0 };
             const hotelExtras = normalizedExtrasByHotel[hotelId] || [];
-            const searchValue = searchQuery.trim().toLowerCase();
+            const searchValue = appliedFilters.searchQuery.trim().toLowerCase();
 
             const matchesSearch = !searchValue ||
                 hotel.name?.toLowerCase().includes(searchValue) ||
@@ -327,17 +332,17 @@ const RoomCatalog = () => {
                 hotel.address?.toLowerCase().includes(searchValue) ||
                 hotel.description?.toLowerCase().includes(searchValue);
             const matchesAvailability = Boolean(roomStats?.hasAvailableRooms);
-            const matchesCity = !selectedCity || hotel.city === selectedCity;
-            const matchesHotel = !selectedHotel || hotelId === selectedHotel;
-            const matchesGuests = !guestsNeeded || (roomStats?.maxOccupancy || 0) >= guestsNeeded;
-            const matchesRating = !minimumRating || ratingInfo.average >= minimumRating;
-            const matchesPropertyType = !selectedPropertyType || hotel.propertyType === selectedPropertyType;
-            const matchesExtraPackages = selectedExtraPackages.length === 0 ||
-                selectedExtraPackages.every((extra) => hotelExtras.includes(extra));
+            const matchesCity = !appliedFilters.city || hotel.city === appliedFilters.city;
+            const matchesHotel = !appliedFilters.hotelId || hotelId === appliedFilters.hotelId;
+            const matchesGuests = !Number(appliedFilters.guestCount) || (roomStats?.maxOccupancy || 0) >= Number(appliedFilters.guestCount);
+            const matchesRating = !Number(appliedFilters.rating) || ratingInfo.average >= Number(appliedFilters.rating);
+            const matchesPropertyType = !appliedFilters.propertyType || hotel.propertyType === appliedFilters.propertyType;
+            const matchesExtraPackages = appliedFilters.extras.length === 0 ||
+                appliedFilters.extras.every((extra) => hotelExtras.includes(extra));
 
             return matchesSearch && matchesAvailability && matchesCity && matchesHotel && matchesGuests && matchesRating && matchesPropertyType && matchesExtraPackages;
         });
-    }, [allHotels, hasDateValidationError, roomStatsByHotel, ratingsByHotel, normalizedExtrasByHotel, searchQuery, selectedCity, selectedHotel, guestsNeeded, minimumRating, selectedPropertyType, selectedExtraPackages]);
+    }, [allHotels, appliedHasDateValidationError, roomStatsByHotel, ratingsByHotel, normalizedExtrasByHotel, appliedFilters]);
 
     // Pagination
     const totalPages = Math.ceil(filteredHotels.length / HOTELS_PER_PAGE);
@@ -349,44 +354,78 @@ const RoomCatalog = () => {
     }, [currentPage, totalPages]);
 
     // Handlers
-    const handleCityFilter = (val) => { setSelectedCity(val); setSelectedHotel(""); setCurrentPage(1); };
-    const handleSearchChange = (val) => { setSearchQuery(val); setCurrentPage(1); };
-    const handlePropertyTypeFilter = (val) => { setSelectedPropertyType(val); setSelectedHotel(""); setCurrentPage(1); };
-    const handleRatingFilter = (val) => { setSelectedRating(val); setCurrentPage(1); };
+    const handleCityFilter = (val) => { setSelectedCity(val); setSelectedHotel(""); };
+    const handleSearchChange = (val) => { setSearchQuery(val); };
+    const handlePropertyTypeFilter = (val) => { setSelectedPropertyType(val); setSelectedHotel(""); };
+    const handleRatingFilter = (val) => { setSelectedRating(val); };
     const handleExtraPackageToggle = (val) => {
         setSelectedExtraPackages((prev) => prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val]);
-        setCurrentPage(1);
     };
     const handleGuestChange = (value) => {
-        if (value === "") { setGuestCount(""); setCurrentPage(1); return; }
+        if (value === "") { setGuestCount(""); return; }
         const parsedValue = Number(value);
         if (!Number.isFinite(parsedValue)) return;
         setGuestCount(String(Math.max(1, Math.floor(parsedValue))));
-        setCurrentPage(1);
     };
     const handleCheckInChange = (value) => {
         if (value && value < todayDateValue) { toast.error("Check-in date cannot be in the past"); return; }
         setCheckIn(value);
         if (checkOut && value && checkOut <= value) { setCheckOut(""); toast.info("Check-out cleared. Please choose a new date."); }
-        setCurrentPage(1);
     };
     const handleCheckOutChange = (value) => {
         if (value && value < todayDateValue) { toast.error("Check-out date cannot be in the past"); return; }
         if (checkIn && value && value <= checkIn) { toast.error("Check-out must be after check-in"); return; }
         setCheckOut(value);
-        setCurrentPage(1);
     };
     const clearAllFilters = () => {
         setSelectedCity(""); setSelectedHotel(""); setSearchQuery(""); setGuestCount("");
         setCheckIn(""); setCheckOut(""); setSelectedRating(""); setSelectedPropertyType("");
-        setSelectedExtraPackages([]); setCurrentPage(1); setSearchParams({}, { replace: true });
+        setSelectedExtraPackages([]); 
+        
+        setAppliedFilters({
+            city: "", hotelId: "", searchQuery: "", guestCount: "",
+            checkIn: "", checkOut: "", rating: "", propertyType: "", extras: []
+        });
+        
+        setCurrentPage(1); setSearchParams({}, { replace: true });
     };
     
     // Nút TÌM KIẾM (Cuộn xuống list kết quả)
     const handleSearchSubmit = () => {
+        setAppliedFilters({
+            city: selectedCity,
+            hotelId: selectedHotel,
+            searchQuery: searchQuery,
+            guestCount: guestCount,
+            checkIn: checkIn,
+            checkOut: checkOut,
+            rating: selectedRating,
+            propertyType: selectedPropertyType,
+            extras: selectedExtraPackages
+        });
+        setCurrentPage(1);
+
+        const params = {};
+        if (searchQuery.trim()) params.search = searchQuery.trim();
+        if (selectedCity) params.city = selectedCity;
+        if (selectedHotel) params.hotelId = selectedHotel;
+        if (guestCount) params.guests = guestCount;
+        if (checkIn) params.checkIn = checkIn;
+        if (checkOut) params.checkOut = checkOut;
+        if (selectedRating) params.rating = selectedRating;
+        if (selectedPropertyType) params.propertyType = selectedPropertyType;
+        if (selectedExtraPackages.length > 0) params.extras = selectedExtraPackages.join(",");
+        setSearchParams(params, { replace: true });
+
         const resultsSection = document.getElementById("results-section");
         if (resultsSection) {
             window.scrollTo({ top: resultsSection.offsetTop - 100, behavior: "smooth" });
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === "Enter") {
+            handleSearchSubmit();
         }
     };
 
@@ -465,6 +504,7 @@ const RoomCatalog = () => {
                                     className="w-full bg-transparent border-0 pl-7 pr-0 py-2 text-gray-900 font-light focus:ring-0 placeholder-gray-300"
                                     value={searchQuery}
                                     onChange={(e) => handleSearchChange(e.target.value)}
+                                    onKeyDown={handleKeyDown}
                                 />
                             </div>
                         </div>
@@ -509,6 +549,7 @@ const RoomCatalog = () => {
                                     className="w-full bg-transparent border-0 pl-7 pr-0 py-2 text-gray-900 font-light focus:ring-0 placeholder-gray-300"
                                     value={guestCount}
                                     onChange={(e) => handleGuestChange(e.target.value)}
+                                    onKeyDown={handleKeyDown}
                                 />
                             </div>
                         </div>
@@ -571,6 +612,13 @@ const RoomCatalog = () => {
                                 onToggle={handleExtraPackageToggle}
                             />
                         </div>
+
+                        <button 
+                            onClick={handleSearchSubmit}
+                            className="w-full mt-8 py-3 bg-gray-900 hover:bg-black text-white text-xs tracking-widest uppercase transition-colors rounded-sm flex items-center justify-center gap-2"
+                        >
+                            Apply Filters
+                        </button>
                     </aside>
 
                     {/* Hotel List */}
@@ -595,7 +643,7 @@ const RoomCatalog = () => {
                                 <MagnifyingGlass size={48} weight="light" className="text-gray-300 mb-6" />
                                 <h3 className="text-xl font-serif text-gray-900 mb-2">No Matches Found</h3>
                                 <p className="text-gray-500 font-light max-w-sm mx-auto text-sm">
-                                    {hasDateValidationError
+                                    {appliedHasDateValidationError
                                         ? "Please adjust your travel dates to see available properties."
                                         : "Try removing some filters to explore more options in our collection."}
                                 </p>

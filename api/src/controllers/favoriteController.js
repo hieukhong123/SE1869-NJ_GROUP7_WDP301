@@ -12,8 +12,8 @@ export const addFavoriteHotel = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.BAD_REQUEST, 'Hotel ID is required'));
 	}
 
-	// Check if hotel exists
-	const hotel = await Hotel.findById(hotelId);
+	// Check if hotel exists and is active
+	const hotel = await Hotel.findOne({ _id: hotelId, status: { $ne: false } });
 	if (!hotel) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Hotel not found'));
 	}
@@ -56,9 +56,10 @@ export const removeFavoriteHotel = catchAsync(async (req, res, next) => {
 export const getFavoriteHotels = catchAsync(async (req, res, next) => {
 	const userId = req.user?._id || req.query.userId;
 
-	const favorites = await FavoriteHotel.find({ userId }).populate('hotelId');
+	const favorites = await FavoriteHotel.find({ userId })
+		.populate({ path: 'hotelId', match: { status: { $ne: false } } });
 
-	const hotels = favorites.map((fav) => fav.hotelId);
+	const hotels = favorites.map((fav) => fav.hotelId).filter(Boolean);
 
 	res.status(HttpStatus.OK).json({
 		success: true,

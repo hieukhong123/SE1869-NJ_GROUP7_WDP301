@@ -13,7 +13,7 @@ const HotelList = () => {
     const fetchHotels = async () => {
         try {
             setLoading(true);
-            const response = await axiosClient.get('/hotels');
+            const response = await axiosClient.get('/hotels/admin-all');
             setHotels(response.data);
         } catch (err) {
             toast.error('Failed to load properties.');
@@ -42,6 +42,16 @@ const HotelList = () => {
         }
     };
 
+    const handleToggleStatus = async (id) => {
+        try {
+            await axiosClient.put(`/hotels/${id}/toggle-status`);
+            toast.success('Hotel status updated successfully.');
+            fetchHotels();
+        } catch (err) {
+            toast.error('Failed to update hotel status: ' + (err.response?.data?.message || err.message));
+        }
+    };
+
     const columns = [
         { 
             accessorKey: 'name', 
@@ -58,10 +68,31 @@ const HotelList = () => {
             header: 'Contact',
             cell: (info) => <span className="text-gray-500 font-light">{info.getValue() || '-'}</span>
         },
-        { 
-            accessorKey: 'hotelEmail', 
+        {
+            accessorKey: 'hotelEmail',
             header: 'Email',
             cell: (info) => <span className="text-gray-500 font-light">{info.getValue() || '-'}</span>
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => {
+                const status = row.original.status;
+                return (
+                    <button
+                        onClick={() => handleToggleStatus(row.original._id)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-sm transition-colors border text-[10px] uppercase tracking-widest font-medium ${
+                            status
+                                ? 'border-gray-200 bg-white hover:bg-gray-50 text-gray-900'
+                                : 'border-gray-200 bg-gray-50 hover:bg-white text-gray-400'
+                        }`}
+                        title="Click to toggle status"
+                    >
+                        <span className={`w-1.5 h-1.5 rounded-full ${status ? 'bg-green-500' : 'bg-red-400'}`}></span>
+                        {status ? 'Active' : 'Inactive'}
+                    </button>
+                );
+            },
         },
         {
             accessorKey: 'actions',

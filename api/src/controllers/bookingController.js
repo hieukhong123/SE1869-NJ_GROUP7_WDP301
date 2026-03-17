@@ -1,4 +1,5 @@
 import Booking from '../models/Booking.js';
+import Hotel from '../models/Hotel.js';
 import RoomCategory from '../models/RoomCategory.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
@@ -12,9 +13,15 @@ const normalizeDate = (dateStr) => {
 };
 
 export const createBooking = catchAsync(async (req, res, next) => {
-	const { roomIds, checkIn, checkOut } = req.body;
+	const { hotelId, roomIds, checkIn, checkOut } = req.body;
 	const start = normalizeDate(checkIn);
 	const end = normalizeDate(checkOut);
+
+	// Check if hotel is active
+	const hotel = await Hotel.findById(hotelId);
+	if (!hotel || hotel.status === false) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'This hotel is no longer available for booking'));
+	}
 
 	// Group requested rooms to check availability for each category
 	const requestedRoomCounts = {};

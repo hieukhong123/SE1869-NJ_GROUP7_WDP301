@@ -2,13 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosClient from '../../services/axiosClient';
 import { toast } from 'sonner';
-import { 
-    CaretLeft, 
-    FloppyDisk, 
-    UploadSimple, 
-    X, 
+import {
+    CaretLeft,
+    FloppyDisk,
+    UploadSimple,
+    X,
     CircleNotch,
-    Image as ImageIcon
+    Image as ImageIcon,
+    CheckCircle,
+    XCircle
 } from '@phosphor-icons/react';
 
 const HotelForm = () => {
@@ -22,6 +24,7 @@ const HotelForm = () => {
         hotelEmail: '',
         description: '',
         photos: [],
+        status: true,
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -48,10 +51,10 @@ const HotelForm = () => {
     }, [id]);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
+        const { name, value, type, checked } = e.target;
         setHotel({
             ...hotel,
-            [name]: value,
+            [name]: type === 'checkbox' ? checked : value,
         });
     };
 
@@ -242,6 +245,36 @@ const HotelForm = () => {
                             />
                         </div>
                     </div>
+
+                    {/* SECTION: Property Status */}
+                    <h3 className="text-xs uppercase tracking-widest text-gray-900 font-medium mb-6 pb-2 border-b border-gray-100 flex justify-between items-end">
+                        Property Status
+
+                        {/* Custom Toggle Switch for Status */}
+                        <label className="flex items-center cursor-pointer group">
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    name="status"
+                                    checked={hotel.status}
+                                    onChange={handleChange}
+                                />
+                                <div className={`block w-10 h-6 rounded-full transition-colors duration-300 ${hotel.status ? 'bg-green-600' : 'bg-gray-300'}`}></div>
+                                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${hotel.status ? 'transform translate-x-4' : ''}`}></div>
+                            </div>
+                            <div className="ml-3 text-[10px] uppercase tracking-widest font-medium text-gray-500">
+                                {hotel.status ? (
+                                    <span className="text-green-600 flex items-center gap-1"><CheckCircle weight="fill"/> Active</span>
+                                ) : (
+                                    <span className="text-gray-400 flex items-center gap-1"><XCircle weight="fill"/> Inactive</span>
+                                )}
+                            </div>
+                        </label>
+                    </h3>
+                    <p className="text-xs text-gray-500 font-light mb-10">
+                        Control whether this property is visible and bookable by guests. Inactive properties are hidden from search results.
+                    </p>
 
                     {/* SECTION: Description */}
                     <h3 className="text-xs uppercase tracking-widest text-gray-900 font-medium mb-6 pb-2 border-b border-gray-100">

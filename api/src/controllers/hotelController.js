@@ -14,6 +14,16 @@ export const createHotel = catchAsync(async (req, res, next) => {
 });
 
 export const getHotels = catchAsync(async (req, res, next) => {
+	const hotels = await Hotel.find({ status: { $ne: false } });
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		count: hotels.length,
+		data: hotels,
+	});
+});
+
+export const getAdminHotels = catchAsync(async (req, res, next) => {
 	const hotels = await Hotel.find();
 
 	res.status(HttpStatus.OK).json({
@@ -25,7 +35,7 @@ export const getHotels = catchAsync(async (req, res, next) => {
 
 export const getHotel = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const hotel = await Hotel.findById(id);
+	const hotel = await Hotel.findOne({ _id: id, status: { $ne: false } });
 
 	if (!hotel) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Hotel not found'));
@@ -77,7 +87,7 @@ export const deleteHotel = catchAsync(async (req, res, next) => {
 
 export const getFeaturedHotels = catchAsync(async (req, res, next) => {
 	// Get featured hotels
-	const hotels = await Hotel.find({ featured: true });
+	const hotels = await Hotel.find({ featured: true, status: { $ne: false } });
 
 	// Calculate average rating for each hotel
 	const hotelsWithRatings = await Promise.all(
@@ -108,6 +118,9 @@ export const getFeaturedHotels = catchAsync(async (req, res, next) => {
 export const getCitiesWithCount = catchAsync(async (req, res, next) => {
 	// Aggregate hotels by city
 	const citiesData = await Hotel.aggregate([
+		{
+			$match: { status: { $ne: false } }
+		},
 		{
 			$group: {
 				_id: '$city',
@@ -146,6 +159,9 @@ export const getPropertyTypes = catchAsync(async (req, res, next) => {
 	// Aggregate hotels by property type
 	const typesData = await Hotel.aggregate([
 		{
+			$match: { status: { $ne: false } }
+		},
+		{
 			$group: {
 				_id: '$propertyType',
 				count: { $sum: 1 },
@@ -170,5 +186,22 @@ export const getPropertyTypes = catchAsync(async (req, res, next) => {
 		success: true,
 		count: typesData.length,
 		data: typesData,
+	});
+});
+
+export const toggleHotelStatus = catchAsync(async (req, res, next) => {
+	const hotel = await Hotel.findById(req.params.id);
+
+	if (!hotel) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Hotel not found'));
+	}
+
+	hotel.status = !hotel.status;
+	await hotel.save();
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Hotel status updated successfully',
+		data: hotel,
 	});
 });

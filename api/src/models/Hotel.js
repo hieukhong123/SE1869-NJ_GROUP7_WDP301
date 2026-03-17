@@ -45,6 +45,10 @@ const hotelSchema = new mongoose.Schema(
 			type: Boolean,
 			default: false,
 		},
+		status: {
+			type: Boolean,
+			default: true,
+		},
 	},
 	{ timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );

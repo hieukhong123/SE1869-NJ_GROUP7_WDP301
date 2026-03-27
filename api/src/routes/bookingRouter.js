@@ -7,6 +7,8 @@ import {
   deleteBooking,
   getUserBookings,
   cancelBooking,
+  requestCancelBooking,
+  answerCancelRequest,
 } from '../controllers/bookingController.js';
 
 const router = express.Router();
@@ -19,5 +21,7 @@ router
   .put(updateBookingStatus)
   .delete(deleteBooking);
 router.route('/:id/cancel').put(cancelBooking);
+router.route('/:id/cancel-request').put(requestCancelBooking);
+router.route('/:id/cancel-request/answer').put(answerCancelRequest);
 
 export default router;

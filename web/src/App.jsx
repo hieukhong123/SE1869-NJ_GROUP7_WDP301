@@ -24,6 +24,7 @@ import AboutUs from './pages/public/AboutUs';
 import MyFavorites from './pages/public/MyFavorites';
 import Profile from './pages/public/Profile';
 import MyBookings from './pages/public/MyBookings';
+import GuestBookingDetails from './pages/public/GuestBookingDetails';
 import HotelBooking from './pages/public/HotelBooking';
 import RoomCatalog from './pages/public/RoomCatalog';
 import PaymentReturn from './pages/public/PaymentReturn';
@@ -49,6 +50,7 @@ function App() {
 				<Route path="my-favorites" element={<MyFavorites />} />
 				<Route path="profile" element={<Profile />} />
 				<Route path="my-bookings" element={<MyBookings />} />
+				<Route path="my-bookings/:id" element={<GuestBookingDetails />} />
 			</Route>
 
 			{/* Auth Routes (without layout) */}

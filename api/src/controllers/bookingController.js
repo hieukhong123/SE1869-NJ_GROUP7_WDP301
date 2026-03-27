@@ -5,6 +5,7 @@ import RoomReservation from '../models/RoomReservation.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import AppError from '../utils/AppError.js';
+import sendEmail from '../utils/sendEmail.js';
 
 // Helper to normalize date to start of day (midnight) in local time
 const normalizeDate = (dateStr) => {
@@ -81,8 +82,8 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		}
 	}
 
-	const expiresAt = activeReservation 
-		? activeReservation.expiresAt 
+	const expiresAt = activeReservation
+		? activeReservation.expiresAt
 		: new Date(Date.now() + 5 * 60 * 1000);
 
 	const newBooking = await Booking.create({
@@ -261,5 +262,94 @@ export const cancelBooking = catchAsync(async (req, res, next) => {
 		success: true,
 		message: 'Booking cancelled successfully',
 		data: booking,
+	});
+});
+
+export const requestCancelBooking = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const { reason } = req.body;
+
+	const booking = await Booking.findById(id);
+
+	if (!booking) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
+	}
+
+	if (booking.status !== 'confirmed') {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Only confirmed bookings can be requested to cancel'));
+	}
+
+	if (booking.checkIn <= new Date()) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Cannot cancel bookings on or after check-in date'));
+	}
+
+	if (!reason) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Reason is required to request cancellation'));
+	}
+
+	booking.cancellationRequest = {
+		status: 'Pending',
+		reason,
+		requestedAt: new Date()
+	};
+
+	await booking.save();
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Cancellation request submitted successfully',
+		data: booking
+	});
+});
+
+export const answerCancelRequest = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const { action, adminReplyReason } = req.body; // action: 'Accept' or 'Reject'
+
+	const booking = await Booking.findById(id);
+
+	if (!booking) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
+	}
+
+	if (!booking.cancellationRequest || booking.cancellationRequest.status !== 'Pending') {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'No pending cancellation request found for this booking'));
+	}
+
+	if (action === 'Accept') {
+		booking.status = 'cancelled';
+		booking.cancellationRequest.status = 'Accepted';
+		booking.cancellationRequest.adminReplyReason = adminReplyReason || '';
+	} else if (action === 'Reject') {
+		if (!adminReplyReason) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Admin reply reason is required when rejecting a cancellation request'));
+		}
+		booking.cancellationRequest.status = 'Rejected';
+		booking.cancellationRequest.adminReplyReason = adminReplyReason;
+	} else {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Invalid action. Must be Accept or Reject'));
+	}
+
+	await booking.save();
+
+	try {
+		await sendEmail({
+			email: booking.email,
+			subject: `Booking Cancellation Request ${action}ed`,
+			html: `
+		<h3>Hello ${booking.name},</h3>
+		<p>Your cancellation request for your booking has been <strong>${action.toLowerCase()}ed</strong>.</p>
+		${adminReplyReason ? `<p><strong>Reason/Note:</strong> ${adminReplyReason}</p>` : ''}
+		<p>Thank you for choosing us.</p>
+	`
+		});
+	} catch (error) {
+		console.error('Email sending failed:', error);
+	}
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: `Cancellation request ${action.toLowerCase()}ed successfully`,
+		data: booking
 	});
 });

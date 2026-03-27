@@ -69,6 +69,21 @@ const bookingSchema = new mongoose.Schema(
 		expiresAt: {
 			type: Date,
 		},
+		cancellationRequest: {
+			status: {
+				type: String,
+				enum: ['Pending', 'Accepted', 'Rejected'],
+			},
+			reason: {
+				type: String,
+			},
+			requestedAt: {
+				type: Date,
+			},
+			adminReplyReason: {
+				type: String,
+			}
+		}
 	},
 	{ timestamps: true },
 );

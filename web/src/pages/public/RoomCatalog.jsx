@@ -197,9 +197,6 @@ const RoomCatalog = () => {
         return "";
     }, [hasPastCheckIn, hasPastCheckOut, hasInvalidDateRange]);
 
-    const guestsNeeded = Number(guestCount) || 0;
-    const minimumRating = Number(selectedRating) || 0;
-
     const appliedHasPastCheckIn = Boolean(appliedFilters.checkIn && appliedFilters.checkIn < todayDateValue);
     const appliedHasPastCheckOut = Boolean(appliedFilters.checkOut && appliedFilters.checkOut < todayDateValue);
     const appliedIsInvalidRange = Boolean(appliedFilters.checkIn && appliedFilters.checkOut && appliedFilters.checkOut <= appliedFilters.checkIn);
@@ -300,15 +297,25 @@ const RoomCatalog = () => {
         allRooms.reduce((acc, room) => {
             const hotelId = room.hotelId?._id || room.hotelId;
             if (!hotelId) return acc;
-            if (!acc[hotelId]) acc[hotelId] = { hasAvailableRooms: false, availableUnits: 0, maxOccupancy: 0, minPrice: Infinity };
+            if (!acc[hotelId]) acc[hotelId] = { 
+                hasAvailableRooms: false, 
+                availableUnits: 0, 
+                maxOccupancy: 0, 
+                totalCapacity: 0,
+                minPrice: Infinity 
+            };
             
             const availableQuantity = Number(room.availableQuantity ?? room.quantity ?? 0);
             const isBookable = room.status === "available" && availableQuantity > 0;
             if (!isBookable) return acc;
 
+            const roomMaxOccupancy = Number(room.maxOccupancy) || 0;
+
             acc[hotelId].hasAvailableRooms = true;
             acc[hotelId].availableUnits += availableQuantity;
-            acc[hotelId].maxOccupancy = Math.max(acc[hotelId].maxOccupancy, Number(room.maxOccupancy) || 0);
+            acc[hotelId].maxOccupancy = Math.max(acc[hotelId].maxOccupancy, roomMaxOccupancy);
+            
+            acc[hotelId].totalCapacity += (roomMaxOccupancy * availableQuantity);
             
             const roomPrice = Number(room.roomPrice) || 0;
             if (roomPrice > 0) acc[hotelId].minPrice = Math.min(acc[hotelId].minPrice, roomPrice);
@@ -334,7 +341,9 @@ const RoomCatalog = () => {
             const matchesAvailability = Boolean(roomStats?.hasAvailableRooms);
             const matchesCity = !appliedFilters.city || hotel.city === appliedFilters.city;
             const matchesHotel = !appliedFilters.hotelId || hotelId === appliedFilters.hotelId;
-            const matchesGuests = !Number(appliedFilters.guestCount) || (roomStats?.maxOccupancy || 0) >= Number(appliedFilters.guestCount);
+            
+            const matchesGuests = !Number(appliedFilters.guestCount) || (roomStats?.totalCapacity || 0) >= Number(appliedFilters.guestCount);
+            
             const matchesRating = !Number(appliedFilters.rating) || ratingInfo.average >= Number(appliedFilters.rating);
             const matchesPropertyType = !appliedFilters.propertyType || hotel.propertyType === appliedFilters.propertyType;
             const matchesExtraPackages = appliedFilters.extras.length === 0 ||
@@ -390,7 +399,7 @@ const RoomCatalog = () => {
         setCurrentPage(1); setSearchParams({}, { replace: true });
     };
     
-    // Nút TÌM KIẾM (Cuộn xuống list kết quả)
+    // Nút TÌM KIẾM
     const handleSearchSubmit = () => {
         setAppliedFilters({
             city: selectedCity,
@@ -537,7 +546,7 @@ const RoomCatalog = () => {
                             </div>
                         </div>
 
-                        {/* Guests (Moved from Sidebar) */}
+                        {/* Guests */}
                         <div className="relative group lg:col-span-2">
                             <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Guests</label>
                             <div className="relative flex items-center border-b border-gray-300 hover:border-gray-900 transition-colors">
@@ -581,8 +590,6 @@ const RoomCatalog = () => {
                         <h3 className="text-sm font-serif text-gray-900 mb-8 pb-4 border-b border-gray-100">Refine Results</h3>
                         
                         <div className="space-y-8">
-                            {/* Guests Input removed from here and moved to top bar */}
-                            
                             <LuxuryDropdown
                                 label="Location"
                                 placeholder="Any City"
@@ -652,7 +659,7 @@ const RoomCatalog = () => {
                             <>
                                 <div className="grid md:grid-cols-2 gap-8 mb-12">
                                     {currentHotels.map((hotel) => {
-                                        const roomStats = roomStatsByHotel[hotel._id] || { availableUnits: 0, maxOccupancy: 0, minPrice: Infinity };
+                                        const roomStats = roomStatsByHotel[hotel._id] || { availableUnits: 0, maxOccupancy: 0, totalCapacity: 0, minPrice: Infinity };
                                         const ratingInfo = ratingsByHotel[hotel._id] || { average: 0, count: 0 };
                                         const roundedRating = Math.round(ratingInfo.average);
                                         const hotelPackages = (normalizedExtrasByHotel[hotel._id] || []).slice(0, 3);
@@ -701,7 +708,7 @@ const RoomCatalog = () => {
                                                     <div className="flex flex-wrap gap-4 mb-6 text-sm font-light text-gray-600">
                                                         <div className="flex items-center gap-2">
                                                             <Users size={16} weight="light" className="text-gray-400" />
-                                                            <span>Up to {roomStats.maxOccupancy || "-"} guests</span>
+                                                            <span>Fits {roomStats.totalCapacity || "-"} guests total</span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <Bed size={16} weight="light" className="text-gray-400" />

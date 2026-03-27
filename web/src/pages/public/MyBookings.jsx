@@ -12,7 +12,9 @@ import {
   Wallet,
   CaretDown,
   Buildings,
-  CircleNotch
+  CircleNotch,
+  WarningCircle,
+  XCircle
 } from '@phosphor-icons/react';
 import axiosClient from '../../services/axiosClient';
 
@@ -59,9 +61,13 @@ const MyBookings = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [processingBookingId, setProcessingBookingId] = useState(null);
-  // UI State
+
   const [activeTab, setActiveTab] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
+
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -76,7 +82,6 @@ const MyBookings = () => {
       setUser(userData);
       fetchBookings(userData._id);
     } catch (error) {
-      console.error('Error parsing user data:', error);
       localStorage.removeItem('user');
       navigate('/login');
     }
@@ -86,44 +91,61 @@ const MyBookings = () => {
     try {
       setLoading(true);
       const response = await axiosClient.get(`/bookings/user/${userId}`);
-      const bookingsData = response.data || [];
-      setBookings(bookingsData);
-
+      setBookings(response.data || []);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
       toast.error('Failed to load reservations');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCancelBooking = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to cancel this reservation?')) {
-      return;
-    }
-
+  const handleCancelUnpaidBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this unpaid reservation?')) return;
     try {
       setProcessingBookingId(bookingId);
       await axiosClient.put(`/bookings/${bookingId}/cancel`);
       toast.success('Reservation cancelled successfully');
       fetchBookings(user._id);
     } catch (error) {
-      console.error('Error cancelling booking:', error);
       toast.error(error.response?.data?.message || 'Failed to cancel reservation');
     } finally {
       setProcessingBookingId(null);
     }
   };
 
+  const submitCancelRequest = async (e) => {
+    e.preventDefault();
+    if (!cancelReason.trim()) {
+      toast.error("Please provide a reason for cancellation.");
+      return;
+    }
+    try {
+      setProcessingBookingId(bookingToCancel);
+
+      await axiosClient.put(`/bookings/${bookingToCancel}/cancel-request`, {
+        reason: cancelReason,
+      });
+
+      toast.success("Cancellation request submitted to property.");
+      setCancelModalOpen(false);
+      setCancelReason("");
+      fetchBookings(user._id);
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message ||
+        "Failed to submit cancellation request",
+      );
+    } finally {
+      setProcessingBookingId(null);
+    }
+  };
+
   const handleExpireBooking = (bookingId) => {
-    setBookings((prev) => 
-      prev.map((b) => b._id === bookingId ? { ...b, status: 'expired' } : b)
-    );
-    // Silent refetch to sync with backend auto-expiration
+    setBookings((prev) => prev.map((b) => b._id === bookingId ? { ...b, status: 'expired' } : b));
     if (user) {
       axiosClient.get(`/bookings/user/${user._id}`).then((res) => {
         setBookings(res.data.data || []);
-      }).catch(() => {});
+      }).catch(() => { });
     }
   };
 
@@ -134,14 +156,12 @@ const MyBookings = () => {
         bookingId: booking._id,
         amount: booking.totalAmount,
       });
-
       if (response?.paymentUrl) {
         window.location.href = response.paymentUrl;
       } else {
         toast.error('Failed to generate payment link');
       }
     } catch (error) {
-      console.error('Payment error:', error);
       toast.error('Failed to initiate payment');
     } finally {
       setProcessingBookingId(null);
@@ -164,26 +184,10 @@ const MyBookings = () => {
 
   const getStatusUI = (status) => {
     const maps = {
-      pending: {
-        color: 'text-orange-800 bg-orange-50 border-orange-100',
-        text: 'Awaiting Payment',
-        icon: <Clock size={14} weight="light" />,
-      },
-      confirmed: {
-        color: 'text-green-800 bg-green-50 border-green-100',
-        text: 'Confirmed',
-        icon: <CheckCircle size={14} weight="light" />,
-      },
-      cancelled: {
-        color: 'text-gray-500 bg-gray-50 border-gray-200',
-        text: 'Cancelled',
-        icon: <X size={14} weight="light" />,
-      },
-      expired: {
-        color: 'text-red-800 bg-red-50 border-red-200',
-        text: 'Expired',
-        icon: <X size={14} weight="light" />,
-      },
+      pending: { color: 'text-orange-800 bg-orange-50 border-orange-100', text: 'Awaiting Payment', icon: <Clock size={14} /> },
+      confirmed: { color: 'text-green-800 bg-green-50 border-green-100', text: 'Confirmed', icon: <CheckCircle size={14} /> },
+      cancelled: { color: 'text-gray-500 bg-gray-50 border-gray-200', text: 'Cancelled', icon: <X size={14} /> },
+      expired: { color: 'text-red-800 bg-red-50 border-red-200', text: 'Expired', icon: <X size={14} /> },
     };
     return maps[status] || { color: 'text-gray-500 bg-gray-100 border-gray-200', text: status, icon: null };
   };
@@ -213,10 +217,7 @@ const MyBookings = () => {
               <span className="text-xs uppercase tracking-[0.2em] font-medium text-orange-800 mb-3 block">Guest Portal</span>
               <h1 className="text-4xl md:text-5xl font-serif text-gray-900">My Reservations</h1>
             </div>
-            <button 
-                onClick={() => navigate('/location')} 
-                className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-gray-900 border-b border-gray-900 pb-1 hover:text-orange-800 hover:border-orange-800 transition-colors"
-            >
+            <button onClick={() => navigate('/location')} className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-gray-900 border-b border-gray-900 pb-1 hover:text-orange-800 hover:border-orange-800 transition-colors">
               <Buildings size={16} weight="light" /> New Reservation
             </button>
           </div>
@@ -282,6 +283,13 @@ const MyBookings = () => {
           <div className="grid grid-cols-1 gap-8">
             {filteredAndSortedBookings.map((booking) => {
               const ui = getStatusUI(booking.status);
+              const cancelReq = booking.cancellationRequest;
+              
+              const canRequestCancel = 
+                  booking.status === 'confirmed' && 
+                  !cancelReq && 
+                  new Date(booking.checkIn) > new Date();
+
               return (
                 <div key={booking._id} className="bg-white border border-gray-200 hover:shadow-xl transition-all duration-500 rounded-sm overflow-hidden flex flex-col md:flex-row group">
                   
@@ -308,9 +316,15 @@ const MyBookings = () => {
                                 </h2>
                             </div>
                             
-                            {/* Status Badge */}
-                            <div className={`px-3 py-1.5 flex items-center gap-1.5 border rounded-sm text-[10px] uppercase tracking-widest font-medium shrink-0 w-fit ${ui.color}`}>
-                                {ui.icon} {ui.text}
+                            <div className="flex flex-col items-end gap-2">
+                                <div className={`px-3 py-1.5 flex items-center gap-1.5 border rounded-sm text-[10px] uppercase tracking-widest font-medium shrink-0 w-fit ${ui.color}`}>
+                                    {ui.icon} {ui.text}
+                                </div>
+                                {cancelReq?.status === 'Pending' && (
+                                    <span className="text-[9px] text-red-600 font-medium uppercase tracking-widest flex items-center gap-1">
+                                        <WarningCircle size={12} weight="fill"/> Cancel Pending
+                                    </span>
+                                )}
                             </div>
                         </div>
 
@@ -340,6 +354,13 @@ const MyBookings = () => {
 
                         {/* Actions */}
                         <div className="flex flex-wrap justify-end items-center gap-3 w-full sm:w-auto">
+                            <button 
+                                className="px-6 py-2.5 bg-transparent border border-gray-300 text-gray-600 hover:border-gray-900 hover:text-gray-900 text-xs tracking-widest uppercase transition-colors rounded-sm flex items-center gap-2" 
+                                onClick={() => navigate(`/my-bookings/${booking._id}`)} 
+                            >
+                                View Details
+                            </button>
+
                             {booking.status === 'pending' && (
                                 <>
                                     <div className="text-[10px] text-gray-500 uppercase tracking-widest flex flex-col items-end mr-2">
@@ -351,7 +372,7 @@ const MyBookings = () => {
                                     </div>
                                     <button 
                                         className="px-6 py-2.5 bg-transparent border border-gray-300 text-gray-600 hover:border-gray-900 hover:text-gray-900 text-xs tracking-widest uppercase transition-colors rounded-sm flex items-center gap-2" 
-                                        onClick={() => handleCancelBooking(booking._id)} 
+                                        onClick={() => handleCancelUnpaidBooking(booking._id)} 
                                         disabled={processingBookingId === booking._id}
                                     >
                                         {processingBookingId === booking._id ? <CircleNotch size={14} className="animate-spin" /> : 'Cancel'}
@@ -366,6 +387,17 @@ const MyBookings = () => {
                                 </>
                             )}
                             
+                            {canRequestCancel && (
+                                <button 
+                                    className="px-6 py-2.5 bg-transparent border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 text-xs tracking-widest uppercase transition-colors rounded-sm flex items-center gap-2" 
+                                    onClick={() => {
+                                        setBookingToCancel(booking._id);
+                                        setCancelModalOpen(true);
+                                    }}
+                                >
+                                    Request Cancellation
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -377,6 +409,50 @@ const MyBookings = () => {
         )}
       </section>
 
+      {/* Cancel Request Modal */}
+      {cancelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-sm shadow-2xl p-8 animate-fade-in">
+            <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+              <h3 className="text-xl font-serif text-gray-900">Cancel Reservation</h3>
+              <button onClick={() => setCancelModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <XCircle size={24} weight="light" />
+              </button>
+            </div>
+            <p className="text-sm font-light text-gray-500 mb-6">
+              Please note that cancellations may be subject to property policies. Tell us why you need to cancel this booking.
+            </p>
+            <form onSubmit={submitCancelRequest}>
+              <div className="relative group mb-8">
+                <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Reason for cancellation *</label>
+                <textarea
+                  className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light text-sm focus:ring-0 focus:border-gray-900 transition-colors resize-none h-20 placeholder-gray-300"
+                  placeholder="e.g. Unexpected schedule change..."
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  required
+                ></textarea>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setCancelModalOpen(false)}
+                  className="px-6 py-2.5 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-900 transition-colors rounded-sm"
+                >
+                  Keep Booking
+                </button>
+                <button
+                  type="submit"
+                  disabled={processingBookingId === bookingToCancel || !cancelReason.trim()}
+                  className="px-6 py-2.5 bg-red-600 text-white text-xs uppercase tracking-widest hover:bg-red-700 transition-colors rounded-sm disabled:opacity-50 flex items-center gap-2"
+                >
+                  {processingBookingId === bookingToCancel ? <CircleNotch size={14} className="animate-spin" /> : 'Submit Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

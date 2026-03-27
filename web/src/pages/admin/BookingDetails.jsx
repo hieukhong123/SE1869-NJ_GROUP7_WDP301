@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import axiosClient from '../../services/axiosClient';
 import { capitalizeFirstLetter } from '../../utils/helpers';
 import { 
@@ -13,7 +14,8 @@ import {
     CheckCircle,
     Clock,
     XCircle,
-    Receipt
+    Receipt,
+    WarningCircle
 } from '@phosphor-icons/react';
 
 const BookingDetails = () => {
@@ -23,22 +25,40 @@ const BookingDetails = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    const fetchBooking = async () => {
+        setLoading(true);
+        try {
+            const response = await axiosClient.get(`/bookings/${id}`);
+            setBooking(response.data);
+        } catch (err) {
+            setError(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (id) {
-            const fetchBooking = async () => {
-                setLoading(true);
-                try {
-                    const response = await axiosClient.get(`/bookings/${id}`);
-                    setBooking(response.data);
-                } catch (err) {
-                    setError(err);
-                } finally {
-                    setLoading(false);
-                }
-            };
             fetchBooking();
         }
     }, [id]);
+
+    const handleAnswerCancellation = async (action) => {
+        try {
+            let config = { action };
+            if (action === 'Reject') {
+                const adminReplyReason = window.prompt("Enter rejection reason:");
+                if (adminReplyReason === null) return; // user cancelled prompt
+                config.adminReplyReason = adminReplyReason;
+            }
+            
+            await axiosClient.put(`/bookings/${id}/cancel-request/answer`, config);
+            toast.success(`Cancellation request ${action.toLowerCase()}ed successfully.`);
+            fetchBooking();
+        } catch (err) {
+            toast.error(err.response?.data?.message || `Failed to ${action.toLowerCase()} cancellation request`);
+        }
+    };
 
     if (loading) {
         return (
@@ -256,6 +276,69 @@ const BookingDetails = () => {
                             </div>
                         )}
                     </div>
+
+                    {/* Cancellation Request Section */}
+                    {booking.cancellationRequest && (
+                        <div className="mt-8 bg-white border border-gray-200 rounded-sm shadow-xl shadow-gray-200/30 overflow-hidden sticky top-24">
+                            
+                            <div className="p-6 border-b border-gray-100 flex items-center gap-3 bg-red-50/30">
+                                <WarningCircle size={20} weight="light" className="text-red-600" />
+                                <h2 className="text-xs uppercase tracking-widest text-gray-900 font-medium">Cancellation Request</h2>
+                            </div>
+                            
+                            <div className="p-6 space-y-6">
+                                
+                                <div>
+                                    <span className="block text-[10px] uppercase tracking-widest text-gray-400 mb-3">Reason Provided by Guest</span>
+                                    <div className="bg-gray-50/50 p-4 border-l-2 border-red-200 rounded-r-sm">
+                                        <p className="text-sm font-light text-gray-700 italic leading-relaxed">
+                                            "{booking.cancellationRequest.reason}"
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                {booking.cancellationRequest.status === 'Pending' ? (
+                                    <div className="flex gap-3 pt-4 border-t border-gray-100">
+                                        <button 
+                                            onClick={() => handleAnswerCancellation('Reject')}
+                                            className="flex-1 bg-transparent hover:bg-gray-50 text-gray-700 border border-gray-300 hover:border-gray-900 text-xs uppercase tracking-widest py-3 rounded-sm transition-colors"
+                                        >
+                                            Decline
+                                        </button>
+                                        <button 
+                                            onClick={() => handleAnswerCancellation('Accept')}
+                                            className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs uppercase tracking-widest py-3 rounded-sm transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            Approve
+                                        </button>
+                                    </div>
+                                ) : (
+                                    
+                                    <div className="pt-4 border-t border-gray-100 space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[10px] uppercase tracking-widest text-gray-400">Resolution Status</span>
+                                            <span className={`text-[10px] uppercase tracking-widest font-medium px-2.5 py-1 rounded-sm ${
+                                                booking.cancellationRequest.status === 'Accepted' 
+                                                    ? 'bg-green-50 text-green-700 border border-green-100' 
+                                                    : 'bg-gray-100 text-gray-600 border border-gray-200'
+                                            }`}>
+                                                {booking.cancellationRequest.status}
+                                            </span>
+                                        </div>
+                                        
+                                        {booking.cancellationRequest.adminReplyReason && (
+                                            <div>
+                                                <span className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2 mt-4">Message to Guest</span>
+                                                <p className="text-sm font-light text-gray-600 italic bg-gray-50 p-3 rounded-sm border border-gray-100">
+                                                    "{booking.cancellationRequest.adminReplyReason}"
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
             </div>

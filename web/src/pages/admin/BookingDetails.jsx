@@ -25,6 +25,12 @@ const BookingDetails = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // Admin Action Modals State
+    const [acceptModalOpen, setAcceptModalOpen] = useState(false);
+    const [rejectModalOpen, setRejectModalOpen] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
+    const [processingAdminAction, setProcessingAdminAction] = useState(false);
+
     const fetchBooking = async () => {
         setLoading(true);
         try {
@@ -44,23 +50,28 @@ const BookingDetails = () => {
     }, [id]);
 
     const handleAnswerCancellation = async (action) => {
+        setProcessingAdminAction(true);
         try {
             let config = { action };
             if (action === 'Reject') {
-                const adminReplyReason = window.prompt("Enter rejection reason:");
-                if (adminReplyReason === null) return; // user cancelled prompt
-                config.adminReplyReason = adminReplyReason;
+                config.adminReplyReason = rejectReason;
             }
             
             await axiosClient.put(`/bookings/${id}/cancel-request/answer`, config);
             toast.success(`Cancellation request ${action.toLowerCase()}ed successfully.`);
+            
+            setAcceptModalOpen(false);
+            setRejectModalOpen(false);
+            setRejectReason('');
             fetchBooking();
         } catch (err) {
-            toast.error(err.response?.data?.message || `Failed to ${action.toLowerCase()} cancellation request`);
+            toast.error(err.response?.data?.message || `Failed to process cancellation request`);
+        } finally {
+            setProcessingAdminAction(false);
         }
     };
 
-    if (loading) {
+    if (loading && !booking) {
         return (
             <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 bg-transparent">
                 <CircleNotch size={32} weight="light" className="text-orange-800 animate-spin" />
@@ -104,13 +115,12 @@ const BookingDetails = () => {
         return acc;
     }, {});
 
-    // Calculate Nights
     const checkInDate = new Date(booking.checkIn);
     const checkOutDate = new Date(booking.checkOut);
     const nights = Math.max(1, Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24)));
 
     return (
-        <div className="p-6 md:p-8 lg:p-12 max-w-6xl mx-auto">
+        <div className="p-6 md:p-8 lg:p-12 max-w-6xl mx-auto relative">
             
             {/* Header */}
             <div className="flex items-center justify-between mb-10 pb-6 border-b border-gray-200">
@@ -229,7 +239,7 @@ const BookingDetails = () => {
                                         {booking.extraIds.map((extra) => (
                                             <li key={extra._id} className="flex items-center justify-between">
                                                 <span className="text-sm font-light text-gray-700">{extra.extraName}</span>
-                                                <span className="text-xs font-light text-gray-500">+${extra.extraPrice}</span>
+                                                <span className="text-[10px] font-light text-gray-500">+${extra.extraPrice}</span>
                                             </li>
                                         ))}
                                     </ul>
@@ -242,9 +252,9 @@ const BookingDetails = () => {
 
                 </div>
 
-                {/* Right Column: Financial Summary */}
-                <div className="lg:col-span-1">
-                    <div className="bg-gray-900 text-white rounded-sm shadow-lg sticky top-24">
+                {/* Right Column: Financial Summary & Actions */}
+                <div className="lg:col-span-1 space-y-8">
+                    <div className="bg-gray-900 text-white rounded-sm shadow-lg">
                         <div className="p-6 border-b border-gray-800 flex items-center gap-3">
                             <Receipt size={20} weight="light" className="text-gray-400" />
                             <h2 className="text-sm uppercase tracking-widest text-white font-medium">Financial Summary</h2>
@@ -268,26 +278,17 @@ const BookingDetails = () => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Quick action based on status could go here if needed in the future */}
-                        {booking.status === 'pending' && (
-                            <div className="bg-orange-900/40 p-4 border-t border-orange-900/50 text-center">
-                                <p className="text-xs font-light text-orange-200">Awaiting payment verification</p>
-                            </div>
-                        )}
                     </div>
 
-                    {/* Cancellation Request Section */}
+                    {/* Cancellation Request Block */}
                     {booking.cancellationRequest && (
-                        <div className="mt-8 bg-white border border-gray-200 rounded-sm shadow-xl shadow-gray-200/30 overflow-hidden sticky top-24">
-                            
+                        <div className="bg-white border border-gray-200 rounded-sm shadow-xl shadow-gray-200/30 overflow-hidden sticky top-24">
                             <div className="p-6 border-b border-gray-100 flex items-center gap-3 bg-red-50/30">
                                 <WarningCircle size={20} weight="light" className="text-red-600" />
                                 <h2 className="text-xs uppercase tracking-widest text-gray-900 font-medium">Cancellation Request</h2>
                             </div>
                             
                             <div className="p-6 space-y-6">
-                                
                                 <div>
                                     <span className="block text-[10px] uppercase tracking-widest text-gray-400 mb-3">Reason Provided by Guest</span>
                                     <div className="bg-gray-50/50 p-4 border-l-2 border-red-200 rounded-r-sm">
@@ -300,20 +301,19 @@ const BookingDetails = () => {
                                 {booking.cancellationRequest.status === 'Pending' ? (
                                     <div className="flex gap-3 pt-4 border-t border-gray-100">
                                         <button 
-                                            onClick={() => handleAnswerCancellation('Reject')}
+                                            onClick={() => setRejectModalOpen(true)}
                                             className="flex-1 bg-transparent hover:bg-gray-50 text-gray-700 border border-gray-300 hover:border-gray-900 text-xs uppercase tracking-widest py-3 rounded-sm transition-colors"
                                         >
                                             Decline
                                         </button>
                                         <button 
-                                            onClick={() => handleAnswerCancellation('Accept')}
+                                            onClick={() => setAcceptModalOpen(true)}
                                             className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs uppercase tracking-widest py-3 rounded-sm transition-colors flex items-center justify-center gap-2"
                                         >
                                             Approve
                                         </button>
                                     </div>
                                 ) : (
-                                    
                                     <div className="pt-4 border-t border-gray-100 space-y-4">
                                         <div className="flex justify-between items-center">
                                             <span className="text-[10px] uppercase tracking-widest text-gray-400">Resolution Status</span>
@@ -342,6 +342,85 @@ const BookingDetails = () => {
                 </div>
 
             </div>
+
+            {/* Accept Cancellation Modal */}
+            {acceptModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md bg-white rounded-sm shadow-2xl p-8 animate-fade-in text-center">
+                        <div className="flex justify-end mb-2">
+                            <button onClick={() => setAcceptModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                                <XCircle size={24} weight="light" />
+                            </button>
+                        </div>
+                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <WarningCircle size={32} weight="light" className="text-gray-900" />
+                        </div>
+                        <h3 className="text-xl font-serif text-gray-900 mb-3">Approve Cancellation</h3>
+                        <p className="text-sm font-light text-gray-500 mb-8 leading-relaxed">
+                            Are you sure you want to approve this request? The booking status will be changed to <strong className="font-medium text-gray-900">Cancelled</strong> and guests may need to be refunded according to your policy.
+                        </p>
+                        <div className="flex gap-3 justify-center">
+                            <button
+                                onClick={() => setAcceptModalOpen(false)}
+                                className="px-6 py-3 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-900 transition-colors rounded-sm w-full"
+                            >
+                                Close
+                            </button>
+                            <button
+                                onClick={() => handleAnswerCancellation('Accept')}
+                                disabled={processingAdminAction}
+                                className="px-6 py-3 bg-gray-900 text-white text-xs uppercase tracking-widest hover:bg-black transition-colors rounded-sm w-full flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {processingAdminAction ? <CircleNotch size={14} className="animate-spin" /> : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Reject Cancellation Modal */}
+            {rejectModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md bg-white rounded-sm shadow-2xl p-8 animate-fade-in">
+                        <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                            <h3 className="text-xl font-serif text-gray-900">Decline Request</h3>
+                            <button onClick={() => setRejectModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                                <XCircle size={24} weight="light" />
+                            </button>
+                        </div>
+                        <p className="text-sm font-light text-gray-500 mb-6">
+                            Provide a reason to the guest explaining why their cancellation request cannot be approved.
+                        </p>
+                        
+                        <div className="relative group mb-8">
+                            <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Reason for rejection *</label>
+                            <textarea
+                                className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light text-sm focus:ring-0 focus:border-gray-900 transition-colors resize-none h-20 placeholder-gray-300"
+                                placeholder="e.g. This is a non-refundable rate..."
+                                value={rejectReason}
+                                onChange={(e) => setRejectReason(e.target.value)}
+                            ></textarea>
+                        </div>
+
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setRejectModalOpen(false)}
+                                className="px-6 py-2.5 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-900 transition-colors rounded-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleAnswerCancellation('Reject')}
+                                disabled={processingAdminAction || !rejectReason.trim()}
+                                className="px-6 py-2.5 bg-gray-900 text-white text-xs uppercase tracking-widest hover:bg-black transition-colors rounded-sm flex items-center gap-2 disabled:opacity-50"
+                            >
+                                {processingAdminAction ? <CircleNotch size={14} className="animate-spin" /> : 'Decline Request'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };

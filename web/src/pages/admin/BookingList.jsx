@@ -4,30 +4,13 @@ import axiosClient from '../../services/axiosClient';
 import { capitalizeFirstLetter } from '../../utils/helpers';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { 
-    CircleNotch, 
-    Trash, 
-    Eye, 
-    Receipt, 
-    CaretDown, 
-    WarningCircle, 
-    Check, 
-    X,
-    XCircle
-} from '@phosphor-icons/react';
+import { CircleNotch, Trash, Eye, Receipt, CaretDown, WarningCircle } from '@phosphor-icons/react';
 
 const BookingList = () => {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('all');
-
-    // Admin Action Modals State
-    const [acceptModalOpen, setAcceptModalOpen] = useState(false);
-    const [rejectModalOpen, setRejectModalOpen] = useState(false);
-    const [selectedBooking, setSelectedBooking] = useState(null);
-    const [rejectReason, setRejectReason] = useState('');
-    const [processingAdminAction, setProcessingAdminAction] = useState(false);
 
     const fetchBookings = async () => {
         try {
@@ -80,26 +63,6 @@ const BookingList = () => {
             toast.success(`Status updated to ${capitalizeFirstLetter(newStatus)}`);
         } catch (err) {
             toast.error(`Failed to update status: ${err.message}`);
-        }
-    };
-
-    const submitCancelResponse = async (action, reason = '') => {
-        setProcessingAdminAction(true);
-        try {
-            await axiosClient.put(`/bookings/${selectedBooking._id}/cancel-request/answer`, {
-                action, 
-                adminReplyReason: reason
-            });
-
-            toast.success(`Cancellation request ${action.toLowerCase()}ed successfully.`);
-            setAcceptModalOpen(false);
-            setRejectModalOpen(false);
-            setRejectReason('');
-            fetchBookings();
-        } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to process request.');
-        } finally {
-            setProcessingAdminAction(false);
         }
     };
 
@@ -227,22 +190,12 @@ const BookingList = () => {
                 return (
                     <div className="flex items-center gap-2">
                         {isPendingCancel ? (
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => { setSelectedBooking(booking); setAcceptModalOpen(true); }}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-widest font-medium border border-gray-200 rounded-sm text-gray-600 hover:border-green-600 hover:text-green-600 hover:bg-green-50 transition-colors"
-                                    title="Approve Cancellation"
-                                >
-                                    <Check size={14} weight="bold" /> Approve
-                                </button>
-                                <button
-                                    onClick={() => { setSelectedBooking(booking); setRejectModalOpen(true); }}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-widest font-medium border border-gray-200 rounded-sm text-gray-600 hover:border-red-600 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                    title="Reject Cancellation"
-                                >
-                                    <X size={14} weight="bold" /> Decline
-                                </button>
-                            </div>
+                            <Link
+                                to={`/admin/bookings/${booking._id}/view`}
+                                className="px-4 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white transition-colors rounded-sm text-[10px] uppercase tracking-widest font-medium whitespace-nowrap"
+                            >
+                                Review Request
+                            </Link>
                         ) : (
                             <div className="flex items-center gap-1">
                                 <Link
@@ -288,7 +241,6 @@ const BookingList = () => {
     return (
         <div className="p-6 md:p-8 lg:p-12 relative">
             <div className="max-w-7xl mx-auto">
-                {/* Header Section */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-6">
                     <div>
                         <h1 className="text-3xl md:text-4xl font-serif text-gray-900 mb-2">
@@ -300,7 +252,6 @@ const BookingList = () => {
                     </div>
                 </div>
 
-                {/* Tabs */}
                 <div className="flex gap-6 border-b border-gray-200 mb-8 overflow-x-auto hide-scrollbar">
                     <button
                         onClick={() => setActiveTab('all')}
@@ -323,7 +274,6 @@ const BookingList = () => {
                     </button>
                 </div>
 
-                {/* Table Section or Empty State */}
                 {filteredBookings.length === 0 ? (
                     <div className="bg-white border border-gray-200 border-dashed rounded-sm py-32 flex flex-col items-center justify-center text-center px-4">
                         <Receipt size={48} weight="light" className="text-gray-300 mb-6" />
@@ -338,85 +288,6 @@ const BookingList = () => {
                     </div>
                 )}
             </div>
-
-            {/* Accept Cancellation Modal */}
-            {acceptModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
-                    <div className="w-full max-w-md bg-white rounded-sm shadow-2xl p-8 animate-fade-in text-center">
-                        <div className="flex justify-end mb-2">
-                            <button onClick={() => setAcceptModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
-                                <XCircle size={24} weight="light" />
-                            </button>
-                        </div>
-                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <WarningCircle size={32} weight="light" className="text-gray-900" />
-                        </div>
-                        <h3 className="text-xl font-serif text-gray-900 mb-3">Approve Cancellation</h3>
-                        <p className="text-sm font-light text-gray-500 mb-8 leading-relaxed">
-                            Are you sure you want to approve this request? The booking status will be changed to <strong className="font-medium text-gray-900">Cancelled</strong> and guests may need to be refunded according to your policy.
-                        </p>
-                        <div className="flex gap-3 justify-center">
-                            <button
-                                onClick={() => setAcceptModalOpen(false)}
-                                className="px-6 py-3 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-900 transition-colors rounded-sm w-full"
-                            >
-                                Close
-                            </button>
-                            <button
-                                onClick={() => submitCancelResponse('Accept')}
-                                disabled={processingAdminAction}
-                                className="px-6 py-3 bg-gray-900 text-white text-xs uppercase tracking-widest hover:bg-black transition-colors rounded-sm w-full flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                                {processingAdminAction ? <CircleNotch size={14} className="animate-spin" /> : 'Confirm'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Reject Cancellation Modal */}
-            {rejectModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
-                    <div className="w-full max-w-md bg-white rounded-sm shadow-2xl p-8 animate-fade-in">
-                        <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-                            <h3 className="text-xl font-serif text-gray-900">Decline Request</h3>
-                            <button onClick={() => setRejectModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
-                                <XCircle size={24} weight="light" />
-                            </button>
-                        </div>
-                        <p className="text-sm font-light text-gray-500 mb-6">
-                            Provide a reason to the guest explaining why their cancellation request cannot be approved.
-                        </p>
-                        
-                        <div className="relative group mb-8">
-                            <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Reason for rejection *</label>
-                            <textarea
-                                className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light text-sm focus:ring-0 focus:border-gray-900 transition-colors resize-none h-20 placeholder-gray-300"
-                                placeholder="e.g. This is a non-refundable rate..."
-                                value={rejectReason}
-                                onChange={(e) => setRejectReason(e.target.value)}
-                            ></textarea>
-                        </div>
-
-                        <div className="flex gap-3 justify-end">
-                            <button
-                                onClick={() => setRejectModalOpen(false)}
-                                className="px-6 py-2.5 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-900 transition-colors rounded-sm"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => submitCancelResponse('Reject', rejectReason)}
-                                disabled={processingAdminAction || !rejectReason.trim()}
-                                className="px-6 py-2.5 bg-gray-900 text-white text-xs uppercase tracking-widest hover:bg-black transition-colors rounded-sm flex items-center gap-2 disabled:opacity-50"
-                            >
-                                {processingAdminAction ? <CircleNotch size={14} className="animate-spin" /> : 'Decline Request'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
         </div>
     );
 };

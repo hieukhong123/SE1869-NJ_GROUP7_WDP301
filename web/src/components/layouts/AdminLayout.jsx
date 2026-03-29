@@ -1,19 +1,19 @@
 import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
 import {
-  HouseIcon,
-  BuildingsIcon,
-  BedIcon,
-  CalendarCheckIcon,
-  UsersIcon,
-  MoneyIcon,
-  StarIcon,
-  CreditCardIcon,
-  EnvelopeIcon,
-  SignOutIcon,
-  ListIcon,
-  ClockCounterClockwiseIcon,
-  ArrowsLeftRightIcon,
-  FileTextIcon,
+  House,
+  Buildings,
+  Bed,
+  CalendarCheck,
+  Users,
+  Money,
+  Star,
+  CreditCard,
+  Envelope,
+  SignOut,
+  List,
+  ClockCounterClockwise,
+  ArrowsLeftRight,
+  FileText,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -31,44 +31,57 @@ const AdminLayout = () => {
   const user = userStr ? JSON.parse(userStr) : null;
 
   let adminMenu = [
-    { path: '/admin/dashboard', name: 'Dashboard', icon: HouseIcon },
-    { path: '/admin/bookings', name: 'Reservations', icon: CalendarCheckIcon },
-    { path: '/admin/hotels', name: 'Hotels', icon: BuildingsIcon },
-    { path: '/admin/rooms', name: 'Accommodations', icon: BedIcon },
-    { path: '/admin/users', name: 'User Directory', icon: UsersIcon },
-    { path: '/admin/extra-fees', name: 'Additional Services', icon: MoneyIcon },
-    { path: '/admin/reviews', name: 'Guest Reviews', icon: StarIcon },
-    { path: '/admin/payments', name: 'Transactions', icon: CreditCardIcon },
-    { path: '/admin/contacts', name: 'Contact Messages', icon: EnvelopeIcon },
+    { path: '/admin/dashboard', name: 'Dashboard', icon: House },
+    { path: '/admin/bookings', name: 'Reservations', icon: CalendarCheck },
+    { path: '/admin/hotels', name: 'Hotels', icon: Buildings },
+    { path: '/admin/rooms', name: 'Accommodations', icon: Bed },
+    { path: '/admin/users', name: 'User Directory', icon: Users },
+    { path: '/admin/extra-fees', name: 'Additional Services', icon: Money },
+    { path: '/admin/reviews', name: 'Guest Reviews', icon: Star },
+    { path: '/admin/payments', name: 'Transactions', icon: CreditCard },
+    { path: '/admin/contacts', name: 'Contact Messages', icon: Envelope },
     { type: 'separator' },
     {
       path: '/admin/logs/refund',
       name: 'Refund Logs',
-      icon: ArrowsLeftRightIcon,
+      icon: ArrowsLeftRight,
     },
     {
       path: '/admin/logs/hotel-status',
       name: 'Hotel Status Logs',
-      icon: ClockCounterClockwiseIcon,
+      icon: ClockCounterClockwise,
     },
     {
       path: '/admin/logs/booking-status',
       name: 'Booking Logs',
-      icon: FileTextIcon,
+      icon: FileText,
     },
   ];
 
   if (user?.role === 'staff') {
-    adminMenu = adminMenu.filter(
-      (item) =>
-        !item.path || 
-        ![
-          '/admin/users',
-          '/admin/contacts',
-          '/admin/payments',
-          '/admin/extra-fees',
-        ].includes(item.path)
-    );
+    adminMenu = adminMenu
+      .filter(
+        (item) =>
+          !item.path ||
+          ![
+            '/admin/users',
+            '/admin/contacts',
+            '/admin/payments',
+            '/admin/extra-fees',
+            '/admin/logs/refund',
+            '/admin/logs/hotel-status'
+          ].includes(item.path)
+      )
+      .map((item) => {
+        if (item.name === 'Hotels') {
+          return {
+            ...item,
+            name: 'My Hotel',
+            path: user.hotelId ? `/admin/hotels/${user.hotelId}/edit` : '/admin/dashboard',
+          };
+        }
+        return item;
+      });
   }
 
   return (
@@ -97,7 +110,7 @@ const AdminLayout = () => {
             htmlFor="my-drawer-2"
             className="cursor-pointer p-2 -mr-2 text-gray-600 hover:text-gray-900"
           >
-            <ListIcon size={24} weight="light" />
+            <List size={24} weight="light" />
           </label>
         </div>
 
@@ -156,10 +169,10 @@ const AdminLayout = () => {
                     (document.getElementById('my-drawer-2').checked = false)
                   }
                   className={({ isActive }) =>
-                    `flex items-center gap-4 px-4 py-3 rounded-sm text-sm ${
+                    `flex items-center gap-4 px-4 py-3 rounded-sm text-sm transition-colors ${
                       isActive
                         ? 'bg-orange-50 text-orange-800 font-medium'
-                        : 'text-gray-500 hover:bg-gray-50'
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                     }`
                   }
                 >
@@ -177,9 +190,9 @@ const AdminLayout = () => {
           <div className="p-4 border-t border-gray-100">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-4 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50"
+              className="flex items-center gap-4 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors rounded-sm"
             >
-              <SignOutIcon size={20} />
+              <SignOut size={20} />
               Secure Logout
             </button>
           </div>

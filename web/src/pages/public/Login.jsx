@@ -18,7 +18,7 @@ const Login = () => {
         if (storedUser) {
             try {
                 const user = JSON.parse(storedUser);
-                if (user.role === 'admin') {
+                if (user.role === 'admin' || user.role === 'staff') {
                     navigate('/admin/dashboard');
                 } else {
                     navigate('/');

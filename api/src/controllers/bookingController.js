@@ -125,21 +125,27 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		.populate('extraIds', 'extraName extraPrice');
 
 	const staffList = await User.find({
-		role: 'staff',
-		hotelId: hotelId,
-	});
+        role: 'staff',
+        hotelId: hotelId,
+    });
 
-	for (const staff of staffList) {
-		await Promise.all(
-			staffList.map((staff) =>
-				sendEmail({
-					email: staff.email,
-					subject: 'New Booking',
-					html: `<p>New booking at hotel ${hotel.name}</p>`,
-				})
-			)
-		);
-	}
+    if (staffList.length > 0) {
+        await Promise.all(
+            staffList.map((staff) =>
+                sendEmail({
+                    email: staff.email,
+                    subject: `New Booking Alert - ${hotel.name}`,
+                    html: `
+                        <h3>Hello ${staff.fullName || 'Staff'},</h3>
+                        <p>A new booking has just been created for <strong>${hotel.name}</strong>.</p>
+                        <p><strong>Check-in:</strong> ${start.toLocaleDateString()}</p>
+                        <p><strong>Check-out:</strong> ${end.toLocaleDateString()}</p>
+                        <p>Please log in to the management portal to view details.</p>
+                    `,
+                })
+            )
+        );
+    }
 
 	res.status(HttpStatus.CREATED).json({
 		success: true,
@@ -241,8 +247,8 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 
 	const validTransitions = {
 		pending: ['paid', 'expired'],
-		paid: ['confirmed', 'cancel'],
-		confirmed: ['checked_in', 'cancel', 'no_show'],
+		paid: ['confirmed', 'cancelled'],
+		confirmed: ['checked_in', 'cancelled', 'no_show'],
 		checked_in: ['checked_out'],
 		expired: [],
 		cancelled: [],

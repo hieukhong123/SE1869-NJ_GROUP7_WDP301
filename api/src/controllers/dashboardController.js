@@ -4,21 +4,39 @@ import Hotel from '../models/Hotel.js';
 import Booking from '../models/Booking.js';
 import Payment from '../models/Payment.js';
 import { HttpStatus } from '../utils/httpStatus.js';
+import mongoose from 'mongoose';
 
 // @desc    Get dashboard statistics
 // @route   GET /api/dashboard
 // @access  Private/Admin
 const getDashboardStats = catchAsync(async (req, res) => {
-	const { hotelStatus } = req.query; // 'active', 'inactive', 'suspended', or 'all'
+	const { hotelId, hotelStatus } = req.query;
 
-	const hotelFilter =
-		hotelStatus && hotelStatus !== 'all' ? { status: hotelStatus } : {};
+	let hotelFilter = {};
+
+	if (hotelId) {
+		hotelFilter._id = new mongoose.Types.ObjectId(hotelId);
+	}
+
+	if (hotelStatus && hotelStatus !== 'all') {
+		hotelFilter.status = hotelStatus;
+	}
+
+	const hotels = await Hotel.find(hotelFilter).select('_id');
+	const hotelIds = hotels.map((h) => h._id);
+
+	let bookingFilter = {};
+	if (hotelIds.length > 0) {
+		bookingFilter.hotelId = { $in: hotelIds };
+	}
 
 	const totalUsers = await User.countDocuments();
 	const totalHotels = await Hotel.countDocuments(hotelFilter);
+	const totalBookings = await Booking.countDocuments(bookingFilter);
 
-	// For bookings and revenue, we need to filter by hotel status if provided
-	let bookingFilter = {};
+	const bookings = await Booking.find(bookingFilter).select('_id');
+	const bookingIds = bookings.map((b) => b._id);
+
 	let paymentFilter = { status: 'confirmed' };
 
 	if (hotelStatus && hotelStatus !== 'all') {

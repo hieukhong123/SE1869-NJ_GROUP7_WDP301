@@ -9,6 +9,8 @@ import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import AppError from '../utils/AppError.js';
 import sendEmail from '../utils/sendEmail.js';
+import User from '../models/User.js';
+import Payment from '../models/Payment.js';
 
 // Helper to normalize date to start of day (midnight) in local time
 const normalizeDate = (dateStr) => {
@@ -103,7 +105,7 @@ export const createBooking = catchAsync(async (req, res, next) => {
 
 	const expiresAt = activeReservation
 		? activeReservation.expiresAt
-		: new Date(Date.now() + 5 * 60 * 1000);
+		: new Date(Date.now() + 15 * 60 * 1000);
 
 	const newBooking = await Booking.create({
 		...req.body,
@@ -122,6 +124,23 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		.populate('roomIds', 'roomName roomPrice')
 		.populate('extraIds', 'extraName extraPrice');
 
+	const staffList = await User.find({
+		role: 'staff',
+		hotelId: hotelId,
+	});
+
+	for (const staff of staffList) {
+		await Promise.all(
+			staffList.map((staff) =>
+				sendEmail({
+					email: staff.email,
+					subject: 'New Booking',
+					html: `<p>New booking at hotel ${hotel.name}</p>`,
+				})
+			)
+		);
+	}
+
 	res.status(HttpStatus.CREATED).json({
 		success: true,
 		message: 'Booking created successfully',
@@ -130,11 +149,20 @@ export const createBooking = catchAsync(async (req, res, next) => {
 });
 
 export const getAllBookings = catchAsync(async (req, res, next) => {
-	const bookings = await Booking.find()
-		.populate('hotelId', 'name status')
-		.populate('userId', 'email fullName')
-		.populate('roomIds', 'roomName')
-		.sort({ createdAt: -1 });
+        const query = {};
+        if (req.query.hotelId) {
+                query.hotelId = req.query.hotelId;
+        }
+
+		if (req.user.role === 'staff') {
+			query.hotelId = req.user.hotelId;
+		}
+
+        const bookings = await Booking.find(query)
+                .populate('hotelId', 'name status')
+                .populate('userId', 'email fullName')
+                .populate('roomIds', 'roomName')
+                .sort({ createdAt: -1 });
 
 	res.status(HttpStatus.OK).json({
 		success: true,
@@ -145,7 +173,7 @@ export const getAllBookings = catchAsync(async (req, res, next) => {
 
 export const getBookingById = catchAsync(async (req, res, next) => {
 	const booking = await Booking.findById(req.params.id)
-		.populate('hotelId', 'name')
+		.populate('hotelId', 'name status')
 		.populate('userId', 'email fullName')
 		.populate('roomIds', 'roomName')
 		.populate('extraIds');
@@ -181,6 +209,16 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 	const booking = await Booking.findById(id);
 
 	if (!booking) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
+	}
+
+	if (req.user.role === 'staff') {
+		if (booking.hotelId.toString() !== req.user.hotelId.toString()) {
+			return next(new AppError(403, 'Unauthorized'));
+		}
+	}
+
+	if (!booking) {
 		return next(
 			new AppError(
 				HttpStatus.NOT_FOUND,
@@ -201,6 +239,18 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 		});
 	}
 
+	const validTransitions = {
+		pending: ['paid', 'expired'],
+		paid: ['confirmed', 'cancel'],
+		confirmed: ['checked_in', 'cancel', 'no_show'],
+		checked_in: ['checked_out'],
+	};
+
+	if (!validTransitions[oldStatus]?.includes(status)) {
+		return next(
+			new AppError(HttpStatus.BAD_REQUEST, 'Invalid status transition'),
+		);
+	}
 	booking.status = status;
 	await booking.save();
 
@@ -277,11 +327,33 @@ export const processRefund = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
 	}
 
+	if (req.user.role === 'staff') {
+		if (booking.hotelId.toString() !== req.user.hotelId.toString()) {
+			return next(new AppError(403, 'Unauthorized'));
+		}
+	}
+
+	if (!booking) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
+	}
+
 	if (!['paid', 'confirmed'].includes(booking.status)) {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
 				'Only paid or confirmed bookings can be refunded',
+			),
+		);
+	}
+
+	const now = new Date();
+	const diffHours = (new Date(booking.checkIn) - now) / (1000 * 60 * 60);
+
+	if (diffHours < 24) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Refund only allowed at least 24 hours before check-in',
 			),
 		);
 	}
@@ -304,6 +376,11 @@ export const processRefund = catchAsync(async (req, res, next) => {
 	};
 
 	await booking.save();
+
+	await Payment.findOneAndUpdate(
+		{ bookingId: booking._id },
+		{ status: 'refunded' }
+	);
 
 	// Create log
 	await RefundLog.create({
@@ -411,6 +488,14 @@ export const requestCancelBooking = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
 	}
 
+	if (req.user.id !== booking.userId.toString()) {
+		return next(new AppError(403, 'Unauthorized'));
+	}
+
+	if (!booking) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
+	}
+
 	if (booking.status !== 'confirmed') {
 		return next(
 			new AppError(
@@ -475,6 +560,10 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 		);
 	}
 
+	if (!['pending', 'paid'].includes(booking.status)) {
+		return next(new AppError(400, 'Cannot cancel this booking'));
+	}
+
 	if (action === 'Accept') {
 		booking.status = 'cancelled';
 		booking.cancellationRequest.status = 'Accepted';
@@ -522,3 +611,4 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 		data: booking,
 	});
 });
+

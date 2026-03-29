@@ -26,9 +26,13 @@ export const getHotels = catchAsync(async (req, res, next) => {
 });
 
 export const getAdminHotels = catchAsync(async (req, res, next) => {
-	const hotels = await Hotel.find();
+        const query = {};
+        if (req.query.hotelId) {
+                query._id = req.query.hotelId;
+        }
+        const hotels = await Hotel.find(query);
 
-	res.status(HttpStatus.OK).json({
+        res.status(HttpStatus.OK).json({
 		success: true,
 		count: hotels.length,
 		data: hotels,
@@ -257,3 +261,4 @@ export const updateHotelStatus = catchAsync(async (req, res, next) => {
 		data: hotel,
 	});
 });
+

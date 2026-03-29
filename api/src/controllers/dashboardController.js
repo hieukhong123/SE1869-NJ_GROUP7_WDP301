@@ -39,27 +39,15 @@ const getDashboardStats = catchAsync(async (req, res) => {
 
 	let paymentFilter = { status: 'confirmed' };
 
-	if (hotelStatus && hotelStatus !== 'all') {
-		const targetHotels = await Hotel.find({ status: hotelStatus }).select(
-			'_id',
-		);
-		const targetHotelIds = targetHotels.map((h) => h._id);
-		bookingFilter.hotelId = { $in: targetHotelIds };
-
-		// To filter payments by hotel status, we need to join with bookings
-		const targetBookings = await Booking.find({
-			hotelId: { $in: targetHotelIds },
-		}).select('_id');
-		const targetBookingIds = targetBookings.map((b) => b._id);
-		paymentFilter.bookingId = { $in: targetBookingIds };
+	if (bookingIds.length > 0) {
+		paymentFilter.bookingId = { $in: bookingIds };
 	}
 
-	const totalBookings = await Booking.countDocuments(bookingFilter);
-
 	const confirmedPayments = await Payment.find(paymentFilter);
+
 	const totalRevenue = confirmedPayments.reduce(
 		(acc, payment) => acc + payment.amount,
-		0,
+		0
 	);
 
 	const bookingsByStatus = await Booking.aggregate([
@@ -73,9 +61,7 @@ const getDashboardStats = catchAsync(async (req, res) => {
 	]);
 
 	const monthlyRevenue = await Payment.aggregate([
-		{
-			$match: paymentFilter,
-		},
+		{ $match: paymentFilter },
 		{
 			$group: {
 				_id: {

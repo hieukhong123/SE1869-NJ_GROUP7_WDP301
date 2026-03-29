@@ -1,5 +1,6 @@
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import User from '../models/User.js';
+import Hotel from '../models/Hotel.js';
 import Booking from '../models/Booking.js';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
@@ -605,3 +606,4 @@ export {
 	updateUserProfile,
 	changePassword,
 };
+

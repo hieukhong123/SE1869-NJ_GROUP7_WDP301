@@ -154,7 +154,7 @@ export const getAllBookings = catchAsync(async (req, res, next) => {
                 query.hotelId = req.query.hotelId;
         }
 
-		if (req.user.role === 'staff') {
+		if (req.user && req.user.role === 'staff') {
 			query.hotelId = req.user.hotelId;
 		}
 
@@ -212,8 +212,8 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
 	}
 
-	if (req.user.role === 'staff') {
-		if (booking.hotelId.toString() !== req.user.hotelId.toString()) {
+	if (req.user && req.user.role === 'staff') {
+                if (booking.hotelId.toString() !== req.user.hotelId.toString()) {
 			return next(new AppError(403, 'Unauthorized'));
 		}
 	}
@@ -327,8 +327,8 @@ export const processRefund = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
 	}
 
-	if (req.user.role === 'staff') {
-		if (booking.hotelId.toString() !== req.user.hotelId.toString()) {
+	if (req.user && req.user.role === 'staff') {
+                if (booking.hotelId.toString() !== req.user.hotelId.toString()) {
 			return next(new AppError(403, 'Unauthorized'));
 		}
 	}
@@ -488,7 +488,7 @@ export const requestCancelBooking = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
 	}
 
-	if (req.user.id !== booking.userId.toString()) {
+	if (req.user && req.user.id !== booking.userId.toString()) {
 		return next(new AppError(403, 'Unauthorized'));
 	}
 
@@ -611,4 +611,7 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 		data: booking,
 	});
 });
+
+
+
 

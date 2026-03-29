@@ -113,10 +113,12 @@ const BookingList = () => {
       const response = await axiosClient.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setRefundImg(response.data.url);
+      const uploadedUrl = response?.url || response?.data?.url;
+        if (!uploadedUrl) throw new Error('Upload succeeded but no image URL was returned.');
+        setRefundImg(uploadedUrl);
       toast.success('Image uploaded successfully');
     } catch (err) {
-      toast.error('Failed to upload image');
+      toast.error('Failed to upload image: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploading(false);
     }
@@ -579,3 +581,7 @@ const BookingList = () => {
 };
 
 export default BookingList;
+
+
+
+

@@ -78,7 +78,7 @@ const Login = () => {
             setFormData({ username: '', password: '' });
 
             setTimeout(() => {
-                if (response.data.role === 'admin') {
+                if (response.data.role === 'admin' || response.data.role === 'staff') {
                     navigate('/admin/dashboard');
                 } else {
                     navigate('/');

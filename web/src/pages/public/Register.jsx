@@ -24,7 +24,7 @@ const Register = () => {
 			try {
 				const user = JSON.parse(storedUser);
 				// Redirect based on role
-				if (user.role === 'admin') {
+				if (user.role === 'admin' || user.role === 'staff') {
 					navigate('/admin/dashboard');
 				} else {
 					navigate('/');

@@ -7,8 +7,10 @@ import {
     FloppyDisk, 
     CircleNotch,
     CheckCircle,
-    XCircle
+    XCircle,
+    CaretDown
 } from '@phosphor-icons/react';
+import CustomSelect from '../../components/common/CustomSelect';
 
 const UserForm = () => {
     const { id } = useParams();
@@ -218,35 +220,28 @@ const UserForm = () => {
                             
                             <div className="relative group w-full md:w-1/2">
                                 <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Assigned Role</label>
-                                <select
-                                    name="role"
+                                <CustomSelect
+                                    options={[
+                                        { label: 'Standard User (Guest)', value: 'user' },
+                                        { label: 'Administrator', value: 'admin' },
+                                        { label: 'Staff', value: 'staff' }
+                                    ]}
                                     value={user.role}
-                                    onChange={handleChange}
-                                    className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors appearance-none cursor-pointer"
-                                >
-                                    <option value="user">Standard User (Guest)</option>
-                                    <option value="admin">Administrator</option>
-                                      <option value="staff">Staff</option>
-                                  </select>
-                              </div>
+                                    onChange={(val) => handleChange({ target: { name: 'role', value: val } })}
+                                />
+                            </div>
 
-                              {user.role === 'staff' && (
-                                  <div className="relative group w-full md:w-1/2 mt-6">
-                                      <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Assign Hotel / Resort</label>
-                                      <select
-                                          name="hotelId"
-                                          value={user.hotelId || ''}
-                                          onChange={handleChange}
-                                          required
-                                          className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors appearance-none cursor-pointer"
-                                      >
-                                          <option value="">Select a property</option>
-                                          {hotels.map(hotel => (
-                                              <option key={hotel._id} value={hotel._id}>{hotel.name}</option>
-                                          ))}
-                                      </select>
-                                  </div>
-                              )}
+                            {user.role === 'staff' && (
+                                <div className="relative group w-full md:w-1/2 mt-6 animate-fade-in">
+                                    <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Assign Hotel / Resort</label>
+                                    <CustomSelect
+                                        options={hotels.map(hotel => ({ label: hotel.name, value: hotel._id }))}
+                                        value={user.hotelId || ''}
+                                        onChange={(val) => handleChange({ target: { name: 'hotelId', value: val } })}
+                                        placeholder="Select a property"
+                                    />
+                                </div>
+                            )}
                         </div>
 
                     </div>

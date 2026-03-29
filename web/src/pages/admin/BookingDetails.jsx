@@ -49,6 +49,16 @@ const BookingDetails = () => {
         }
     }, [id]);
 
+    const handleStatusChange = async (id, newStatus) => {
+        try {
+            await axiosClient.put(`/bookings/${id}`, { status: newStatus });
+            toast.success(`Booking status updated to ${capitalizeFirstLetter(newStatus).replace('_', ' ')}`);
+            fetchBooking(); // Tải lại data để cập nhật UI
+        } catch (err) {
+            toast.error(`Failed to update status: ${err.response?.data?.message || err.message}`);
+        }
+    };
+
     const handleAnswerCancellation = async (action) => {
         setProcessingAdminAction(true);
         try {
@@ -253,21 +263,68 @@ const BookingDetails = () => {
                 </div>
 
                 {/* Right Column: Financial Summary & Actions */}
-                <div className="lg:col-span-1 space-y-8">
+                <div className="lg:col-span-1 space-y-8 sticky top-24 h-fit">
+                    
+                    {/* Operational Actions (Lễ tân thao tác) */}
+                    <div className="bg-white border border-gray-200 rounded-sm shadow-xl shadow-gray-200/30 overflow-hidden">
+                        <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+                            <h2 className="text-xs uppercase tracking-widest text-gray-900 font-bold">Front Desk Operations</h2>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            {booking.status === 'confirmed' && (
+                                <>
+                                    <p className="text-sm font-light text-gray-500 mb-4">Guest is scheduled to arrive. Proceed with check-in upon arrival.</p>
+                                    <button 
+                                        onClick={() => handleStatusChange(booking._id, 'checked_in')}
+                                        className="w-full py-3 bg-green-600 hover:bg-green-700 text-white text-xs uppercase tracking-widest font-medium transition-colors rounded-sm shadow-sm"
+                                    >
+                                        Check In Guest
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            if(window.confirm('Mark this booking as No Show? The room will be released and cancellation policies will apply.')) {
+                                                handleStatusChange(booking._id, 'no_show');
+                                            }
+                                        }}
+                                        className="w-full py-3 bg-transparent border border-gray-300 text-gray-600 hover:border-gray-900 hover:text-gray-900 text-xs uppercase tracking-widest transition-colors rounded-sm"
+                                    >
+                                        Mark as No Show
+                                    </button>
+                                </>
+                            )}
+
+                            {booking.status === 'checked_in' && (
+                                <>
+                                    <p className="text-sm font-light text-gray-500 mb-4">Guest is currently staying at the property.</p>
+                                    <button 
+                                        onClick={() => handleStatusChange(booking._id, 'checked_out')}
+                                        className="w-full py-3 bg-gray-900 hover:bg-black text-white text-xs uppercase tracking-widest font-medium transition-colors rounded-sm shadow-sm"
+                                    >
+                                        Complete Check Out
+                                    </button>
+                                </>
+                            )}
+
+                            {['pending', 'cancelled', 'expired', 'checked_out', 'no_show'].includes(booking.status) && (
+                                <p className="text-sm font-light text-gray-500 italic text-center">
+                                    No front desk actions available now.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Financial Summary */}
                     <div className="bg-gray-900 text-white rounded-sm shadow-lg">
                         <div className="p-6 border-b border-gray-800 flex items-center gap-3">
                             <Receipt size={20} weight="light" className="text-gray-400" />
                             <h2 className="text-sm uppercase tracking-widest text-white font-medium">Financial Summary</h2>
                         </div>
-                        
                         <div className="p-6 space-y-4">
                             <div className="flex justify-between items-center text-sm font-light text-gray-400">
                                 <span>Guest Party</span>
                                 <span>{booking.adult} Adults, {booking.children || 0} Children</span>
                             </div>
-                            
                             <div className="w-full h-[1px] bg-gray-800 my-4"></div>
-                            
                             <div className="flex justify-between items-end">
                                 <span className="text-xs uppercase tracking-widest text-gray-400">Total Amount</span>
                                 <div className="text-right">
@@ -282,7 +339,7 @@ const BookingDetails = () => {
 
                     {/* Cancellation Request Block */}
                     {booking.cancellationRequest && (
-                        <div className="bg-white border border-gray-200 rounded-sm shadow-xl shadow-gray-200/30 overflow-hidden sticky top-24">
+                        <div className="bg-white border border-gray-200 rounded-sm shadow-xl shadow-gray-200/30 overflow-hidden">
                             <div className="p-6 border-b border-gray-100 flex items-center gap-3 bg-red-50/30">
                                 <WarningCircle size={20} weight="light" className="text-red-600" />
                                 <h2 className="text-xs uppercase tracking-widest text-gray-900 font-medium">Cancellation Request</h2>

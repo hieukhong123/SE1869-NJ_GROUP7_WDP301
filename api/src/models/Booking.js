@@ -61,7 +61,31 @@ const bookingSchema = new mongoose.Schema(
 		status: {
 			type: String,
 			default: 'pending',
-			enum: ['pending', 'confirmed', 'cancelled', 'expired'],
+			enum: [
+				'pending',
+				'paid',
+				'confirmed',
+				'checked_in',
+				'checked_out',
+				'no_show',
+				'cancelled',
+				'expired',
+			],
+		},
+		refundInfo: {
+			reason: {
+				type: String,
+			},
+			transfer_img: {
+				type: String,
+			},
+			refundedAt: {
+				type: Date,
+			},
+			refundedBy: {
+				type: mongoose.Schema.Types.ObjectId,
+				ref: 'User',
+			},
 		},
 		totalAmount: {
 			type: Number,
@@ -82,8 +106,8 @@ const bookingSchema = new mongoose.Schema(
 			},
 			adminReplyReason: {
 				type: String,
-			}
-		}
+			},
+		},
 	},
 	{ timestamps: true },
 );

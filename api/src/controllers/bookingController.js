@@ -2,6 +2,9 @@ import Booking from '../models/Booking.js';
 import Hotel from '../models/Hotel.js';
 import RoomCategory from '../models/RoomCategory.js';
 import RoomReservation from '../models/RoomReservation.js';
+import RefundLog from '../models/RefundLog.js';
+import HotelStatusLog from '../models/HotelStatusLog.js';
+import BookingStatusLog from '../models/BookingStatusLog.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import AppError from '../utils/AppError.js';
@@ -21,16 +24,28 @@ export const createBooking = catchAsync(async (req, res, next) => {
 
 	// Check if hotel is active
 	const hotel = await Hotel.findById(hotelId);
-	if (!hotel || hotel.status === false) {
-		return next(new AppError(HttpStatus.BAD_REQUEST, 'This hotel is no longer available for booking'));
+	if (!hotel || hotel.status !== 'active') {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'This hotel is no longer available for booking',
+			),
+		);
 	}
 
 	// Validate the temporary reservation if provided
 	let activeReservation = null;
 	if (req.body.reservationId) {
-		activeReservation = await RoomReservation.findById(req.body.reservationId);
+		activeReservation = await RoomReservation.findById(
+			req.body.reservationId,
+		);
 		if (!activeReservation || activeReservation.expiresAt < new Date()) {
-			return next(new AppError(HttpStatus.BAD_REQUEST, 'Your room hold has expired. Please try again.'));
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Your room hold has expired. Please try again.',
+				),
+			);
 		}
 	}
 
@@ -57,13 +72,17 @@ export const createBooking = catchAsync(async (req, res, next) => {
 			roomIds: roomId,
 			status: { $nin: ['cancelled', 'expired'] },
 			checkIn: { $lt: end },
-			checkOut: { $gt: start }
+			checkOut: { $gt: start },
 		});
 
 		let bookedCount = 0;
 		overlappingBookings.forEach((booking) => {
 			// Ignore pending bookings that have expired but haven't been updated yet
-			if (booking.status === 'pending' && booking.expiresAt && booking.expiresAt < new Date()) {
+			if (
+				booking.status === 'pending' &&
+				booking.expiresAt &&
+				booking.expiresAt < new Date()
+			) {
 				return;
 			}
 			const countInBooking = booking.roomIds.filter(
@@ -90,7 +109,7 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		...req.body,
 		checkIn: start,
 		checkOut: end,
-		expiresAt
+		expiresAt,
 	});
 
 	// Release the temporary hold now that booking is confirmed
@@ -112,7 +131,7 @@ export const createBooking = catchAsync(async (req, res, next) => {
 
 export const getAllBookings = catchAsync(async (req, res, next) => {
 	const bookings = await Booking.find()
-		.populate('hotelId', 'name')
+		.populate('hotelId', 'name status')
 		.populate('userId', 'email fullName')
 		.populate('roomIds', 'roomName')
 		.sort({ createdAt: -1 });
@@ -140,7 +159,11 @@ export const getBookingById = catchAsync(async (req, res, next) => {
 		);
 	}
 
-	if (booking.status === 'pending' && booking.expiresAt && booking.expiresAt < new Date()) {
+	if (
+		booking.status === 'pending' &&
+		booking.expiresAt &&
+		booking.expiresAt < new Date()
+	) {
 		booking.status = 'expired';
 		await booking.save();
 	}
@@ -153,15 +176,11 @@ export const getBookingById = catchAsync(async (req, res, next) => {
 
 export const updateBookingStatus = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { status } = req.body;
+	const { status, staffId } = req.body;
 
-	const updatedBooking = await Booking.findByIdAndUpdate(
-		id,
-		{ status },
-		{ new: true, runValidators: true },
-	);
+	const booking = await Booking.findById(id);
 
-	if (!updatedBooking) {
+	if (!booking) {
 		return next(
 			new AppError(
 				HttpStatus.NOT_FOUND,
@@ -170,10 +189,25 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 		);
 	}
 
+	const oldStatus = booking.status;
+
+	// Log transition from paid to confirmed
+	if (oldStatus === 'paid' && status === 'confirmed') {
+		await BookingStatusLog.create({
+			bookingId: id,
+			oldStatus,
+			newStatus: status,
+			staffId: staffId
+		});
+	}
+
+	booking.status = status;
+	await booking.save();
+
 	res.status(HttpStatus.OK).json({
 		success: true,
 		message: 'Booking status updated successfully',
-		data: updatedBooking,
+		data: booking,
 	});
 });
 
@@ -203,7 +237,7 @@ export const getUserBookings = catchAsync(async (req, res, next) => {
 	const { userId } = req.params;
 
 	let bookings = await Booking.find({ userId })
-		.populate('hotelId', 'name location image city photos')
+		.populate('hotelId', 'name location image city photos status')
 		.populate('roomIds', 'roomName roomPrice')
 		.populate('extraIds', 'extraName extraPrice')
 		.sort({ createdAt: -1 });
@@ -211,19 +245,121 @@ export const getUserBookings = catchAsync(async (req, res, next) => {
 	// Auto-expire pending bookings
 	let updated = false;
 	const now = new Date();
-	bookings = await Promise.all(bookings.map(async (booking) => {
-		if (booking.status === 'pending' && booking.expiresAt && booking.expiresAt < now) {
-			booking.status = 'expired';
-			updated = true;
-			return await booking.save();
-		}
-		return booking;
-	}));
+	bookings = await Promise.all(
+		bookings.map(async (booking) => {
+			if (
+				booking.status === 'pending' &&
+				booking.expiresAt &&
+				booking.expiresAt < now
+			) {
+				booking.status = 'expired';
+				updated = true;
+				return await booking.save();
+			}
+			return booking;
+		}),
+	);
 
 	res.status(HttpStatus.OK).json({
 		success: true,
 		count: bookings.length,
 		data: bookings,
+	});
+});
+
+export const processRefund = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const { reason, transfer_img, staffId } = req.body;
+
+	const booking = await Booking.findById(id);
+
+	if (!booking) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
+	}
+
+	if (!['paid', 'confirmed'].includes(booking.status)) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Only paid or confirmed bookings can be refunded',
+			),
+		);
+	}
+
+	if (!reason || !transfer_img) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Reason and transfer image are required for refund',
+			),
+		);
+	}
+
+	booking.status = 'cancelled';
+	booking.refundInfo = {
+		reason,
+		transfer_img,
+		refundedAt: new Date(),
+		refundedBy: staffId,
+	};
+
+	await booking.save();
+
+	// Create log
+	await RefundLog.create({
+		bookingId: id,
+		reason,
+		transfer_img,
+		staffId: staffId,
+		amount: booking.totalAmount,
+	});
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Booking refunded successfully',
+		data: booking,
+	});
+});
+
+export const getRefundLogs = catchAsync(async (req, res, next) => {
+	const logs = await RefundLog.find()
+		.populate({
+			path: 'bookingId',
+			populate: { path: 'hotelId', select: 'name' },
+		})
+		.populate('staffId', 'fullName userName')
+		.sort({ createdAt: -1 });
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: logs,
+	});
+});
+
+export const getHotelStatusLogs = catchAsync(async (req, res, next) => {
+	const logs = await HotelStatusLog.find()
+		.populate('hotelId', 'name')
+		.populate('staffId', 'fullName userName')
+		.sort({ createdAt: -1 });
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: logs,
+	});
+});
+
+export const getBookingStatusLogs = catchAsync(async (req, res, next) => {
+	const logs = await BookingStatusLog.find()
+		.populate({
+			path: 'bookingId',
+			populate: { path: 'hotelId', select: 'name' },
+		})
+		.populate('staffId', 'fullName userName')
+		.sort({ createdAt: -1 });
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: logs,
 	});
 });
 
@@ -276,21 +412,36 @@ export const requestCancelBooking = catchAsync(async (req, res, next) => {
 	}
 
 	if (booking.status !== 'confirmed') {
-		return next(new AppError(HttpStatus.BAD_REQUEST, 'Only confirmed bookings can be requested to cancel'));
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Only confirmed bookings can be requested to cancel',
+			),
+		);
 	}
 
 	if (booking.checkIn <= new Date()) {
-		return next(new AppError(HttpStatus.BAD_REQUEST, 'Cannot cancel bookings on or after check-in date'));
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Cannot cancel bookings on or after check-in date',
+			),
+		);
 	}
 
 	if (!reason) {
-		return next(new AppError(HttpStatus.BAD_REQUEST, 'Reason is required to request cancellation'));
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Reason is required to request cancellation',
+			),
+		);
 	}
 
 	booking.cancellationRequest = {
 		status: 'Pending',
 		reason,
-		requestedAt: new Date()
+		requestedAt: new Date(),
 	};
 
 	await booking.save();
@@ -298,7 +449,7 @@ export const requestCancelBooking = catchAsync(async (req, res, next) => {
 	res.status(HttpStatus.OK).json({
 		success: true,
 		message: 'Cancellation request submitted successfully',
-		data: booking
+		data: booking,
 	});
 });
 
@@ -312,8 +463,16 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
 	}
 
-	if (!booking.cancellationRequest || booking.cancellationRequest.status !== 'Pending') {
-		return next(new AppError(HttpStatus.BAD_REQUEST, 'No pending cancellation request found for this booking'));
+	if (
+		!booking.cancellationRequest ||
+		booking.cancellationRequest.status !== 'Pending'
+	) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'No pending cancellation request found for this booking',
+			),
+		);
 	}
 
 	if (action === 'Accept') {
@@ -322,12 +481,22 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 		booking.cancellationRequest.adminReplyReason = adminReplyReason || '';
 	} else if (action === 'Reject') {
 		if (!adminReplyReason) {
-			return next(new AppError(HttpStatus.BAD_REQUEST, 'Admin reply reason is required when rejecting a cancellation request'));
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Admin reply reason is required when rejecting a cancellation request',
+				),
+			);
 		}
 		booking.cancellationRequest.status = 'Rejected';
 		booking.cancellationRequest.adminReplyReason = adminReplyReason;
 	} else {
-		return next(new AppError(HttpStatus.BAD_REQUEST, 'Invalid action. Must be Accept or Reject'));
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Invalid action. Must be Accept or Reject',
+			),
+		);
 	}
 
 	await booking.save();
@@ -341,7 +510,7 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 		<p>Your cancellation request for your booking has been <strong>${action.toLowerCase()}ed</strong>.</p>
 		${adminReplyReason ? `<p><strong>Reason/Note:</strong> ${adminReplyReason}</p>` : ''}
 		<p>Thank you for choosing us.</p>
-	`
+	`,
 		});
 	} catch (error) {
 		console.error('Email sending failed:', error);
@@ -350,6 +519,6 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 	res.status(HttpStatus.OK).json({
 		success: true,
 		message: `Cancellation request ${action.toLowerCase()}ed successfully`,
-		data: booking
+		data: booking,
 	});
 });

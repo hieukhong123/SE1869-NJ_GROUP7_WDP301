@@ -46,11 +46,16 @@ const hotelSchema = new mongoose.Schema(
 			default: false,
 		},
 		status: {
-			type: Boolean,
-			default: true,
+			type: String,
+			enum: ['active', 'inactive', 'suspended'],
+			default: 'active',
 		},
 	},
-	{ timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
+	{
+		timestamps: true,
+		toJSON: { virtuals: true },
+		toObject: { virtuals: true },
+	},
 );
 
 // Virtual field for average rating

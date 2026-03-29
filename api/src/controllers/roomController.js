@@ -22,7 +22,7 @@ export const getRooms = catchAsync(async (req, res, next) => {
 
 	const rooms = await RoomCategory.find(filter).populate(
 		'hotelId',
-		'name city photos',
+		'name city photos status',
 	);
 
 	// If dates are provided, calculate actual availability
@@ -43,14 +43,18 @@ export const getRooms = catchAsync(async (req, res, next) => {
 				roomIds: room._id,
 				status: { $nin: ['cancelled', 'expired'] },
 				checkIn: { $lt: end },
-				checkOut: { $gt: start }
+				checkOut: { $gt: start },
 			});
 
 			// Count how many of this room type are booked in each overlapping booking
 			let bookedCount = 0;
 			overlappingBookings.forEach((booking) => {
 				// Ignore pending bookings that have expired but haven't been updated yet
-				if (booking.status === 'pending' && booking.expiresAt && booking.expiresAt < new Date()) {
+				if (
+					booking.status === 'pending' &&
+					booking.expiresAt &&
+					booking.expiresAt < new Date()
+				) {
 					return;
 				}
 				const countInBooking = booking.roomIds.filter(
@@ -69,7 +73,7 @@ export const getRooms = catchAsync(async (req, res, next) => {
 			let reservedCount = 0;
 			activeReservations.forEach((rsv) => {
 				reservedCount += rsv.roomIds.filter(
-					(rid) => rid.toString() === room._id.toString()
+					(rid) => rid.toString() === room._id.toString(),
 				).length;
 			});
 

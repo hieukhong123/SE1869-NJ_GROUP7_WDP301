@@ -9,17 +9,43 @@ import { HttpStatus } from '../utils/httpStatus.js';
 // @route   GET /api/dashboard
 // @access  Private/Admin
 const getDashboardStats = catchAsync(async (req, res) => {
-	const totalUsers = await User.countDocuments();
-	const totalHotels = await Hotel.countDocuments();
-	const totalBookings = await Booking.countDocuments();
+	const { hotelStatus } = req.query; // 'active', 'inactive', 'suspended', or 'all'
 
-	const confirmedPayments = await Payment.find({ status: 'confirmed' });
+	const hotelFilter =
+		hotelStatus && hotelStatus !== 'all' ? { status: hotelStatus } : {};
+
+	const totalUsers = await User.countDocuments();
+	const totalHotels = await Hotel.countDocuments(hotelFilter);
+
+	// For bookings and revenue, we need to filter by hotel status if provided
+	let bookingFilter = {};
+	let paymentFilter = { status: 'confirmed' };
+
+	if (hotelStatus && hotelStatus !== 'all') {
+		const targetHotels = await Hotel.find({ status: hotelStatus }).select(
+			'_id',
+		);
+		const targetHotelIds = targetHotels.map((h) => h._id);
+		bookingFilter.hotelId = { $in: targetHotelIds };
+
+		// To filter payments by hotel status, we need to join with bookings
+		const targetBookings = await Booking.find({
+			hotelId: { $in: targetHotelIds },
+		}).select('_id');
+		const targetBookingIds = targetBookings.map((b) => b._id);
+		paymentFilter.bookingId = { $in: targetBookingIds };
+	}
+
+	const totalBookings = await Booking.countDocuments(bookingFilter);
+
+	const confirmedPayments = await Payment.find(paymentFilter);
 	const totalRevenue = confirmedPayments.reduce(
 		(acc, payment) => acc + payment.amount,
-		0
+		0,
 	);
 
 	const bookingsByStatus = await Booking.aggregate([
+		{ $match: bookingFilter },
 		{
 			$group: {
 				_id: '$status',
@@ -30,9 +56,7 @@ const getDashboardStats = catchAsync(async (req, res) => {
 
 	const monthlyRevenue = await Payment.aggregate([
 		{
-			$match: {
-				status: 'confirmed',
-			},
+			$match: paymentFilter,
 		},
 		{
 			$group: {

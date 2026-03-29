@@ -1,5 +1,6 @@
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import User from '../models/User.js';
+import Booking from '../models/Booking.js';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import bcrypt from 'bcryptjs';
@@ -63,6 +64,16 @@ const deleteUser = catchAsync(async (req, res, next) => {
 	const user = await User.findById(req.params.id);
 
 	if (user) {
+		const hasBookings = await Booking.exists({ userId: req.params.id });
+		if (hasBookings) {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Cannot delete user who has booking history. Please set to inactive instead.',
+				),
+			);
+		}
+
 		await User.deleteOne({ _id: req.params.id });
 		res.status(HttpStatus.OK).json({
 			success: true,
@@ -83,7 +94,9 @@ const createUser = catchAsync(async (req, res, next) => {
 	const userExists = await User.findOne({ email });
 
 	if (userExists) {
-		return next(new AppError(HttpStatus.BAD_REQUEST, 'User already exists'));
+		return next(
+			new AppError(HttpStatus.BAD_REQUEST, 'User already exists'),
+		);
 	}
 
 	// Hash password
@@ -122,8 +135,8 @@ const registerUser = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Please provide username, email and password'
-			)
+				'Please provide username, email and password',
+			),
 		);
 	}
 
@@ -134,8 +147,8 @@ const registerUser = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'User with this email or username already exists'
-			)
+				'User with this email or username already exists',
+			),
 		);
 	}
 
@@ -151,7 +164,7 @@ const registerUser = catchAsync(async (req, res, next) => {
 		fullName,
 		phone,
 		role: 'user',
-		status: true, 
+		status: true,
 	});
 
 	if (user) {
@@ -185,19 +198,22 @@ const loginUser = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Please provide username or email and password'
-			)
+				'Please provide username or email and password',
+			),
 		);
 	}
 
 	// Find user by username or email
 	const user = await User.findOne({
-		$or: [{ userName: username }, { email: username }]
+		$or: [{ userName: username }, { email: username }],
 	});
 
 	if (!user) {
 		return next(
-			new AppError(HttpStatus.UNAUTHORIZED, 'Invalid username/email or password')
+			new AppError(
+				HttpStatus.UNAUTHORIZED,
+				'Invalid username/email or password',
+			),
 		);
 	}
 
@@ -206,8 +222,8 @@ const loginUser = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.FORBIDDEN,
-				'Your account has been deactivated. Please contact support.'
-			)
+				'Your account has been deactivated. Please contact support.',
+			),
 		);
 	}
 
@@ -216,7 +232,10 @@ const loginUser = catchAsync(async (req, res, next) => {
 
 	if (!isPasswordValid) {
 		return next(
-			new AppError(HttpStatus.UNAUTHORIZED, 'Invalid username/email or password')
+			new AppError(
+				HttpStatus.UNAUTHORIZED,
+				'Invalid username/email or password',
+			),
 		);
 	}
 
@@ -248,7 +267,10 @@ const forgotPassword = catchAsync(async (req, res, next) => {
 	// Validate email
 	if (!email) {
 		return next(
-			new AppError(HttpStatus.BAD_REQUEST, 'Please provide email address')
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Please provide email address',
+			),
 		);
 	}
 
@@ -257,7 +279,10 @@ const forgotPassword = catchAsync(async (req, res, next) => {
 
 	if (!user) {
 		return next(
-			new AppError(HttpStatus.NOT_FOUND, 'No user found with that email address')
+			new AppError(
+				HttpStatus.NOT_FOUND,
+				'No user found with that email address',
+			),
 		);
 	}
 
@@ -269,7 +294,7 @@ const forgotPassword = catchAsync(async (req, res, next) => {
 		.createHash('sha256')
 		.update(resetToken)
 		.digest('hex');
-	
+
 	// Token expires in 10 minutes
 	user.resetPasswordExpires = Date.now() + 10 * 60 * 1000;
 
@@ -304,7 +329,8 @@ const forgotPassword = catchAsync(async (req, res, next) => {
 
 		res.status(HttpStatus.OK).json({
 			success: true,
-			message: 'Password reset email sent successfully. Please check your email.',
+			message:
+				'Password reset email sent successfully. Please check your email.',
 		});
 	} catch (error) {
 		// Clear reset token if email fails
@@ -315,8 +341,8 @@ const forgotPassword = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.INTERNAL_SERVER_ERROR,
-				'Email could not be sent. Please try again later.'
-			)
+				'Email could not be sent. Please try again later.',
+			),
 		);
 	}
 });
@@ -332,8 +358,8 @@ const resetPassword = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Please provide verification code and new password'
-			)
+				'Please provide verification code and new password',
+			),
 		);
 	}
 
@@ -342,16 +368,13 @@ const resetPassword = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Password must be at least 6 characters'
-			)
+				'Password must be at least 6 characters',
+			),
 		);
 	}
 
 	// Hash token to compare with database
-	const hashedToken = crypto
-		.createHash('sha256')
-		.update(token)
-		.digest('hex');
+	const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
 	// Find user with valid token
 	const user = await User.findOne({
@@ -363,8 +386,8 @@ const resetPassword = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Invalid or expired verification code'
-			)
+				'Invalid or expired verification code',
+			),
 		);
 	}
 
@@ -406,7 +429,9 @@ const toggleUserStatus = catchAsync(async (req, res, next) => {
 // @route   GET /api/v1/users/profile/:userId
 // @access  Public (user accesses their own profile)
 const getUserProfile = catchAsync(async (req, res, next) => {
-	const user = await User.findById(req.params.userId).select('-password -resetPasswordToken -resetPasswordExpires');
+	const user = await User.findById(req.params.userId).select(
+		'-password -resetPasswordToken -resetPasswordExpires',
+	);
 
 	if (!user) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
@@ -430,9 +455,9 @@ const updateUserProfile = catchAsync(async (req, res, next) => {
 
 	// Fields that user can update
 	const allowedUpdates = ['fullName', 'phone', 'dob', 'address', 'avartar'];
-	
+
 	// Update only allowed fields
-	allowedUpdates.forEach(field => {
+	allowedUpdates.forEach((field) => {
 		if (req.body[field] !== undefined) {
 			user[field] = req.body[field];
 		}
@@ -471,8 +496,8 @@ const changePassword = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Please provide current password and new password'
-			)
+				'Please provide current password and new password',
+			),
 		);
 	}
 
@@ -481,8 +506,8 @@ const changePassword = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'New password must be at least 6 characters'
-			)
+				'New password must be at least 6 characters',
+			),
 		);
 	}
 
@@ -494,11 +519,17 @@ const changePassword = catchAsync(async (req, res, next) => {
 	}
 
 	// Verify current password
-	const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+	const isPasswordValid = await bcrypt.compare(
+		currentPassword,
+		user.password,
+	);
 
 	if (!isPasswordValid) {
 		return next(
-			new AppError(HttpStatus.UNAUTHORIZED, 'Current password is incorrect')
+			new AppError(
+				HttpStatus.UNAUTHORIZED,
+				'Current password is incorrect',
+			),
 		);
 	}
 

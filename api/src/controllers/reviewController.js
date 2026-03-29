@@ -12,12 +12,12 @@ const getReviews = catchAsync(async (req, res) => {
 	if (req.query.hotelId) {
 		filter.hotelId = req.query.hotelId;
 	}
-	
+
 	const reviews = await Review.find(filter)
-		.populate('hotelId', 'name')
+		.populate('hotelId', 'name status')
 		.populate('userId', 'fullName email')
 		.sort({ createdAt: -1 });
-		
+
 	res.status(HttpStatus.OK).json({
 		success: true,
 		count: reviews.length,
@@ -84,11 +84,11 @@ const createReview = catchAsync(async (req, res, next) => {
 	});
 
 	const createdReview = await review.save();
-	
+
 	// Populate the created review before sending response
 	await createdReview.populate('userId', 'fullName email');
 	await createdReview.populate('hotelId', 'name');
-	
+
 	res.status(HttpStatus.CREATED).json({
 		success: true,
 		data: createdReview,

@@ -32,6 +32,11 @@ const userSchema = new mongoose.Schema(
 			type: String,
 			default: 'user',
 		},
+                hotelId: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: 'Hotel',
+                        default: null,
+                },
 		avartar: {
 			type: String,
 		},
@@ -50,3 +55,4 @@ const userSchema = new mongoose.Schema(
 );
 
 export default mongoose.model('User', userSchema);
+

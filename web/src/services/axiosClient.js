@@ -7,6 +7,25 @@ const axiosClient = axios.create({
 	},
 });
 
+axiosClient.interceptors.request.use(
+    (config) => {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                if (user.role === 'staff' && user.hotelId) {
+                    if (config.method === 'get') {
+                        config.params = config.params || {};
+                        config.params.hotelId = user.hotelId;
+                    }
+                }
+            } catch(e) {}
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
 axiosClient.interceptors.response.use(
 	(response) => response.data,
 	(error) => {
@@ -15,3 +34,4 @@ axiosClient.interceptors.response.use(
 );
 
 export default axiosClient;
+

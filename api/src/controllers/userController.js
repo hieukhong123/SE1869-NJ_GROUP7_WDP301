@@ -40,21 +40,45 @@ const getUserById = catchAsync(async (req, res, next) => {
 const updateUser = catchAsync(async (req, res, next) => {
 	const user = await User.findById(req.params.id);
 
-	if (user) {
-		user.fullName = req.body.fullName || user.fullName;
-		user.email = req.body.email || user.email;
-		user.role = req.body.role || user.role;
-		user.status = req.body.status;
-
-		const updatedUser = await user.save();
-
-		res.status(HttpStatus.OK).json({
-			success: true,
-			data: updatedUser,
-		});
-	} else {
+	if (!user) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
 	}
+
+	if (req.body.email && req.body.email !== user.email) {
+		const emailExists = await User.findOne({ email: req.body.email });
+		if (emailExists) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Email already in use'));
+		}
+	}
+
+	if (req.body.role === 'staff') {
+		if (!req.body.hotelId) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Staff must be assigned to a hotel'));
+		}
+
+		const hotel = await Hotel.findById(req.body.hotelId);
+		if (!hotel) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Hotel not found'));
+		}
+	}
+
+	user.fullName = req.body.fullName || user.fullName;
+	user.email = req.body.email || user.email;
+	user.role = req.body.role || user.role;
+	user.status = req.body.status ?? user.status;
+
+	if (req.body.role === 'staff') {
+		user.hotelId = req.body.hotelId;
+	} else {
+		user.hotelId = null;
+	}
+
+	const updatedUser = await user.save();
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: updatedUser,
+	});
 });
 
 // @desc    Delete user
@@ -88,18 +112,39 @@ const deleteUser = catchAsync(async (req, res, next) => {
 // @route   POST /api/v1/users
 // @access  Private/Admin
 const createUser = catchAsync(async (req, res, next) => {
-	const { userName, email, password, fullName, phone, dob, address, role } =
-		req.body;
+	const {
+		userName,
+		email,
+		password,
+		fullName,
+		phone,
+		dob,
+		address,
+		role,
+		hotelId,
+	} = req.body;
+
+	if (!password) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Password is required'));
+	}
+
+	if (role === 'staff') {
+		if (!hotelId) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Staff must be assigned to a hotel'));
+		}
+
+		const hotel = await Hotel.findById(hotelId);
+		if (!hotel) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Hotel not found'));
+		}
+	}
 
 	const userExists = await User.findOne({ email });
 
 	if (userExists) {
-		return next(
-			new AppError(HttpStatus.BAD_REQUEST, 'User already exists'),
-		);
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'User already exists'));
 	}
 
-	// Hash password
 	const salt = await bcrypt.genSalt(10);
 	const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -112,16 +157,13 @@ const createUser = catchAsync(async (req, res, next) => {
 		dob,
 		address,
 		role,
+		hotelId: role === 'staff' ? hotelId : null,
 	});
 
-	if (user) {
-		res.status(HttpStatus.CREATED).json({
-			success: true,
-			data: user,
-		});
-	} else {
-		return next(new AppError(HttpStatus.BAD_REQUEST, 'Invalid user data'));
-	}
+	res.status(HttpStatus.CREATED).json({
+		success: true,
+		data: user,
+	});
 });
 
 // @desc    Register new user
@@ -248,6 +290,7 @@ const loginUser = catchAsync(async (req, res, next) => {
 		phone: user.phone,
 		address: user.address,
 		role: user.role,
+		hotelId: user.hotelId,
 		avatar: user.avartar,
 	};
 

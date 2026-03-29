@@ -56,7 +56,7 @@ const HotelList = () => {
   const columns = [
     {
       accessorKey: 'name',
-      header: 'Property Name',
+      header: 'Hotel Name',
       cell: (info) => (
         <span className="font-medium text-gray-900">{info.getValue()}</span>
       ),
@@ -65,7 +65,7 @@ const HotelList = () => {
       accessorKey: 'address',
       header: 'Address',
       cell: (info) => (
-        <span className="text-gray-600 font-light line-clamp-1">
+        <span className="text-gray-500 font-light line-clamp-1 max-w-xs">
           {info.getValue()}
         </span>
       ),
@@ -74,7 +74,7 @@ const HotelList = () => {
       accessorKey: 'hotelPhone',
       header: 'Contact',
       cell: (info) => (
-        <span className="text-gray-500 font-light">
+        <span className="text-gray-600 font-light">
           {info.getValue() || '-'}
         </span>
       ),
@@ -83,7 +83,7 @@ const HotelList = () => {
       accessorKey: 'hotelEmail',
       header: 'Email',
       cell: (info) => (
-        <span className="text-gray-500 font-light">
+        <span className="text-gray-600 font-light">
           {info.getValue() || '-'}
         </span>
       ),
@@ -96,19 +96,22 @@ const HotelList = () => {
         const id = row.original._id;
 
         let dotColor = 'bg-green-500';
-        if (status === 'inactive') dotColor = 'bg-red-400';
-        if (status === 'suspended') dotColor = 'bg-orange-400';
+        let selectStyles = 'border-green-200 bg-green-50 text-green-700 hover:border-green-300';
+        
+        if (status === 'inactive') {
+            dotColor = 'bg-red-500';
+            selectStyles = 'border-red-100 bg-red-50 text-red-700 hover:border-red-200';
+        }
+        if (status === 'suspended') {
+            dotColor = 'bg-orange-500';
+            selectStyles = 'border-orange-200 bg-orange-50 text-orange-800 hover:border-orange-300';
+        }
 
         return (
-          <div className="relative w-fit">
+          <div className="relative inline-flex items-center group">
+            <div className={`absolute left-2.5 w-1.5 h-1.5 rounded-full ${dotColor} pointer-events-none`}></div>
             <select
-              className={`appearance-none flex items-center gap-2 px-3 py-1.5 rounded-sm transition-colors border text-[10px] uppercase tracking-widest font-medium pr-8 cursor-pointer ${
-                status === 'active'
-                  ? 'border-gray-200 bg-white text-gray-900'
-                  : status === 'inactive'
-                    ? 'border-red-100 bg-red-50 text-red-600'
-                    : 'border-orange-100 bg-orange-50 text-orange-700'
-              }`}
+              className={`appearance-none pl-6 pr-8 py-1.5 rounded-sm border text-[10px] uppercase tracking-widest font-medium cursor-pointer focus:ring-0 outline-none transition-colors ${selectStyles}`}
               value={status}
               onChange={(e) => handleStatusChange(id, e.target.value)}
             >
@@ -119,11 +122,8 @@ const HotelList = () => {
             <CaretDownIcon
               size={12}
               weight="bold"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity"
             />
-            <span
-              className={`absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full ${dotColor}`}
-            ></span>
           </div>
         );
       },
@@ -132,12 +132,13 @@ const HotelList = () => {
       accessorKey: 'actions',
       header: 'Actions',
       enableGlobalFilter: false,
+      enableSorting: false,
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
           <Link
             to={`/admin/hotels/${row.original._id}/edit`}
             className="p-2 text-gray-400 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-50"
-            title="Edit Property"
+            title="Edit Hotel Details"
           >
             <PencilSimpleIcon size={18} weight="light" />
           </Link>
@@ -169,8 +170,9 @@ const HotelList = () => {
     );
 
   return (
-    <div className="p-6 md:p-8 lg:p-12">
+    <div className="p-6 md:p-8 lg:p-12 relative">
       <div className="max-w-7xl mx-auto">
+        
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-10 pb-6 border-b border-gray-200 gap-6">
           <div>
@@ -178,10 +180,18 @@ const HotelList = () => {
               Hotel Portfolio
             </h1>
             <p className="text-xs font-light text-gray-500 uppercase tracking-[0.2em]">
-              Manage your collection of hotels
+              Manage your collection of properties
             </p>
           </div>
-          {!isStaff && (<Link to="/admin/hotels/new" className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white text-xs tracking-widest uppercase transition-colors rounded-sm"><PlusIcon size={16} weight="light" /><span>Add Hotel</span></Link>)}
+          {!isStaff && (
+            <Link 
+                to="/admin/hotels/new" 
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white text-xs tracking-widest uppercase transition-colors rounded-sm"
+            >
+                <PlusIcon size={16} weight="light" />
+                <span>Add Hotel</span>
+            </Link>
+          )}
         </div>
 
         {hotels.length === 0 ? (
@@ -192,13 +202,20 @@ const HotelList = () => {
               className="text-gray-300 mb-6"
             />
             <h3 className="text-xl font-serif text-gray-900 mb-2">
-              No Properties Found
+              No Hotels Found
             </h3>
             <p className="text-gray-500 font-light max-w-md mx-auto mb-8">
               Your portfolio is currently empty. Start building your collection
-              by adding a new property.
+              by adding a new hotel.
             </p>
-            {!isStaff && (<Link to="/admin/hotels/new" className="inline-flex items-center gap-2 px-6 py-3 bg-transparent border border-gray-300 hover:border-gray-900 text-gray-900 text-xs tracking-widest uppercase transition-colors rounded-sm">Create First Property</Link>)}
+            {!isStaff && (
+                <Link 
+                    to="/admin/hotels/new" 
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-transparent border border-gray-300 hover:border-gray-900 text-gray-900 text-xs tracking-widest uppercase transition-colors rounded-sm"
+                >
+                    Create First Hotel
+                </Link>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-sm shadow-sm border border-gray-100 overflow-hidden">
@@ -211,6 +228,3 @@ const HotelList = () => {
 };
 
 export default HotelList;
-
-
-

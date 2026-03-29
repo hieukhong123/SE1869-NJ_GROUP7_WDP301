@@ -133,7 +133,7 @@ const UserForm = () => {
                                         name="userName"
                                         value={user.userName}
                                         onChange={handleChange}
-                                        placeholder="e.g. johndoe123"
+                                        placeholder="Username"
                                         className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
                                         required
                                     />
@@ -146,7 +146,7 @@ const UserForm = () => {
                                         name="email"
                                         value={user.email}
                                         onChange={handleChange}
-                                        placeholder="john.doe@example.com"
+                                        placeholder="Email address"
                                         className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
                                         required
                                     />
@@ -182,7 +182,7 @@ const UserForm = () => {
                                     name="fullName"
                                     value={user.fullName || ''}
                                     onChange={handleChange}
-                                    placeholder="John Doe"
+                                    placeholder="Full name"
                                     className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
                                 />
                             </div>

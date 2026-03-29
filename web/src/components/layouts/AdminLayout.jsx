@@ -35,7 +35,7 @@ const AdminLayout = () => {
     { path: '/admin/bookings', name: 'Reservations', icon: CalendarCheckIcon },
     { path: '/admin/hotels', name: 'Hotels', icon: BuildingsIcon },
     { path: '/admin/rooms', name: 'Accommodations', icon: BedIcon },
-    { path: '/admin/users', name: 'Guest Directory', icon: UsersIcon },
+    { path: '/admin/users', name: 'User Directory', icon: UsersIcon },
     { path: '/admin/extra-fees', name: 'Additional Services', icon: MoneyIcon },
     { path: '/admin/reviews', name: 'Guest Reviews', icon: StarIcon },
     { path: '/admin/payments', name: 'Transactions', icon: CreditCardIcon },

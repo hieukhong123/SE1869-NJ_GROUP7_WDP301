@@ -23,23 +23,34 @@ const UserForm = () => {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [hotels, setHotels] = useState([]);
 
     useEffect(() => {
-        if (id) {
-            const fetchUser = async () => {
-                setLoading(true);
-                try {
-                    const response = await axiosClient.get(`/users/${id}`);
-                    setUser(response.data);
-                } catch (err) {
-                    setError(err);
-                    toast.error('Failed to load user data.');
-                } finally {
-                    setLoading(false);
+        const fetchData = async () => {
+            setLoading(true);
+
+            try {
+                const [hotelRes, userRes] = await Promise.all([
+                    axiosClient.get('/hotels/admin-all'),
+                    id ? axiosClient.get(`/users/${id}`) : Promise.resolve(null),
+                ]);
+
+                setHotels(hotelRes.data || []);
+
+                if (userRes) {
+                    setUser(userRes.data);
                 }
-            };
-            fetchUser();
-        }
+            } catch (err) {
+                const message =
+                    err.response?.data?.message || err.message || 'Something went wrong';
+                setError(message);
+                toast.error(message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
     }, [id]);
 
     const handleChange = (e) => {
@@ -215,8 +226,27 @@ const UserForm = () => {
                                 >
                                     <option value="user">Standard User (Guest)</option>
                                     <option value="admin">Administrator</option>
-                                </select>
-                            </div>
+                                      <option value="staff">Staff</option>
+                                  </select>
+                              </div>
+
+                              {user.role === 'staff' && (
+                                  <div className="relative group w-full md:w-1/2 mt-6">
+                                      <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Assign Hotel / Resort</label>
+                                      <select
+                                          name="hotelId"
+                                          value={user.hotelId || ''}
+                                          onChange={handleChange}
+                                          required
+                                          className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors appearance-none cursor-pointer"
+                                      >
+                                          <option value="">Select a property</option>
+                                          {hotels.map(hotel => (
+                                              <option key={hotel._id} value={hotel._id}>{hotel.name}</option>
+                                          ))}
+                                      </select>
+                                  </div>
+                              )}
                         </div>
 
                     </div>
@@ -251,3 +281,7 @@ const UserForm = () => {
 };
 
 export default UserForm;
+
+
+
+

@@ -244,6 +244,9 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 		paid: ['confirmed', 'cancel'],
 		confirmed: ['checked_in', 'cancel', 'no_show'],
 		checked_in: ['checked_out'],
+		expired: [],
+		cancelled: [],
+		no_show: [],
 	};
 
 	if (!validTransitions[oldStatus]?.includes(status)) {

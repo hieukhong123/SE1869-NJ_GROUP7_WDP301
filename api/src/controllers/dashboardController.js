@@ -26,9 +26,9 @@ const getDashboardStats = catchAsync(async (req, res) => {
 	const hotelIds = hotels.map((h) => h._id);
 
 	let bookingFilter = {};
-	if (hotelIds.length > 0) {
-		bookingFilter.hotelId = { $in: hotelIds };
-	}
+        if (Object.keys(hotelFilter).length > 0) {
+                bookingFilter.hotelId = { $in: hotelIds };
+        }
 
 	const totalUsers = await User.countDocuments();
 	const totalHotels = await Hotel.countDocuments(hotelFilter);
@@ -39,9 +39,9 @@ const getDashboardStats = catchAsync(async (req, res) => {
 
 	let paymentFilter = { status: 'confirmed' };
 
-	if (bookingIds.length > 0) {
-		paymentFilter.bookingId = { $in: bookingIds };
-	}
+        if (Object.keys(bookingFilter).length > 0) {
+                paymentFilter.bookingId = { $in: bookingIds };
+        }
 
 	const confirmedPayments = await Payment.find(paymentFilter);
 
@@ -93,3 +93,4 @@ const getDashboardStats = catchAsync(async (req, res) => {
 });
 
 export { getDashboardStats };
+

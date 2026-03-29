@@ -10,12 +10,17 @@ import {
   PlusIcon,
   CircleNotchIcon,
   UsersIcon,
+  XIcon,
 } from '@phosphor-icons/react';
 
 const UserList = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -34,25 +39,6 @@ const UserList = () => {
     fetchUsers();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (
-      window.confirm(
-        'Are you sure you want to remove this user from the directory? This action cannot be undone.',
-      )
-    ) {
-      try {
-        await axiosClient.delete(`/users/${id}`);
-        setUsers(users.filter((user) => user._id !== id));
-        toast.success('User removed successfully.');
-      } catch (err) {
-        toast.error(
-          'Failed to delete user: ' +
-            (err.response?.data?.message || err.message),
-        );
-      }
-    }
-  };
-
   const handleToggleStatus = async (id) => {
     try {
       await axiosClient.put(`/users/${id}/toggle-status`);
@@ -61,6 +47,41 @@ const UserList = () => {
     } catch (err) {
       setError(err);
       toast.error('Failed to update user status.');
+    }
+  };
+
+  const handleDeleteClick = (user) => {
+    setUserToDelete(user);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      await axiosClient.delete(`/users/${userToDelete._id}`);
+      setUsers(users.filter((u) => u._id !== userToDelete._id));
+      toast.success('User removed successfully.');
+      setDeleteModalOpen(false);
+      setUserToDelete(null);
+    } catch (err) {
+      toast.error(
+        'Failed to delete user: ' +
+          (err.response?.data?.message || err.message),
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const getRoleStyles = (role) => {
+    switch (role?.toLowerCase()) {
+      case 'admin':
+        return 'bg-orange-50 border-orange-100 text-orange-800';
+      case 'staff':
+        return 'bg-blue-50 border-blue-100 text-blue-700';
+      default:
+        return 'bg-gray-50 border-gray-200 text-gray-600';
     }
   };
 
@@ -93,11 +114,9 @@ const UserList = () => {
         const role = row.original.role;
         return (
           <span
-            className={`text-[10px] uppercase tracking-widest font-medium px-2 py-1 rounded-sm border ${
-              role === 'admin'
-                ? 'bg-orange-50 border-orange-200 text-orange-800'
-                : 'bg-gray-50 border-gray-200 text-gray-600'
-            }`}
+            className={`text-[10px] uppercase tracking-widest font-medium px-2.5 py-1 rounded-sm border ${getRoleStyles(
+              role,
+            )}`}
           >
             {capitalizeFirstLetter(role)}
           </span>
@@ -112,15 +131,17 @@ const UserList = () => {
         return (
           <button
             onClick={() => handleToggleStatus(row.original._id)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-sm transition-colors border text-[10px] uppercase tracking-widest font-medium ${
+            className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-sm transition-colors border text-[10px] uppercase tracking-widest font-medium w-28 ${
               status
-                ? 'border-gray-200 bg-white hover:bg-gray-50 text-gray-900'
-                : 'border-gray-200 bg-gray-50 hover:bg-white text-gray-400'
+                ? 'border-green-100 bg-green-50 hover:bg-green-100 text-green-700'
+                : 'border-red-100 bg-red-50 hover:bg-red-100 text-red-700'
             }`}
-            title="Click to toggle access"
+            title={status ? 'Click to suspend user' : 'Click to activate user'}
           >
             <span
-              className={`w-1.5 h-1.5 rounded-full ${status ? 'bg-green-500' : 'bg-red-400'}`}
+              className={`w-1.5 h-1.5 rounded-full ${
+                status ? 'bg-green-500' : 'bg-red-500'
+              }`}
             ></span>
             {status ? 'Active' : 'Suspended'}
           </button>
@@ -142,7 +163,7 @@ const UserList = () => {
             <PencilSimpleIcon size={18} weight="light" />
           </Link>
           <button
-            onClick={() => handleDelete(row.original._id)}
+            onClick={() => handleDeleteClick(row.original)}
             className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
             title="Remove User"
           >
@@ -176,7 +197,7 @@ const UserList = () => {
     );
 
   return (
-    <div className="p-6 md:p-8 lg:p-12">
+    <div className="p-6 md:p-8 lg:p-12 relative">
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-10 pb-6 border-b border-gray-200 gap-6">
@@ -200,11 +221,7 @@ const UserList = () => {
         {/* Table Section or Empty State */}
         {users.length === 0 ? (
           <div className="bg-white border border-gray-200 border-dashed rounded-sm py-32 flex flex-col items-center justify-center text-center px-4">
-            <UsersIcon
-              size={48}
-              weight="light"
-              className="text-gray-300 mb-6"
-            />
+            <UsersIcon size={48} weight="light" className="text-gray-300 mb-6" />
             <h3 className="text-xl font-serif text-gray-900 mb-2">
               Directory is Empty
             </h3>
@@ -224,6 +241,49 @@ const UserList = () => {
           </div>
         )}
       </div>
+
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-sm shadow-2xl p-8 animate-fade-in">
+            <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-3">
+                <TrashIcon size={20} weight="light" className="text-black-600" />
+                <h3 className="text-xl font-serif text-gray-900">Remove User</h3>
+              </div>
+              <button 
+                onClick={() => { setDeleteModalOpen(false); setUserToDelete(null); }} 
+                className="text-gray-400 hover:text-gray-900 transition-colors"
+              >
+                <XIcon size={20} weight="light" />
+              </button>
+            </div>
+            
+            <p className="text-sm font-light text-gray-500 mb-8 leading-relaxed">
+              Are you sure you want to remove <strong className="font-medium text-gray-900">{userToDelete?.fullName || userToDelete?.userName}</strong> from the directory? This action cannot be undone.
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setUserToDelete(null);
+                }}
+                disabled={isDeleting}
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-900 transition-colors rounded-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="px-6 py-2.5 bg-black text-white text-xs uppercase tracking-widest hover:bg-red-700 transition-colors rounded-sm flex items-center gap-2 disabled:opacity-50"
+              >
+                {isDeleting ? <CircleNotchIcon size={14} className="animate-spin" /> : 'Delete User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

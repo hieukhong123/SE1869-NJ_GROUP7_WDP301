@@ -12,6 +12,9 @@ import {
 } from '@phosphor-icons/react';
 
 const HotelList = () => {
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isStaff = user?.role === 'staff';
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -178,13 +181,7 @@ const HotelList = () => {
               Manage your collection of hotels
             </p>
           </div>
-          <Link
-            to="/admin/hotels/new"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white text-xs tracking-widest uppercase transition-colors rounded-sm"
-          >
-            <PlusIcon size={16} weight="light" />
-            <span>Add Hotel</span>
-          </Link>
+          {!isStaff && (<Link to="/admin/hotels/new" className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white text-xs tracking-widest uppercase transition-colors rounded-sm"><PlusIcon size={16} weight="light" /><span>Add Hotel</span></Link>)}
         </div>
 
         {hotels.length === 0 ? (
@@ -201,12 +198,7 @@ const HotelList = () => {
               Your portfolio is currently empty. Start building your collection
               by adding a new property.
             </p>
-            <Link
-              to="/admin/hotels/new"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-transparent border border-gray-300 hover:border-gray-900 text-gray-900 text-xs tracking-widest uppercase transition-colors rounded-sm"
-            >
-              Create First Property
-            </Link>
+            {!isStaff && (<Link to="/admin/hotels/new" className="inline-flex items-center gap-2 px-6 py-3 bg-transparent border border-gray-300 hover:border-gray-900 text-gray-900 text-xs tracking-widest uppercase transition-colors rounded-sm">Create First Property</Link>)}
           </div>
         ) : (
           <div className="bg-white rounded-sm shadow-sm border border-gray-100 overflow-hidden">
@@ -219,3 +211,6 @@ const HotelList = () => {
 };
 
 export default HotelList;
+
+
+

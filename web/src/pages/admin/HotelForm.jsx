@@ -14,6 +14,9 @@ import {
 } from '@phosphor-icons/react';
 
 const HotelForm = () => {
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const isStaff = user?.role === 'staff';
     const { id } = useParams();
     const navigate = useNavigate();
     const [hotel, setHotel] = useState({
@@ -180,6 +183,7 @@ const HotelForm = () => {
                                 name="name"
                                 value={hotel.name}
                                 onChange={handleChange}
+                                  disabled={isStaff}
                                 placeholder="e.g. The Grand Horizon"
                                 className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
                                 required
@@ -193,6 +197,7 @@ const HotelForm = () => {
                                 name="city"
                                 value={hotel.city || ''}
                                 onChange={handleChange}
+                                  disabled={isStaff}
                                 placeholder="e.g. Hanoi"
                                 className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
                                 required
@@ -206,6 +211,7 @@ const HotelForm = () => {
                                 name="address"
                                 value={hotel.address}
                                 onChange={handleChange}
+                                  disabled={isStaff}
                                 placeholder="Street address"
                                 className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
                                 required
@@ -226,6 +232,7 @@ const HotelForm = () => {
                                 name="hotelPhone"
                                 value={hotel.hotelPhone}
                                 onChange={handleChange}
+                                  disabled={isStaff}
                                 placeholder="+84 123 456 789"
                                 className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
                                 required
@@ -239,6 +246,7 @@ const HotelForm = () => {
                                 name="hotelEmail"
                                 value={hotel.hotelEmail}
                                 onChange={handleChange}
+                                  disabled={isStaff}
                                 placeholder="contact@property.com"
                                 className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
                                 required
@@ -257,8 +265,8 @@ const HotelForm = () => {
                                     type="checkbox"
                                     className="sr-only"
                                     name="status"
-                                    checked={hotel.status}
-                                    onChange={handleChange}
+                                      checked={hotel.status}
+                                      onChange={handleChange}
                                 />
                                 <div className={`block w-10 h-6 rounded-full transition-colors duration-300 ${hotel.status ? 'bg-green-600' : 'bg-gray-300'}`}></div>
                                 <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${hotel.status ? 'transform translate-x-4' : ''}`}></div>
@@ -286,6 +294,7 @@ const HotelForm = () => {
                             name="description"
                             value={hotel.description}
                             onChange={handleChange}
+                                  disabled={isStaff}
                             placeholder="Describe the property's unique features, ambiance, and surroundings..."
                             className="w-full bg-gray-50 border border-gray-200 rounded-sm px-4 py-3 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors h-32 resize-none placeholder-gray-400"
                         ></textarea>
@@ -389,3 +398,5 @@ const HotelForm = () => {
 };
 
 export default HotelForm;
+
+

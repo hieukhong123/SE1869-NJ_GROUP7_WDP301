@@ -31,7 +31,7 @@ const RoomForm = () => {
     useEffect(() => {
         const fetchHotels = async () => {
             try {
-                const response = await axiosClient.get('/hotels');
+                const response = await axiosClient.get('/hotels/admin-all');
                 setHotels(response.data);
             } catch (err) {
                 toast.error('Failed to load properties list.');

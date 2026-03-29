@@ -32,16 +32,16 @@ const BookingFormCard = ({
     const roomsForAdults = Math.ceil((formData.adult || 1) / 2);
     const currentChildGuests = (formData.children || 0) + (formData.baby || 0);
     const remainingChildGuests = Math.max(0, currentChildGuests - roomsForAdults);
-    const currentRoomsNeeded = roomsForAdults + remainingChildGuests;
+    const minRoomsNeeded = roomsForAdults + remainingChildGuests;
 
     const roomSuggestions = rooms.filter((room) => {
         const maxAvailable = room.availableQuantity !== undefined ? room.availableQuantity : room.quantity;
-        return maxAvailable >= currentRoomsNeeded && currentRoomsNeeded > 0;
+        return maxAvailable >= minRoomsNeeded && minRoomsNeeded > 0;
     }).map((room) => ({
         roomId: room._id,
         roomName: room.roomName,
-        quantity: currentRoomsNeeded,
-        pricePerNight: room.roomPrice * currentRoomsNeeded,
+        quantity: minRoomsNeeded,
+        pricePerNight: room.roomPrice * minRoomsNeeded,
     }));
 
     const handleApplySuggestion = (targetRoomId, qty, roomName) => {
@@ -204,7 +204,7 @@ const BookingFormCard = ({
                     <h3 className="text-xs uppercase tracking-widest text-gray-500 font-medium pb-2 border-b border-gray-100 flex items-center justify-between">
                         Accommodation
                         <span className="text-[9px] text-gray-400 normal-case tracking-normal">
-                            Requires {currentRoomsNeeded} room{currentRoomsNeeded > 1 ? 's' : ''}
+                            Requires {minRoomsNeeded} room{minRoomsNeeded > 1 ? 's' : ''}
                         </span>
                     </h3>
 

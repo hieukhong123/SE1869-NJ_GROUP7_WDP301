@@ -211,7 +211,7 @@ const HotelBooking = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (totalSelectedRooms !== currentRoomsNeeded) {
+        if (totalSelectedRooms < currentRoomsNeeded) {
             setShowRoomRequirementModal(true);
             return;
         }
@@ -348,7 +348,7 @@ const HotelBooking = () => {
                             <div className="flex items-center gap-4">
                                 <div>
                                     <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1 text-right">Required Rooms</p>
-                                    <p className="font-serif text-xl text-orange-800 text-right">{currentRoomsNeeded} Rooms</p>
+                                    <p className="font-serif text-xl text-orange-800 text-right"> Min {currentRoomsNeeded} Rooms</p>
                                     <p className="text-[11px] font-light text-gray-400 text-right mt-1">
                                         1 room max 2 adults and 1 child
                                     </p>
@@ -536,7 +536,7 @@ const HotelBooking = () => {
                         </h3>
                         <p className="text-sm font-light text-gray-600 leading-relaxed mb-3">
                             You selected <span className="font-medium text-gray-900">{totalSelectedRooms}</span> room(s),
-                            but your party currently needs <span className="font-medium text-gray-900">{currentRoomsNeeded}</span> room(s).
+                            but your party requires at least <span className="font-medium text-gray-900">{currentRoomsNeeded}</span> room(s).
                         </p>
                         <p className="text-sm font-light text-gray-500 leading-relaxed mb-6">
                             Rule: 1 room can accommodate a maximum of 2 adults and 1 child.

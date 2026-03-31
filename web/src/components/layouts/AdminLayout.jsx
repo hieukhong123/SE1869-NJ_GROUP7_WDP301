@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
 import {
   House,
@@ -14,11 +15,23 @@ import {
   ClockCounterClockwise,
   ArrowsLeftRight,
   FileText,
+  User,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const AdminLayout = () => {
   const navigate = useNavigate();
+
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    if (!user || !token || (user.role !== 'admin' && user.role !== 'staff')) {
+      toast.error('Access denied. Please login first.');
+      navigate('/login');
+    }
+  }, [user, token, navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -26,9 +39,6 @@ const AdminLayout = () => {
     toast.success('Logged out successfully');
     navigate('/login');
   };
-
-  const userStr = localStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
 
   let adminMenu = [
     { path: '/admin/dashboard', name: 'Dashboard', icon: House },
@@ -187,7 +197,25 @@ const AdminLayout = () => {
             })}
           </nav>
 
-          <div className="p-4 border-t border-gray-100">
+          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+            <div className="flex items-center gap-4 px-2 mb-4">
+              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-800 font-medium overflow-hidden border border-orange-200">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  user?.fullName?.split(' ').map(n => n[0]).join('') || <User size={20} />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {user?.fullName || 'Administrator'}
+                </p>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500 truncate">
+                  {user?.role === 'admin' ? 'System Administrator' : 'Hotel Staff'}
+                </p>
+              </div>
+            </div>
+            
             <button
               onClick={handleLogout}
               className="flex items-center gap-4 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors rounded-sm"

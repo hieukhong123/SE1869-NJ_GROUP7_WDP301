@@ -6,8 +6,12 @@ import {
 	updateExtraFee,
 	deleteExtraFee,
 } from '../controllers/extraFeeController.js';
+import { protect, authorize } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
+
+router.use(protect);
+router.use(authorize('admin', 'staff'));
 
 router.route('/').get(getExtraFees).post(createExtraFee);
 router

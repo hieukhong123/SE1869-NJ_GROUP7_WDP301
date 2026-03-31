@@ -72,6 +72,9 @@ const Login = () => {
 
             if (response.data) {
                 localStorage.setItem('user', JSON.stringify(response.data));
+                if (response.token) {
+                    localStorage.setItem('token', response.token);
+                }
                 window.dispatchEvent(new Event('userLogin'));
             }
 

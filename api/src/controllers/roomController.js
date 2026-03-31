@@ -231,6 +231,22 @@ export const updateRoom = catchAsync(async (req, res, next) => {
 
 export const deleteRoom = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
+
+	// Check for active bookings
+	const activeBookings = await Booking.exists({
+		roomIds: id,
+		status: { $in: ['paid', 'confirmed', 'checked_in'] },
+	});
+
+	if (activeBookings) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Cannot delete a room category that has active bookings (paid, confirmed, or checked-in).',
+			),
+		);
+	}
+
 	const room = await RoomCategory.findByIdAndDelete(id);
 
 	if (!room) {
@@ -251,6 +267,23 @@ export const toggleRoomStatus = catchAsync(async (req, res, next) => {
 	const room = await RoomCategory.findById(id);
 	if (!room) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Room not found'));
+	}
+
+	// Only check if transitioning to unavailable
+	if (room.status === 'available') {
+		const activeBookings = await Booking.exists({
+			roomIds: id,
+			status: { $in: ['paid', 'confirmed', 'checked_in'] },
+		});
+
+		if (activeBookings) {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Cannot set room to unavailable while there are active bookings (paid, confirmed, or checked-in).',
+				),
+			);
+		}
 	}
 
 	room.status = room.status === 'available' ? 'unavailable' : 'available';

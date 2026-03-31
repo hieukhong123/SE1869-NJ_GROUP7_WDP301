@@ -1,5 +1,6 @@
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import ExtraFee from '../models/ExtraFee.js';
+import Booking from '../models/Booking.js';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 
@@ -53,40 +54,72 @@ const createExtraFee = catchAsync(async (req, res) => {
 // @route   PUT /api/v1/extra-fees/:id
 // @access  Private/Admin
 const updateExtraFee = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
 	const { hotelId, extraName, extraPrice } = req.body;
 
-	const extraFee = await ExtraFee.findById(req.params.id);
+	const extraFee = await ExtraFee.findById(id);
 
-	if (extraFee) {
-		extraFee.hotelId = hotelId;
-		extraFee.extraName = extraName;
-		extraFee.extraPrice = extraPrice;
-
-		const updatedExtraFee = await extraFee.save();
-		res.status(HttpStatus.OK).json({
-			success: true,
-			data: updatedExtraFee,
-		});
-	} else {
+	if (!extraFee) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Extra fee not found'));
 	}
+
+	// Check for active bookings
+	const activeBookings = await Booking.exists({
+		extraIds: id,
+		status: { $in: ['paid', 'confirmed', 'checked_in'] },
+	});
+
+	if (activeBookings) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Cannot update an extra fee that is part of active bookings (paid, confirmed, or checked-in).',
+			),
+		);
+	}
+
+	extraFee.hotelId = hotelId || extraFee.hotelId;
+	extraFee.extraName = extraName || extraFee.extraName;
+	extraFee.extraPrice = extraPrice !== undefined ? extraPrice : extraFee.extraPrice;
+
+	const updatedExtraFee = await extraFee.save();
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: updatedExtraFee,
+	});
 });
 
 // @desc    Delete an extra fee
 // @route   DELETE /api/v1/extra-fees/:id
 // @access  Private/Admin
 const deleteExtraFee = catchAsync(async (req, res, next) => {
-	const extraFee = await ExtraFee.findById(req.params.id);
+	const { id } = req.params;
+	const extraFee = await ExtraFee.findById(id);
 
-	if (extraFee) {
-		await ExtraFee.deleteOne({ _id: req.params.id });
-		res.status(HttpStatus.OK).json({
-			success: true,
-			message: 'Extra fee removed',
-		});
-	} else {
+	if (!extraFee) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Extra fee not found'));
 	}
+
+	// Check for active bookings
+	const activeBookings = await Booking.exists({
+		extraIds: id,
+		status: { $in: ['paid', 'confirmed', 'checked_in'] },
+	});
+
+	if (activeBookings) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Cannot delete an extra fee that is part of active bookings (paid, confirmed, or checked-in).',
+			),
+		);
+	}
+
+	await ExtraFee.deleteOne({ _id: id });
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Extra fee removed',
+	});
 });
 
 export {

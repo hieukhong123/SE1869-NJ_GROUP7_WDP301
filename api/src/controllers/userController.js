@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import User from '../models/User.js';
 import Hotel from '../models/Hotel.js';
@@ -7,6 +8,12 @@ import { HttpStatus } from '../utils/httpStatus.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import sendEmail from '../utils/sendEmail.js';
+
+const signToken = (id) => {
+	return jwt.sign({ id }, process.env.JWT_SECRET, {
+		expiresIn: process.env.JWT_EXPIRES_IN || '30d',
+	});
+};
 
 // @desc    Get all users
 // @route   GET /api/v1/users
@@ -89,12 +96,25 @@ const deleteUser = catchAsync(async (req, res, next) => {
 	const user = await User.findById(req.params.id);
 
 	if (user) {
-		const hasBookings = await Booking.exists({ userId: req.params.id });
-		if (hasBookings) {
+		const activeBookings = await Booking.exists({
+			userId: req.params.id,
+			status: { $in: ['paid', 'confirmed', 'checked_in'] },
+		});
+		if (activeBookings) {
 			return next(
 				new AppError(
 					HttpStatus.BAD_REQUEST,
-					'Cannot delete user who has booking history. Please set to inactive instead.',
+					'Cannot delete user who has active bookings (paid, confirmed, or checked-in).',
+				),
+			);
+		}
+		
+		const hasHistory = await Booking.exists({ userId: req.params.id });
+		if (hasHistory) {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Cannot delete user with booking history. Please set to inactive instead.',
 				),
 			);
 		}
@@ -295,9 +315,12 @@ const loginUser = catchAsync(async (req, res, next) => {
 		avatar: user.avartar,
 	};
 
+	const token = signToken(user._id);
+
 	res.status(HttpStatus.OK).json({
 		success: true,
 		message: 'Login successful',
+		token,
 		data: userResponse,
 	});
 });
@@ -458,6 +481,22 @@ const toggleUserStatus = catchAsync(async (req, res, next) => {
 	const user = await User.findById(req.params.id);
 
 	if (user) {
+		// Only check if deactivating
+		if (user.status) {
+			const activeBookings = await Booking.exists({
+				userId: req.params.id,
+				status: { $in: ['paid', 'confirmed', 'checked_in'] },
+			});
+			if (activeBookings) {
+				return next(
+					new AppError(
+						HttpStatus.BAD_REQUEST,
+						'Cannot deactivate user who has active bookings (paid, confirmed, or checked-in).',
+					),
+				);
+			}
+		}
+
 		user.status = !user.status;
 		await user.save();
 		res.status(HttpStatus.OK).json({

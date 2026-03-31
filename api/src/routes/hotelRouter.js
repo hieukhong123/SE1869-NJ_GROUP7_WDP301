@@ -11,15 +11,24 @@ import {
 	getPropertyTypes,
 	updateHotelStatus,
 } from '../controllers/hotelController.js';
+import { protect, authorize } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-router.route('/').get(getHotels).post(createHotel);
-router.route('/admin-all').get(getAdminHotels);
+// Public routes
+router.route('/').get(getHotels);
 router.route('/featured').get(getFeaturedHotels);
 router.route('/cities').get(getCitiesWithCount);
 router.route('/property-types').get(getPropertyTypes);
-router.route('/:id/status').put(updateHotelStatus);
-router.route('/:id').get(getHotel).put(updateHotel).delete(deleteHotel);
+router.route('/:id').get(getHotel);
+
+// Protected routes
+router.use(protect);
+
+router.route('/admin-all').get(authorize('admin'), getAdminHotels);
+router.route('/').post(authorize('admin'), createHotel);
+router.route('/:id/status').put(authorize('admin'), updateHotelStatus);
+router.route('/:id').put(authorize('admin', 'staff'), updateHotel);
+router.route('/:id').delete(authorize('admin'), deleteHotel);
 
 export default router;

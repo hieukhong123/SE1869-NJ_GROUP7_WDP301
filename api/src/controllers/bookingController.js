@@ -271,22 +271,12 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 });
 
 export const deleteBooking = catchAsync(async (req, res, next) => {
-	const { id } = req.params;
-	const booking = await Booking.findByIdAndDelete(id);
-
-	if (!booking) {
-		return next(
-			new AppError(
-				HttpStatus.NOT_FOUND,
-				'Booking not found with that ID',
-			),
-		);
-	}
-
-	res.status(HttpStatus.OK).json({
-		success: true,
-		message: 'Booking deleted successfully',
-	});
+	return next(
+		new AppError(
+			HttpStatus.BAD_REQUEST,
+			'Booking records cannot be deleted for data integrity. Please cancel the booking instead.',
+		),
+	);
 });
 
 // @desc    Get bookings for a specific user
@@ -476,6 +466,16 @@ export const cancelBooking = catchAsync(async (req, res, next) => {
 		);
 	}
 
+	// Only allow cancellation if status is pending
+	if (booking.status !== 'pending') {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Paid or confirmed bookings cannot be cancelled directly. Please request a cancellation instead.',
+			),
+		);
+	}
+
 	// Update status to cancelled
 	booking.status = 'cancelled';
 	await booking.save();
@@ -569,15 +569,47 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 		);
 	}
 
-	if (!['pending', 'paid'].includes(booking.status)) {
-		return next(new AppError(400, 'Cannot cancel this booking'));
+	if (!['pending', 'paid', 'confirmed'].includes(booking.status)) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Cannot cancel this booking'));
 	}
 
 	if (action === 'Accept') {
+		if (['paid', 'confirmed'].includes(booking.status)) {
+			const { transfer_img } = req.body;
+			if (!transfer_img) {
+				return next(
+					new AppError(
+						HttpStatus.BAD_REQUEST,
+						'Bank transfer proof (transfer_img) is required to accept cancellation for a paid/confirmed booking',
+					),
+				);
+			}
+			booking.refundInfo = {
+				reason: booking.cancellationRequest.reason,
+				transfer_img,
+				refundedAt: new Date(),
+				refundedBy: req.user._id, // use authenticated staff/admin
+			};
+
+			await Payment.findOneAndUpdate(
+				{ bookingId: booking._id },
+				{ status: 'refunded' }
+			);
+
+			await RefundLog.create({
+				bookingId: booking._id,
+				reason: booking.cancellationRequest.reason,
+				transfer_img,
+				staffId: req.user._id,
+				amount: booking.totalAmount,
+			});
+		}
+
 		booking.status = 'cancelled';
 		booking.cancellationRequest.status = 'Accepted';
 		booking.cancellationRequest.adminReplyReason = adminReplyReason || '';
-	} else if (action === 'Reject') {
+	}
+ else if (action === 'Reject') {
 		if (!adminReplyReason) {
 			return next(
 				new AppError(

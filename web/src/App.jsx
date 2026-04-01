@@ -33,6 +33,7 @@ import RoomCatalog from './pages/public/RoomCatalog';
 import PaymentReturn from './pages/public/PaymentReturn';
 import Register from './pages/public/Register';
 import Login from './pages/public/Login';
+import VerifyEmail from './pages/public/VerifyEmail';
 import ForgotPassword from './pages/public/ForgotPassword';
 import ResetPassword from './pages/public/ResetPassword';
 
@@ -58,6 +59,7 @@ function App() {
 
         {/* Auth Routes (without layout) */}
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />

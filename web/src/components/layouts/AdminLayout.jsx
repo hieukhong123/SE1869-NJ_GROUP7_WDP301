@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
 import {
   House,
@@ -28,7 +28,7 @@ const AdminLayout = () => {
 
   useEffect(() => {
     if (!user || !token || (user.role !== 'admin' && user.role !== 'staff')) {
-      toast.error('Access denied. Please login first.');
+      toast.error('Access denied.');
       navigate('/login');
     }
   }, [user, token, navigate]);

@@ -2,13 +2,32 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const mongoUrl = process.env.MONGODB_URI;
+
+const getDatabaseName = () => {
+    if (process.env.MONGODB_DB_NAME) {
+        return process.env.MONGODB_DB_NAME;
+    }
+
+    try {
+        const parsedUrl = new URL(mongoUrl);
+        const dbNameFromPath = parsedUrl.pathname.replace(/^\//, '').split('?')[0];
+        if (dbNameFromPath) {
+            return dbNameFromPath;
+        }
+    } catch (error) {
+        // Fallback below will keep config valid for manual override.
+    }
+
+    return 'roomerang';
+};
+
 const config = {
     mongodb: {
         // TODO Change (or review) the url to your MongoDB:
-        url: process.env.MONGODB_URI,
+        url: mongoUrl,
 
-        // TODO Change this to your database name:
-        databaseName: "",
+        databaseName: getDatabaseName(),
 
         options: {
             // useNewUrlParser: true, // (not needed anymore in mongodb driver 4.x+)

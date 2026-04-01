@@ -8,12 +8,20 @@ const extraFeeSchema = new mongoose.Schema(
 			required: true,
 		},
 		extraPrice: {
-			type: String,
+			type: Number,
 			required: true,
 		},
 		extraName: {
 			type: String,
 			required: true,
+		},
+		isDeleted: {
+			type: Boolean,
+			default: false,
+		},
+		deletedAt: {
+			type: Date,
+			default: null,
 		},
 	},
 	{ timestamps: true }

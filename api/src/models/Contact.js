@@ -4,6 +4,7 @@ const contactSchema = new mongoose.Schema(
 	{
 		name: { type: String, required: true, trim: true },
 		email: { type: String, required: true, trim: true, lowercase: true },
+		hotelId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hotel', default: null },
 		message: { type: String, required: true, trim: true },
 		status: {
 			type: String,

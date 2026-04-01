@@ -24,6 +24,10 @@ const RoomList = () => {
     minPrice: '',
     maxPrice: '',
   });
+  const [priceDraft, setPriceDraft] = useState({
+    minPrice: '',
+    maxPrice: '',
+  });
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     type: null,
@@ -77,8 +81,35 @@ const RoomList = () => {
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
+
+    if (name === 'minPrice' || name === 'maxPrice') {
+      setPriceDraft((prev) => ({ ...prev, [name]: value }));
+      return;
+    }
+
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
+
+  const applyPriceFilters = () => {
+    setFilters((prev) => ({
+      ...prev,
+      minPrice: priceDraft.minPrice,
+      maxPrice: priceDraft.maxPrice,
+    }));
+  };
+
+  const clearPriceFilters = () => {
+    setPriceDraft({ minPrice: '', maxPrice: '' });
+    setFilters((prev) => ({
+      ...prev,
+      minPrice: '',
+      maxPrice: '',
+    }));
+  };
+
+  const isPriceDirty =
+    priceDraft.minPrice !== filters.minPrice ||
+    priceDraft.maxPrice !== filters.maxPrice;
 
   const openModal = (type, room) => {
     setConfirmModal({
@@ -319,7 +350,7 @@ const RoomList = () => {
               type="number"
               min="0"
               name="minPrice"
-              value={filters.minPrice}
+              value={priceDraft.minPrice}
               onChange={handleFilterChange}
               placeholder="0"
               className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
@@ -334,11 +365,35 @@ const RoomList = () => {
               type="number"
               min="0"
               name="maxPrice"
-              value={filters.maxPrice}
+              value={priceDraft.maxPrice}
               onChange={handleFilterChange}
               placeholder="No limit"
               className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
             />
+          </div>
+
+          <div className="md:col-span-2 xl:col-span-4 flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={clearPriceFilters}
+              disabled={
+                !priceDraft.minPrice &&
+                !priceDraft.maxPrice &&
+                !filters.minPrice &&
+                !filters.maxPrice
+              }
+              className="px-4 py-2 border border-gray-300 text-gray-700 text-[11px] uppercase tracking-widest rounded-sm hover:border-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Clear Price
+            </button>
+            <button
+              type="button"
+              onClick={applyPriceFilters}
+              disabled={!isPriceDirty}
+              className="px-4 py-2 bg-gray-900 text-white text-[11px] uppercase tracking-widest rounded-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Apply Price
+            </button>
           </div>
         </div>
 

@@ -15,11 +15,63 @@ const signToken = (id) => {
 	});
 };
 
+const createEmailVerificationCode = () => {
+	const code = crypto.randomInt(100000, 999999).toString();
+	const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
+
+	return {
+		code,
+		hashedCode,
+		expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+	};
+};
+
+const sendVerificationEmail = async (user, code) => {
+	const verifyUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/verify-email?email=${encodeURIComponent(user.email)}`;
+
+	const html = `
+		<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+			<h2 style="color: #f59e0b;">Verify Your Email</h2>
+			<p>Hello ${user.fullName || user.userName},</p>
+			<p>Welcome to Roomerang. Please verify your email using this 6-digit code:</p>
+			<div style="background-color: #f3f4f6; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+				<h1 style="color: #f59e0b; margin: 0; font-size: 36px; letter-spacing: 5px;">${code}</h1>
+			</div>
+			<p>Or open this page to complete verification:</p>
+			<p><a href="${verifyUrl}" style="color: #f59e0b;">Verify Email</a></p>
+			<p style="color: #6b7280; font-size: 14px;">This code will expire in 10 minutes.</p>
+			<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+			<p style="color: #9ca3af; font-size: 12px;">Roomerang - Hotel Booking System</p>
+		</div>
+	`;
+
+	await sendEmail({
+		email: user.email,
+		subject: 'Verify Your Email - Roomerang',
+		html,
+	});
+};
+
 // @desc    Get all users
 // @route   GET /api/v1/users
 // @access  Private/Admin
 const getUsers = catchAsync(async (req, res) => {
-	const users = await User.find({});
+	const { role, hotelId } = req.query;
+	const query = {};
+
+	if (role && role !== 'all') {
+		query.role = role;
+	}
+
+	if (hotelId && hotelId !== 'all') {
+		query.hotelId = hotelId;
+	}
+
+	const users = await User.find(query)
+		.populate('hotelId', 'name')
+		.select(
+			'-password -resetPasswordToken -resetPasswordExpires -emailVerificationToken -emailVerificationExpires',
+		);
 	res.status(HttpStatus.OK).json({
 		success: true,
 		data: users,
@@ -30,7 +82,9 @@ const getUsers = catchAsync(async (req, res) => {
 // @route   GET /api/v1/users/:id
 // @access  Private/Admin
 const getUserById = catchAsync(async (req, res, next) => {
-	const user = await User.findById(req.params.id).select('-password');
+	const user = await User.findById(req.params.id).select(
+		'-password -resetPasswordToken -resetPasswordExpires -emailVerificationToken -emailVerificationExpires',
+	);
 
 	if (user) {
 		res.status(HttpStatus.OK).json({
@@ -50,6 +104,15 @@ const updateUser = catchAsync(async (req, res, next) => {
 
 	if (!user) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
+	}
+
+	if (user.role === 'admin' && req.body.status !== undefined) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Admin status cannot be changed',
+			),
+		);
 	}
 
 	if (req.body.email && req.body.email !== user.email) {
@@ -137,6 +200,7 @@ const createUser = catchAsync(async (req, res, next) => {
 		userName,
 		email,
 		password,
+		confirmPassword,
 		fullName,
 		phone,
 		dob,
@@ -150,6 +214,24 @@ const createUser = catchAsync(async (req, res, next) => {
 	}
 
 	if (role === 'staff') {
+		if (!confirmPassword) {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Confirm password is required for staff account',
+				),
+			);
+		}
+
+		if (password !== confirmPassword) {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Password and confirm password do not match',
+				),
+			);
+		}
+
 		if (!hotelId) {
 			return next(new AppError(HttpStatus.BAD_REQUEST, 'Staff must be assigned to a hotel'));
 		}
@@ -218,6 +300,7 @@ const registerUser = catchAsync(async (req, res, next) => {
 	// Hash password
 	const salt = await bcrypt.genSalt(10);
 	const hashedPassword = await bcrypt.hash(password, salt);
+	const { code, hashedCode, expiresAt } = createEmailVerificationCode();
 
 	// Create user with default role 'user'
 	const user = await User.create({
@@ -228,26 +311,130 @@ const registerUser = catchAsync(async (req, res, next) => {
 		phone,
 		role: 'user',
 		status: true,
+		isEmailVerified: false,
+		emailVerificationToken: hashedCode,
+		emailVerificationExpires: expiresAt,
 	});
 
 	if (user) {
-		const userResponse = {
-			_id: user._id,
-			userName: user.userName,
-			email: user.email,
-			fullName: user.fullName,
-			phone: user.phone,
-			role: user.role,
-		};
+		let emailSent = true;
+		try {
+			await sendVerificationEmail(user, code);
+		} catch (error) {
+			emailSent = false;
+			console.error('Verification email sending failed:', error);
+		}
 
 		res.status(HttpStatus.CREATED).json({
 			success: true,
-			message: 'User registered successfully',
-			data: userResponse,
+			message: emailSent
+				? 'User registered successfully. Please verify your email before logging in.'
+				: 'User registered, but we could not send verification email. Please request a new code from Verify Email page.',
+			data: {
+				email: user.email,
+				requiresEmailVerification: true,
+			},
 		});
 	} else {
 		return next(new AppError(HttpStatus.BAD_REQUEST, 'Invalid user data'));
 	}
+});
+
+// @desc    Verify user email
+// @route   POST /api/v1/users/verify-email
+// @access  Public
+const verifyEmail = catchAsync(async (req, res, next) => {
+	const { email, code } = req.body;
+
+	if (!email || !code) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Please provide email and verification code',
+			),
+		);
+	}
+
+	const user = await User.findOne({ email });
+	if (!user) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
+	}
+
+	if (user.isEmailVerified) {
+		return res.status(HttpStatus.OK).json({
+			success: true,
+			message: 'Email is already verified. You can log in now.',
+		});
+	}
+
+	if (
+		!user.emailVerificationToken ||
+		!user.emailVerificationExpires ||
+		user.emailVerificationExpires < new Date()
+	) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Verification code is invalid or expired. Please request a new code.',
+			),
+		);
+	}
+
+	const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
+	if (hashedCode !== user.emailVerificationToken) {
+		return next(
+			new AppError(HttpStatus.BAD_REQUEST, 'Invalid verification code'),
+		);
+	}
+
+	user.isEmailVerified = true;
+	user.emailVerificationToken = undefined;
+	user.emailVerificationExpires = undefined;
+	await user.save();
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'Email verified successfully. You can log in now.',
+	});
+});
+
+// @desc    Resend email verification code
+// @route   POST /api/v1/users/resend-verification
+// @access  Public
+const resendVerificationCode = catchAsync(async (req, res, next) => {
+	const { email } = req.body;
+
+	if (!email) {
+		return next(
+			new AppError(HttpStatus.BAD_REQUEST, 'Please provide email address'),
+		);
+	}
+
+	const user = await User.findOne({ email });
+	if (!user) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'User not found'));
+	}
+
+	if (user.isEmailVerified) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Email is already verified. Please log in.',
+			),
+		);
+	}
+
+	const { code, hashedCode, expiresAt } = createEmailVerificationCode();
+	user.emailVerificationToken = hashedCode;
+	user.emailVerificationExpires = expiresAt;
+	await user.save();
+
+	await sendVerificationEmail(user, code);
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		message: 'A new verification code has been sent to your email.',
+	});
 });
 
 // @desc    Login user
@@ -286,6 +473,15 @@ const loginUser = catchAsync(async (req, res, next) => {
 			new AppError(
 				HttpStatus.FORBIDDEN,
 				'Your account has been deactivated. Please contact support.',
+			),
+		);
+	}
+
+	if (user.isEmailVerified === false) {
+		return next(
+			new AppError(
+				HttpStatus.FORBIDDEN,
+				'Your email is not verified. Please verify your email before logging in.',
 			),
 		);
 	}
@@ -481,6 +677,15 @@ const toggleUserStatus = catchAsync(async (req, res, next) => {
 	const user = await User.findById(req.params.id);
 
 	if (user) {
+		if (user.role === 'admin') {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Admin status cannot be changed',
+				),
+			);
+		}
+
 		// Only check if deactivating
 		if (user.status) {
 			const activeBookings = await Booking.exists({
@@ -513,7 +718,7 @@ const toggleUserStatus = catchAsync(async (req, res, next) => {
 // @access  Public (user accesses their own profile)
 const getUserProfile = catchAsync(async (req, res, next) => {
 	const user = await User.findById(req.params.userId).select(
-		'-password -resetPasswordToken -resetPasswordExpires',
+		'-password -resetPasswordToken -resetPasswordExpires -emailVerificationToken -emailVerificationExpires',
 	);
 
 	if (!user) {
@@ -637,6 +842,8 @@ export {
 	deleteUser,
 	createUser,
 	registerUser,
+	verifyEmail,
+	resendVerificationCode,
 	loginUser,
 	forgotPassword,
 	resetPassword,

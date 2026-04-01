@@ -95,9 +95,13 @@ const Register = () => {
 		setLoading(true);
 
 		try {
+			const registeredEmail = formData.email;
 			const response = await axiosClient.post('/users/register', formData);
 
-			toast.success(response.message || 'Registration successful!');
+			toast.success(
+				response.message ||
+					'Registration successful. Please verify your email before login.',
+			);
 			
 			// Reset form
 			setFormData({
@@ -109,9 +113,11 @@ const Register = () => {
 				address: '',
 			});
 
-			// Redirect to home page after 1 second
+			// Redirect to verify-email page after 1 second
 			setTimeout(() => {
-				navigate('/');
+				navigate('/verify-email', {
+					state: { email: response?.data?.email || registeredEmail },
+				});
 			}, 1000);
 		} catch (error) {
 			const errorMessage =

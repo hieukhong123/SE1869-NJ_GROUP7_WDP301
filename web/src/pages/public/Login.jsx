@@ -93,6 +93,16 @@ const Login = () => {
                 error.message ||
                 'Authentication failed. Please check your credentials.';
             toast.error(errorMessage);
+
+            if (errorMessage.toLowerCase().includes('not verified')) {
+                const loginValue = formData.username?.trim() || '';
+                const emailHint = /\S+@\S+\.\S+/.test(loginValue) ? loginValue : '';
+                setTimeout(() => {
+                    navigate('/verify-email', {
+                        state: { email: emailHint },
+                    });
+                }, 700);
+            }
         } finally {
             setLoading(false);
         }

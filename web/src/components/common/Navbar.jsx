@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { UserCircleIcon, SignOutIcon, ReceiptIcon, HeartIcon } from '@phosphor-icons/react';
+import { UserCircleIcon, SignOutIcon, ReceiptIcon, HeartIcon, HouseIcon } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const Navbar = () => {
@@ -151,6 +151,14 @@ const Navbar = () => {
                                         <span>Profile Settings</span>
                                     </Link>
                                 </li>
+                                {(user.role === 'admin' || user.role === 'staff') && (
+                                    <li>
+                                        <Link to="/admin/dashboard" className="text-sm font-light text-gray-600 hover:text-orange-800 hover:bg-orange-50/50 rounded-sm py-3">
+                                            <HouseIcon size={18} weight="light" />
+                                            <span>Management Dashboard</span>
+                                        </Link>
+                                    </li>
+                                )}
                                 <li>
                                     <Link to="/my-bookings" className="text-sm font-light text-gray-600 hover:text-orange-800 hover:bg-orange-50/50 rounded-sm py-3">
                                         <ReceiptIcon size={18} weight="light" />

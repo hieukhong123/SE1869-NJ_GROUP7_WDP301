@@ -25,6 +25,29 @@ import HotelInfoCard from "../../components/booking/HotelInfoCard";
 import BookingFormCard from "../../components/booking/BookingFormCard";
 import Reviews from "../../components/booking/Reviews";
 
+const parseLocalDateInput = (dateValue) => {
+    if (!dateValue) return null;
+    const [year, month, day] = dateValue.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+};
+
+const calculateStayNights = (checkInValue, checkOutValue) => {
+    const checkInDate = parseLocalDateInput(checkInValue);
+    const checkOutDate = parseLocalDateInput(checkOutValue);
+
+    if (!checkInDate || !checkOutDate) {
+        return 1;
+    }
+
+    const diffMs = checkOutDate.getTime() - checkInDate.getTime();
+    if (diffMs <= 0) {
+        return 1;
+    }
+
+    return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+};
+
 const HotelBooking = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
@@ -76,6 +99,7 @@ const HotelBooking = () => {
     const remainingChildGuests = Math.max(0, currentChildGuests - roomsForAdults);
     const currentRoomsNeeded = roomsForAdults + remainingChildGuests;
     const totalSelectedRooms = Object.values(roomSelections).reduce((a, b) => a + b, 0);
+    const stayNights = calculateStayNights(formData.checkIn, formData.checkOut);
 
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
@@ -104,7 +128,7 @@ const HotelBooking = () => {
             try {
                 const [hotelRes, extraRes, reviewsRes] = await Promise.all([
                     axiosClient.get(`/hotels/${id}`),
-                    axiosClient.get(`/extra-fees`),
+                    axiosClient.get(`/extra-fees/public`),
                     axiosClient.get(`/reviews?hotelId=${id}`)
                 ]);
                 setHotel(hotelRes.data);
@@ -139,23 +163,26 @@ const HotelBooking = () => {
     }, [id, formData.checkIn, formData.checkOut]);
 
     useEffect(() => {
-        let total = 0;
+        let roomSubtotalPerNight = 0;
         Object.entries(roomSelections).forEach(([roomId, quantity]) => {
             const room = rooms.find(r => r._id === roomId);
-            if (room) total += room.roomPrice * quantity;
+            if (room) {
+                roomSubtotalPerNight += Number(room.roomPrice || 0) * quantity;
+            }
         });
+
+        let extrasTotal = 0;
         selectedExtras.forEach(extraId => {
             const extra = extraFees.find(e => e._id === extraId);
-            if (extra) total += parseFloat(extra.extraPrice);
+            if (extra) {
+                // Extra services are charged once per booking, not per night.
+                extrasTotal += Number(extra.extraPrice || 0);
+            }
         });
-        if (formData.checkIn && formData.checkOut) {
-            const start = new Date(formData.checkIn);
-            const end = new Date(formData.checkOut);
-            const nights = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
-            total *= nights;
-        }
-        setTotalAmount(total);
-    }, [roomSelections, selectedExtras, rooms, extraFees, formData.checkIn, formData.checkOut]);
+
+        const calculatedTotal = roomSubtotalPerNight * stayNights + extrasTotal;
+        setTotalAmount(Number(calculatedTotal.toFixed(2)));
+    }, [roomSelections, selectedExtras, rooms, extraFees, stayNights]);
 
     // Countdown timer — auto-releases hold when it reaches 0
     useEffect(() => {
@@ -613,7 +640,10 @@ const HotelBooking = () => {
                                         return room ? (
                                             <div key={roomId} className="flex justify-between">
                                                 <span>{room.roomName}</span>
-                                                <span className="text-gray-900 font-medium">${room.roomPrice} × {qty}</span>
+                                                    <span className="text-gray-900 font-medium">
+                                                        ${Number(room.roomPrice || 0).toLocaleString()} × {qty}
+                                                        {stayNights > 1 ? ` × ${stayNights} nights` : ''}
+                                                    </span>
                                             </div>
                                         ) : null;
                                     })}

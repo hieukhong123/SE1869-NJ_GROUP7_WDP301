@@ -209,7 +209,7 @@ const RoomCatalog = () => {
             const [hotelsRes, reviewsRes, extraFeesRes] = await Promise.all([
                 axiosClient.get("/hotels"),
                 axiosClient.get("/reviews"),
-                axiosClient.get("/extra-fees"),
+                axiosClient.get("/extra-fees/public"),
             ]);
             setAllHotels(hotelsRes.data || []);
             setAllReviews(reviewsRes.data || []);

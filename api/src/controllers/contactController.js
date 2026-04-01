@@ -87,7 +87,9 @@ export const getContacts = catchAsync(async (req, res) => {
 	const { hotelId, status, startDate, endDate } = req.query;
 	const filter = {};
 
-	if (hotelId && hotelId !== 'all') {
+	if (req.user?.role === 'staff') {
+		filter.hotelId = req.user.hotelId;
+	} else if (hotelId && hotelId !== 'all') {
 		filter.hotelId = hotelId;
 	}
 
@@ -124,6 +126,12 @@ export const replyToContact = catchAsync(async (req, res, next) => {
 	const contact = await Contact.findById(id);
 	if (!contact) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Contact message not found'));
+	}
+
+	if (req.user?.role === 'staff') {
+		if (!contact.hotelId || contact.hotelId.toString() !== req.user.hotelId?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
 	}
 
 	// Send reply email to user
@@ -171,6 +179,11 @@ export const markContactRead = catchAsync(async (req, res, next) => {
 	const contact = await Contact.findById(id);
 	if (!contact) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Contact message not found'));
+	}
+	if (req.user?.role === 'staff') {
+		if (!contact.hotelId || contact.hotelId.toString() !== req.user.hotelId?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
 	}
 	if (contact.status === 'unread') {
 		contact.status = 'read';

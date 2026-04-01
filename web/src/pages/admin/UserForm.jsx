@@ -7,8 +7,7 @@ import {
     FloppyDisk, 
     CircleNotch,
     CheckCircle,
-    XCircle,
-    CaretDown
+    XCircle
 } from '@phosphor-icons/react';
 import CustomSelect from '../../components/common/CustomSelect';
 
@@ -19,6 +18,7 @@ const UserForm = () => {
         userName: '',
         email: '',
         password: '',
+        confirmPassword: '',
         fullName: '',
         role: 'user',
         status: true,
@@ -57,14 +57,38 @@ const UserForm = () => {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setUser({
-            ...user,
-            [name]: type === 'checkbox' ? checked : value,
+
+        setUser((prev) => {
+            const nextValue = type === 'checkbox' ? checked : value;
+            const nextUser = {
+                ...prev,
+                [name]: nextValue,
+            };
+
+            if (name === 'role' && value !== 'staff') {
+                nextUser.hotelId = '';
+                nextUser.confirmPassword = '';
+            }
+
+            return nextUser;
         });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!id && user.role === 'staff') {
+            if (!user.confirmPassword) {
+                toast.error('Confirm password is required for staff account.');
+                return;
+            }
+
+            if (user.password !== user.confirmPassword) {
+                toast.error('Password and confirm password do not match.');
+                return;
+            }
+        }
+
         setLoading(true);
         try {
             if (id) {
@@ -156,7 +180,7 @@ const UserForm = () => {
 
                                 {/* Password field only shows when creating a NEW user */}
                                 {!id && (
-                                    <div className="relative group md:col-span-2">
+                                    <div className="relative group md:col-span-2 space-y-6">
                                         <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Temporary Password</label>
                                         <input
                                             type="password"
@@ -167,6 +191,21 @@ const UserForm = () => {
                                             className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
                                             required
                                         />
+
+                                        {user.role === 'staff' && (
+                                            <div className="relative group md:col-span-2">
+                                                <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Confirm Password (Staff)</label>
+                                                <input
+                                                    type="password"
+                                                    name="confirmPassword"
+                                                    value={user.confirmPassword || ''}
+                                                    onChange={handleChange}
+                                                    placeholder="Re-enter password for verification"
+                                                    className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
+                                                    required
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -204,6 +243,7 @@ const UserForm = () => {
                                             name="status"
                                             checked={user.status}
                                             onChange={handleChange}
+                                            disabled={user.role === 'admin'}
                                         />
                                         <div className={`block w-10 h-6 rounded-full transition-colors duration-300 ${user.status ? 'bg-green-600' : 'bg-gray-300'}`}></div>
                                         <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${user.status ? 'transform translate-x-4' : ''}`}></div>

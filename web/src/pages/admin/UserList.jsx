@@ -4,28 +4,41 @@ import axiosClient from '../../services/axiosClient';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { capitalizeFirstLetter } from '../../utils/helpers';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import {
   PencilSimpleIcon,
   TrashIcon,
   PlusIcon,
   CircleNotchIcon,
   UsersIcon,
-  XIcon,
 } from '@phosphor-icons/react';
 
 const UserList = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [hotels, setHotels] = useState([]);
+  const [filters, setFilters] = useState({ role: 'all', hotelId: 'all' });
 
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    type: null,
+    user: null,
+    loading: false,
+  });
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (activeFilters = filters) => {
     try {
       setLoading(true);
-      const response = await axiosClient.get('/users');
+      const params = {};
+      if (activeFilters.role !== 'all') {
+        params.role = activeFilters.role;
+      }
+      if (activeFilters.hotelId !== 'all') {
+        params.hotelId = activeFilters.hotelId;
+      }
+
+      const response = await axiosClient.get('/users', { params });
       setUsers(response.data);
     } catch (err) {
       setError(err);
@@ -35,43 +48,95 @@ const UserList = () => {
     }
   };
 
+  const fetchHotels = async () => {
+    try {
+      const response = await axiosClient.get('/hotels/admin-all');
+      setHotels(response.data || []);
+    } catch (err) {
+      setHotels([]);
+    }
+  };
+
   useEffect(() => {
-    fetchUsers();
+    fetchHotels();
   }, []);
 
-  const handleToggleStatus = async (id) => {
+  useEffect(() => {
+    fetchUsers(filters);
+  }, [filters]);
+
+  const openDeleteModal = (user) => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'delete',
+      user,
+      loading: false,
+    });
+  };
+
+  const openStatusModal = (user) => {
+    if (user.role === 'admin') {
+      toast.error('Admin status cannot be changed.');
+      return;
+    }
+
+    setConfirmModal({
+      isOpen: true,
+      type: 'status',
+      user,
+      loading: false,
+    });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal({
+      isOpen: false,
+      type: null,
+      user: null,
+      loading: false,
+    });
+  };
+
+  const confirmAction = async () => {
+    if (!confirmModal.user) {
+      return;
+    }
+
+    setConfirmModal((prev) => ({ ...prev, loading: true }));
+
     try {
-      await axiosClient.put(`/users/${id}/toggle-status`);
-      fetchUsers();
-      toast.success('User access status updated.');
+      if (confirmModal.type === 'status') {
+        await axiosClient.put(`/users/${confirmModal.user._id}/toggle-status`);
+        toast.success('User access status updated.');
+      }
+
+      if (confirmModal.type === 'delete') {
+        await axiosClient.delete(`/users/${confirmModal.user._id}`);
+        toast.success('User removed successfully.');
+      }
+
+      await fetchUsers(filters);
+      closeConfirmModal();
     } catch (err) {
       setError(err);
-      toast.error('Failed to update user status.');
+      if (confirmModal.type === 'status') {
+        toast.error(
+          'Failed to update user status: ' +
+            (err.response?.data?.message || err.message),
+        );
+      } else {
+        toast.error(
+          'Failed to delete user: ' +
+            (err.response?.data?.message || err.message),
+        );
+      }
+      setConfirmModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
-  const handleDeleteClick = (user) => {
-    setUserToDelete(user);
-    setDeleteModalOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!userToDelete) return;
-    setIsDeleting(true);
-    try {
-      await axiosClient.delete(`/users/${userToDelete._id}`);
-      setUsers(users.filter((u) => u._id !== userToDelete._id));
-      toast.success('User removed successfully.');
-      setDeleteModalOpen(false);
-      setUserToDelete(null);
-    } catch (err) {
-      toast.error(
-        'Failed to delete user: ' +
-          (err.response?.data?.message || err.message),
-      );
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
   const getRoleStyles = (role) => {
@@ -124,18 +189,31 @@ const UserList = () => {
       },
     },
     {
+      accessorKey: 'hotelId.name',
+      header: 'Managed Property',
+      accessorFn: (row) => row.hotelId?.name || '-',
+      cell: ({ row }) => (
+        <span className="text-gray-500 font-light">
+          {row.original.role === 'staff' ? row.original.hotelId?.name || '-' : 'N/A'}
+        </span>
+      ),
+    },
+    {
       accessorKey: 'status',
       header: 'Access Status',
       cell: ({ row }) => {
         const status = row.original.status;
+        const isAdmin = row.original.role === 'admin';
+
         return (
           <button
-            onClick={() => handleToggleStatus(row.original._id)}
+            onClick={() => openStatusModal(row.original)}
+            disabled={isAdmin}
             className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-sm transition-colors border text-[10px] uppercase tracking-widest font-medium w-28 ${
               status
                 ? 'border-green-100 bg-green-50 hover:bg-green-100 text-green-700'
                 : 'border-red-100 bg-red-50 hover:bg-red-100 text-red-700'
-            }`}
+            } ${isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
             title={status ? 'Click to suspend user' : 'Click to activate user'}
           >
             <span
@@ -163,7 +241,7 @@ const UserList = () => {
             <PencilSimpleIcon size={18} weight="light" />
           </Link>
           <button
-            onClick={() => handleDeleteClick(row.original)}
+            onClick={() => openDeleteModal(row.original)}
             className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
             title="Remove User"
           >
@@ -218,6 +296,44 @@ const UserList = () => {
           </Link>
         </div>
 
+        <div className="bg-white border border-gray-100 rounded-sm p-4 sm:p-6 mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Filter By Role
+            </label>
+            <select
+              name="role"
+              value={filters.role}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            >
+              <option value="all">All Roles</option>
+              <option value="admin">Admin</option>
+              <option value="staff">Staff</option>
+              <option value="user">User</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Filter By Hotel
+            </label>
+            <select
+              name="hotelId"
+              value={filters.hotelId}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            >
+              <option value="all">All Properties</option>
+              {hotels.map((hotel) => (
+                <option key={hotel._id} value={hotel._id}>
+                  {hotel.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* Table Section or Empty State */}
         {users.length === 0 ? (
           <div className="bg-white border border-gray-200 border-dashed rounded-sm py-32 flex flex-col items-center justify-center text-center px-4">
@@ -242,48 +358,26 @@ const UserList = () => {
         )}
       </div>
 
-      {deleteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-sm shadow-2xl p-8 animate-fade-in">
-            <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-3">
-                <TrashIcon size={20} weight="light" className="text-black-600" />
-                <h3 className="text-xl font-serif text-gray-900">Remove User</h3>
-              </div>
-              <button 
-                onClick={() => { setDeleteModalOpen(false); setUserToDelete(null); }} 
-                className="text-gray-400 hover:text-gray-900 transition-colors"
-              >
-                <XIcon size={20} weight="light" />
-              </button>
-            </div>
-            
-            <p className="text-sm font-light text-gray-500 mb-8 leading-relaxed">
-              Are you sure you want to remove <strong className="font-medium text-gray-900">{userToDelete?.fullName || userToDelete?.userName}</strong> from the directory? This action cannot be undone.
-            </p>
-            
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setDeleteModalOpen(false);
-                  setUserToDelete(null);
-                }}
-                disabled={isDeleting}
-                className="px-6 py-2.5 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-900 transition-colors rounded-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={isDeleting}
-                className="px-6 py-2.5 bg-black text-white text-xs uppercase tracking-widest hover:bg-red-700 transition-colors rounded-sm flex items-center gap-2 disabled:opacity-50"
-              >
-                {isDeleting ? <CircleNotchIcon size={14} className="animate-spin" /> : 'Delete User'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={
+          confirmModal.type === 'delete'
+            ? 'Remove User'
+            : 'Update User Status'
+        }
+        message={
+          confirmModal.type === 'delete'
+            ? `Are you sure you want to remove ${confirmModal.user?.fullName || confirmModal.user?.userName}? This action cannot be undone.`
+            : `Are you sure you want to ${confirmModal.user?.status ? 'suspend' : 'activate'} ${confirmModal.user?.fullName || confirmModal.user?.userName}?`
+        }
+        confirmText={
+          confirmModal.type === 'delete' ? 'Delete User' : 'Confirm Status'
+        }
+        onCancel={closeConfirmModal}
+        onConfirm={confirmAction}
+        loading={confirmModal.loading}
+        variant={confirmModal.type === 'delete' ? 'danger' : 'warning'}
+      />
     </div>
   );
 };

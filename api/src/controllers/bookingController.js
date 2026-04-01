@@ -2,6 +2,7 @@ import Booking from '../models/Booking.js';
 import Hotel from '../models/Hotel.js';
 import RoomCategory from '../models/RoomCategory.js';
 import RoomReservation from '../models/RoomReservation.js';
+import ExtraFee from '../models/ExtraFee.js';
 import RefundLog from '../models/RefundLog.js';
 import HotelStatusLog from '../models/HotelStatusLog.js';
 import BookingStatusLog from '../models/BookingStatusLog.js';
@@ -14,6 +15,18 @@ import Payment from '../models/Payment.js';
 
 // Helper to normalize date to start of day (midnight) in local time
 const normalizeDate = (dateStr) => {
+	if (!dateStr) {
+		return null;
+	}
+
+	const [year, month, day] = String(dateStr)
+		.split('-')
+		.map((value) => Number(value));
+
+	if (year && month && day) {
+		return new Date(year, month - 1, day, 0, 0, 0, 0);
+	}
+
 	const d = new Date(dateStr);
 	d.setHours(0, 0, 0, 0);
 	return d;
@@ -87,6 +100,8 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		requestedRoomCounts[id] = (requestedRoomCounts[id] || 0) + 1;
 	});
 
+	let roomSubtotalPerNight = 0;
+
 	// Check availability for each unique room category in the requested date range
 	for (const [roomId, count] of Object.entries(requestedRoomCounts)) {
 		const room = await RoomCategory.findById(roomId);
@@ -131,7 +146,57 @@ export const createBooking = catchAsync(async (req, res, next) => {
 				),
 			);
 		}
+
+		roomSubtotalPerNight += Number(room.roomPrice || 0) * count;
 	}
+
+	const stayNights = Math.max(
+		1,
+		Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+	);
+
+	const selectedExtraIds = Array.isArray(req.body.extraIds)
+		? req.body.extraIds
+		: [];
+	let extrasTotal = 0;
+
+	if (selectedExtraIds.length > 0) {
+		const uniqueExtraIds = [...new Set(selectedExtraIds.map((id) => id.toString()))];
+		const extras = await ExtraFee.find({
+			_id: { $in: uniqueExtraIds },
+			isDeleted: false,
+		});
+
+		if (extras.length !== uniqueExtraIds.length) {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Some selected additional services are no longer available.',
+				),
+			);
+		}
+
+		const hasCrossHotelExtra = extras.some(
+			(extra) => extra.hotelId.toString() !== hotelId.toString(),
+		);
+		if (hasCrossHotelExtra) {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Invalid additional service selection for this property.',
+				),
+			);
+		}
+
+		extrasTotal = extras.reduce(
+			(sum, extra) => sum + Number(extra.extraPrice || 0),
+			0,
+		);
+	}
+
+	const computedTotalAmount = Number(
+		(roomSubtotalPerNight * stayNights + extrasTotal).toFixed(2),
+	);
 
 	const expiresAt = activeReservation
 		? activeReservation.expiresAt
@@ -139,6 +204,7 @@ export const createBooking = catchAsync(async (req, res, next) => {
 
 	const newBooking = await Booking.create({
 		...req.body,
+		totalAmount: computedTotalAmount,
 		checkIn: start,
 		checkOut: end,
 		expiresAt,
@@ -251,6 +317,18 @@ export const getBookingById = catchAsync(async (req, res, next) => {
 		);
 	}
 
+	if (req.user?.role === 'staff') {
+		if (booking.hotelId?._id?.toString() !== req.user.hotelId?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
+	}
+
+	if (req.user?.role === 'user') {
+		if (booking.userId?._id?.toString() !== req.user._id?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
+	}
+
 	if (
 		booking.status === 'pending' &&
 		booking.expiresAt &&
@@ -350,6 +428,35 @@ export const deleteBooking = catchAsync(async (req, res, next) => {
 export const getUserBookings = catchAsync(async (req, res, next) => {
 	const { userId } = req.params;
 
+	if (req.user?.role === 'user' && req.user._id?.toString() !== userId) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
+
+	if (req.user?.role === 'staff') {
+		if (!req.user.hotelId) {
+			return res.status(HttpStatus.OK).json({
+				success: true,
+				count: 0,
+				data: [],
+			});
+		}
+
+		const bookings = await Booking.find({
+			userId,
+			hotelId: req.user.hotelId,
+		})
+			.populate('hotelId', 'name location image city photos status')
+			.populate('roomIds', 'roomName roomPrice')
+			.populate('extraIds', 'extraName extraPrice')
+			.sort({ createdAt: -1 });
+
+		return res.status(HttpStatus.OK).json({
+			success: true,
+			count: bookings.length,
+			data: bookings,
+		});
+	}
+
 	let bookings = await Booking.find({ userId })
 		.populate('hotelId', 'name location image city photos status')
 		.populate('roomIds', 'roomName roomPrice')
@@ -386,17 +493,16 @@ export const processRefund = catchAsync(async (req, res, next) => {
 	const { reason, transfer_img, staffId } = req.body;
 	const actorId = req.user?._id || staffId;
 
+	if (req.user?.role === 'staff') {
+		return next(
+			new AppError(
+				HttpStatus.FORBIDDEN,
+				'Staff are not allowed to process refunds',
+			),
+		);
+	}
+
 	const booking = await Booking.findById(id);
-
-	if (!booking) {
-		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
-	}
-
-	if (req.user && req.user.role === 'staff') {
-                if (booking.hotelId.toString() !== req.user.hotelId.toString()) {
-			return next(new AppError(403, 'Unauthorized'));
-		}
-	}
 
 	if (!booking) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
@@ -534,7 +640,12 @@ export const getBookingStatusLogs = catchAsync(async (req, res, next) => {
 		query.staffId = performerId;
 	}
 
-	if (hotelId && hotelId !== 'all') {
+	if (req.user?.role === 'staff') {
+		const bookingIds = await Booking.find({
+			hotelId: req.user.hotelId,
+		}).distinct('_id');
+		query.bookingId = { $in: bookingIds };
+	} else if (hotelId && hotelId !== 'all') {
 		const bookingIds = await Booking.find({ hotelId }).distinct('_id');
 		query.bookingId = { $in: bookingIds };
 	}
@@ -572,6 +683,18 @@ export const cancelBooking = catchAsync(async (req, res, next) => {
 				'Booking not found with that ID',
 			),
 		);
+	}
+
+	if (req.user?.role === 'user') {
+		if (booking.userId?.toString() !== req.user._id?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
+	}
+
+	if (req.user?.role === 'staff') {
+		if (booking.hotelId?.toString() !== req.user.hotelId?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
 	}
 
 	// Check if booking is already cancelled
@@ -689,6 +812,21 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 
 	if (!['pending', 'paid', 'confirmed'].includes(booking.status)) {
 		return next(new AppError(HttpStatus.BAD_REQUEST, 'Cannot cancel this booking'));
+	}
+
+	if (req.user?.role === 'staff') {
+		if (booking.hotelId?.toString() !== req.user.hotelId?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
+
+		if (action === 'Accept' && ['paid', 'confirmed'].includes(booking.status)) {
+			return next(
+				new AppError(
+					HttpStatus.FORBIDDEN,
+					'Staff are not allowed to process refunds',
+				),
+			);
+		}
 	}
 
 	if (action === 'Accept') {

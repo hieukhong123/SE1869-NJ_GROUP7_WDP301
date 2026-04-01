@@ -72,7 +72,7 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		// Find existing bookings that overlap with this range
 		const overlappingBookings = await Booking.find({
 			roomIds: roomId,
-			status: { $nin: ['cancelled', 'expired'] },
+			status: { $nin: ['cancelled', 'expired', 'no_show', 'checked_out'] },
 			checkIn: { $lt: end },
 			checkOut: { $gt: start },
 		});
@@ -211,11 +211,16 @@ export const getBookingById = catchAsync(async (req, res, next) => {
 export const updateBookingStatus = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { status, staffId } = req.body;
+	const actorId = req.user?._id || staffId;
 
 	const booking = await Booking.findById(id);
 
 	if (!booking) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
+	}
+
+	if (!status) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Status is required'));
 	}
 
 	if (req.user && req.user.role === 'staff') {
@@ -224,26 +229,7 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 		}
 	}
 
-	if (!booking) {
-		return next(
-			new AppError(
-				HttpStatus.NOT_FOUND,
-				'Booking not found with that ID',
-			),
-		);
-	}
-
 	const oldStatus = booking.status;
-
-	// Log transition from paid to confirmed
-	if (oldStatus === 'paid' && status === 'confirmed') {
-		await BookingStatusLog.create({
-			bookingId: id,
-			oldStatus,
-			newStatus: status,
-			staffId: staffId
-		});
-	}
 
 	const validTransitions = {
 		pending: ['paid', 'expired'],
@@ -255,13 +241,34 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 		no_show: [],
 	};
 
-	if (!validTransitions[oldStatus]?.includes(status)) {
+	const staffTransitions = {
+		paid: ['confirmed'],
+		confirmed: ['checked_in'],
+		checked_in: ['checked_out'],
+	};
+
+	const allowedNextStatuses =
+		req.user && req.user.role === 'staff'
+			? staffTransitions[oldStatus] || []
+			: validTransitions[oldStatus] || [];
+
+	if (!allowedNextStatuses.includes(status)) {
 		return next(
 			new AppError(HttpStatus.BAD_REQUEST, 'Invalid status transition'),
 		);
 	}
+
 	booking.status = status;
 	await booking.save();
+
+	if (oldStatus === 'paid' && status === 'confirmed' && actorId) {
+		await BookingStatusLog.create({
+			bookingId: id,
+			oldStatus,
+			newStatus: status,
+			staffId: actorId,
+		});
+	}
 
 	res.status(HttpStatus.OK).json({
 		success: true,

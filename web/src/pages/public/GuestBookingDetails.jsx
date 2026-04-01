@@ -61,13 +61,13 @@ const GuestBookingDetails = () => {
             await axiosClient.put(`/bookings/${id}/cancel-request`, {
                 reason: cancelReason
             });
-            toast.success('Cancellation request submitted successfully.');
+            toast.success('Cancellation/refund request submitted successfully.');
             setIsCancelModalOpen(false);
             setCancelReason('');
             fetchBooking();
         } catch (err) {
             console.error('Cancel request error:', err);
-            toast.error(err.response?.data?.message || 'Failed to submit cancellation request');
+            toast.error(err.response?.data?.message || 'Failed to submit cancellation/refund request');
         } finally {
             setCancelling(false);
         }
@@ -122,9 +122,11 @@ const GuestBookingDetails = () => {
     const nights = Math.max(1, Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24)));
 
     const canRequestCancel = 
-        booking.status === 'confirmed' && 
+        ['paid', 'confirmed'].includes(booking.status) && 
         new Date(booking.checkIn) > new Date() &&
         (!booking.cancellationRequest || booking.cancellationRequest.status !== 'Pending');
+
+    const requestActionLabel = booking.status === 'paid' ? 'Request Refund' : 'Request Cancellation';
 
     return (
         <div className="min-h-screen bg-[#FFFCFA] pt-24 pb-24">
@@ -302,7 +304,7 @@ const GuestBookingDetails = () => {
                                         onClick={() => setIsCancelModalOpen(true)}
                                         className="w-full py-3 px-4 bg-transparent border border-red-500/50 text-red-400 hover:bg-red-500 text-xs uppercase tracking-widest hover:text-white transition-all rounded-sm flex items-center justify-center gap-2"
                                     >
-                                        Request Cancellation
+                                        {requestActionLabel}
                                     </button>
                                 </div>
                             )}
@@ -329,18 +331,18 @@ const GuestBookingDetails = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
                     <div className="w-full max-w-md bg-white rounded-sm shadow-2xl p-8 animate-fade-in">
                         <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-                            <h3 className="text-xl font-serif text-gray-900">Cancel Reservation</h3>
+                            <h3 className="text-xl font-serif text-gray-900">{requestActionLabel}</h3>
                             <button onClick={() => setIsCancelModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
                                 <X size={20} weight="light" />
                             </button>
                         </div>
                         <p className="text-sm font-light text-gray-500 mb-6">
-                            Please provide a reason for cancelling your reservation. Our team will review your request shortly.
+                            Please provide a reason for your request. Our team will review and process it shortly.
                         </p>
                         
                         <form onSubmit={handleCancelRequest}>
                             <div className="relative group mb-8">
-                                <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Reason for cancellation *</label>
+                                <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Reason *</label>
                                 <textarea
                                     className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light text-sm focus:ring-0 focus:border-gray-900 transition-colors resize-none h-20 placeholder-gray-300"
                                     placeholder="e.g. Unexpected schedule change..."

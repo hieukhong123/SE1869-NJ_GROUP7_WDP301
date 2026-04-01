@@ -29,7 +29,7 @@ router.route('/:id/cancel-request').put(protect, requestCancelBooking);
 router.use(protect);
 
 router.route('/').get(authorize('admin', 'staff'), getAllBookings);
-router.route('/logs/refund').get(authorize('admin'), getRefundLogs);
+router.route('/logs/refund').get(authorize('admin', 'staff'), getRefundLogs);
 router.route('/logs/hotel-status').get(authorize('admin'), getHotelStatusLogs);
 router
 	.route('/logs/booking-status')
@@ -40,7 +40,7 @@ router
 	.put(authorize('admin', 'staff'), updateBookingStatus)
 	.delete(authorize('admin'), deleteBooking);
 
-router.route('/:id/refund').post(authorize('admin'), processRefund);
+router.route('/:id/refund').post(authorize('admin', 'staff'), processRefund);
 router
 	.route('/:id/cancel-request/answer')
 	.put(authorize('admin', 'staff'), answerCancelRequest);

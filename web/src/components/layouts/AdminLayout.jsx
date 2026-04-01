@@ -78,7 +78,6 @@ const AdminLayout = () => {
             '/admin/contacts',
             '/admin/payments',
             '/admin/extra-fees',
-            '/admin/logs/refund',
             '/admin/logs/hotel-status'
           ].includes(item.path)
       )

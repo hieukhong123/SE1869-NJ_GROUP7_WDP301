@@ -10,6 +10,8 @@ import {
 } from '@phosphor-icons/react';
 
 const RefundLog = () => {
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isStaff = currentUser?.role === 'staff';
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -17,7 +19,7 @@ const RefundLog = () => {
   const [hotels, setHotels] = useState([]);
   const [actors, setActors] = useState([]);
   const [filters, setFilters] = useState({
-    hotelId: 'all',
+    hotelId: isStaff ? currentUser?.hotelId || 'all' : 'all',
     actorId: 'all',
   });
 
@@ -25,15 +27,32 @@ const RefundLog = () => {
     try {
       setLoading(true);
       const params = {};
-      if (activeFilters.hotelId !== 'all') {
+
+      if (isStaff && currentUser?.hotelId) {
+        params.hotelId = currentUser.hotelId;
+      } else if (activeFilters.hotelId !== 'all') {
         params.hotelId = activeFilters.hotelId;
       }
+
       if (activeFilters.actorId !== 'all') {
         params.actorId = activeFilters.actorId;
       }
 
       const response = await axiosClient.get('/bookings/logs/refund', { params });
-      setLogs(response.data);
+      const nextLogs = response.data || [];
+      setLogs(nextLogs);
+
+      const actorMap = new Map();
+      nextLogs.forEach((log) => {
+        const actor = log?.staffId;
+        if (actor?._id && !actorMap.has(actor._id)) {
+          actorMap.set(actor._id, {
+            _id: actor._id,
+            label: actor.fullName || actor.userName || 'Unknown',
+          });
+        }
+      });
+      setActors(Array.from(actorMap.values()));
     } catch (err) {
       toast.error('Failed to load refund logs.');
     } finally {
@@ -43,20 +62,10 @@ const RefundLog = () => {
 
   const fetchFilterData = async () => {
     try {
-      const [hotelResponse, userResponse] = await Promise.all([
-        axiosClient.get('/hotels/admin-all'),
-        axiosClient.get('/users'),
-      ]);
-
+      const hotelResponse = await axiosClient.get('/hotels/admin-all');
       setHotels(hotelResponse.data || []);
-      setActors(
-        (userResponse.data || []).filter((user) =>
-          ['admin', 'staff'].includes(user.role),
-        ),
-      );
     } catch (err) {
       setHotels([]);
-      setActors([]);
     }
   };
 
@@ -72,6 +81,10 @@ const RefundLog = () => {
   useEffect(() => {
     fetchLogs(filters);
   }, [filters]);
+
+  const currentHotelName = hotels.find(
+    (hotel) => hotel._id === currentUser?.hotelId,
+  )?.name;
 
   const columns = [
     {
@@ -160,25 +173,42 @@ const RefundLog = () => {
           </p>
         </div>
 
-        <div className="bg-white border border-gray-100 rounded-sm p-4 sm:p-6 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
-              Property
-            </label>
-            <select
-              name="hotelId"
-              value={filters.hotelId}
-              onChange={handleFilterChange}
-              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
-            >
-              <option value="all">All Properties</option>
-              {hotels.map((hotel) => (
-                <option key={hotel._id} value={hotel._id}>
-                  {hotel.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div
+          className={`bg-white border border-gray-100 rounded-sm p-4 sm:p-6 mb-6 grid gap-4 ${
+            isStaff ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-3'
+          }`}
+        >
+          {!isStaff && (
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                Property
+              </label>
+              <select
+                name="hotelId"
+                value={filters.hotelId}
+                onChange={handleFilterChange}
+                className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+              >
+                <option value="all">All Properties</option>
+                {hotels.map((hotel) => (
+                  <option key={hotel._id} value={hotel._id}>
+                    {hotel.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {isStaff && (
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                Property Scope
+              </label>
+              <div className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm bg-gray-50 text-gray-700">
+                {currentHotelName || 'My Assigned Property'}
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
@@ -193,7 +223,7 @@ const RefundLog = () => {
               <option value="all">All Admin/Staff</option>
               {actors.map((actor) => (
                 <option key={actor._id} value={actor._id}>
-                  {actor.fullName || actor.userName}
+                  {actor.label || actor.fullName || actor.userName}
                 </option>
               ))}
             </select>

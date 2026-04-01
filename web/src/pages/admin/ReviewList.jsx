@@ -3,6 +3,7 @@ import Table from '../../components/common/Table';
 import axiosClient from '../../services/axiosClient';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import {
   CircleNotchIcon,
   TrashIcon,
@@ -13,13 +14,28 @@ import {
 
 const ReviewList = () => {
   const [reviews, setReviews] = useState([]);
+  const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({ hotelId: 'all', rating: 'all' });
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    review: null,
+    loading: false,
+  });
 
-  const fetchReviews = async () => {
+  const fetchReviews = async (activeFilters = filters) => {
     try {
       setLoading(true);
-      const response = await axiosClient.get('/reviews');
+      const params = {};
+      if (activeFilters.hotelId !== 'all') {
+        params.hotelId = activeFilters.hotelId;
+      }
+      if (activeFilters.rating !== 'all') {
+        params.rating = activeFilters.rating;
+      }
+
+      const response = await axiosClient.get('/reviews', { params });
       setReviews(response.data);
     } catch (err) {
       setError(err);
@@ -29,26 +45,54 @@ const ReviewList = () => {
     }
   };
 
+  const fetchHotels = async () => {
+    try {
+      const response = await axiosClient.get('/hotels/admin-all');
+      setHotels(response.data || []);
+    } catch (err) {
+      setHotels([]);
+    }
+  };
+
   useEffect(() => {
-    fetchReviews();
+    fetchHotels();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (
-      window.confirm(
-        'Are you sure you want to delete this review? This action cannot be undone.',
-      )
-    ) {
-      try {
-        await axiosClient.delete(`/reviews/${id}`);
-        setReviews(reviews.filter((review) => review._id !== id));
-        toast.success('Review deleted successfully.');
-      } catch (err) {
-        toast.error(
-          'Failed to delete review: ' +
-            (err.response?.data?.message || err.message),
-        );
-      }
+  useEffect(() => {
+    fetchReviews(filters);
+  }, [filters]);
+
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const openDeleteModal = (review) => {
+    setConfirmModal({ isOpen: true, review, loading: false });
+  };
+
+  const closeDeleteModal = () => {
+    setConfirmModal({ isOpen: false, review: null, loading: false });
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmModal.review) {
+      return;
+    }
+
+    setConfirmModal((prev) => ({ ...prev, loading: true }));
+
+    try {
+      await axiosClient.delete(`/reviews/${confirmModal.review._id}`);
+      toast.success('Review deleted successfully.');
+      await fetchReviews(filters);
+      closeDeleteModal();
+    } catch (err) {
+      toast.error(
+        'Failed to delete review: ' +
+          (err.response?.data?.message || err.message),
+      );
+      setConfirmModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -135,7 +179,7 @@ const ReviewList = () => {
             <EyeIcon size={18} weight="light" />
           </Link>
           <button
-            onClick={() => handleDelete(row.original._id)}
+            onClick={() => openDeleteModal(row.original)}
             className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
             title="Delete Review"
           >
@@ -183,6 +227,46 @@ const ReviewList = () => {
           </div>
         </div>
 
+        <div className="bg-white border border-gray-100 rounded-sm p-4 sm:p-6 mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Property
+            </label>
+            <select
+              name="hotelId"
+              value={filters.hotelId}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            >
+              <option value="all">All Properties</option>
+              {hotels.map((hotel) => (
+                <option key={hotel._id} value={hotel._id}>
+                  {hotel.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Rating
+            </label>
+            <select
+              name="rating"
+              value={filters.rating}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            >
+              <option value="all">All Ratings</option>
+              <option value="5">5 Stars</option>
+              <option value="4">4 Stars</option>
+              <option value="3">3 Stars</option>
+              <option value="2">2 Stars</option>
+              <option value="1">1 Star</option>
+            </select>
+          </div>
+        </div>
+
         {/* Table Section or Empty State */}
         {reviews.length === 0 ? (
           <div className="bg-white border border-gray-200 border-dashed rounded-sm py-32 flex flex-col items-center justify-center text-center px-4">
@@ -205,6 +289,17 @@ const ReviewList = () => {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title="Delete Review"
+        message={`Delete this review from ${confirmModal.review?.hotelId?.name || 'the property'}? This action cannot be undone.`}
+        confirmText="Delete Review"
+        onCancel={closeDeleteModal}
+        onConfirm={confirmDelete}
+        loading={confirmModal.loading}
+        variant="danger"
+      />
     </div>
   );
 };

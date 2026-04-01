@@ -20,7 +20,7 @@ router.route('/').get(getHotels);
 router.route('/featured').get(getFeaturedHotels);
 router.route('/cities').get(getCitiesWithCount);
 router.route('/property-types').get(getPropertyTypes);
-router.route('/admin-all').get(protect, authorize('admin'), getAdminHotels);
+router.route('/admin-all').get(protect, authorize('admin', 'staff'), getAdminHotels);
 router.route('/:id').get(getHotel);
 
 // Protected routes

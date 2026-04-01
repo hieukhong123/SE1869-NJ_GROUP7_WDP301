@@ -2,6 +2,7 @@ import Hotel from '../models/Hotel.js';
 import Review from '../models/Review.js';
 import Booking from '../models/Booking.js';
 import HotelStatusLog from '../models/HotelStatusLog.js';
+import mongoose from 'mongoose';
 import AppError from '../utils/AppError.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import { catchAsync } from '../middlewares/errorMiddleware.js';
@@ -26,11 +27,28 @@ export const getHotels = catchAsync(async (req, res, next) => {
 });
 
 export const getAdminHotels = catchAsync(async (req, res, next) => {
-        const query = {};
-        if (req.query.hotelId) {
-                query._id = req.query.hotelId;
-        }
-        const hotels = await Hotel.find(query);
+	const query = {};
+
+	if (req.user?.role === 'staff') {
+		if (!req.user.hotelId) {
+			return res.status(HttpStatus.OK).json({
+				success: true,
+				count: 0,
+				data: [],
+			});
+		}
+
+		query._id = req.user.hotelId;
+	} else if (req.query.hotelId && req.query.hotelId !== 'all') {
+		if (!mongoose.Types.ObjectId.isValid(req.query.hotelId)) {
+			return next(
+				new AppError(HttpStatus.BAD_REQUEST, 'Invalid hotelId'),
+			);
+		}
+		query._id = req.query.hotelId;
+	}
+
+	const hotels = await Hotel.find(query);
 
         res.status(HttpStatus.OK).json({
 		success: true,

@@ -87,7 +87,7 @@ const AdminLayout = () => {
           return {
             ...item,
             name: 'My Hotel',
-            path: user.hotelId ? `/admin/hotels/${user.hotelId}/edit` : '/admin/dashboard',
+            path: '/admin/hotels',
           };
         }
         return item;

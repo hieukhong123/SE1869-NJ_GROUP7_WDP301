@@ -3,17 +3,40 @@ import Table from '../../components/common/Table';
 import axiosClient from '../../services/axiosClient';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import { PencilSimple, Trash, Plus, CircleNotch, Sparkle } from '@phosphor-icons/react';
 
 const ExtraFeeList = () => {
     const [extraFees, setExtraFees] = useState([]);
+    const [hotels, setHotels] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [filters, setFilters] = useState({
+        hotelId: 'all',
+        minPrice: '',
+        maxPrice: '',
+    });
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        service: null,
+        loading: false,
+    });
 
-    const fetchExtraFees = async () => {
+    const fetchExtraFees = async (activeFilters = filters) => {
         try {
             setLoading(true);
-            const response = await axiosClient.get('/extra-fees');
+            const params = {};
+            if (activeFilters.hotelId !== 'all') {
+                params.hotelId = activeFilters.hotelId;
+            }
+            if (activeFilters.minPrice !== '') {
+                params.minPrice = activeFilters.minPrice;
+            }
+            if (activeFilters.maxPrice !== '') {
+                params.maxPrice = activeFilters.maxPrice;
+            }
+
+            const response = await axiosClient.get('/extra-fees', { params });
             setExtraFees(response.data);
         } catch (err) {
             setError(err);
@@ -23,22 +46,54 @@ const ExtraFeeList = () => {
         }
     };
 
+    const fetchHotels = async () => {
+        try {
+            const response = await axiosClient.get('/hotels/admin-all');
+            setHotels(response.data || []);
+        } catch (err) {
+            setHotels([]);
+        }
+    };
+
     useEffect(() => {
-        fetchExtraFees();
+        fetchHotels();
     }, []);
 
-    const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to remove this service from the portfolio?')) {
-            try {
-                await axiosClient.delete(`/extra-fees/${id}`);
-                setExtraFees(extraFees.filter((fee) => fee._id !== id));
-                toast.success('Service removed successfully.');
-            } catch (err) {
-                toast.error(
-                    'Failed to delete service: ' +
-                    (err.response?.data?.message || err.message)
-                );
-            }
+    useEffect(() => {
+        fetchExtraFees(filters);
+    }, [filters]);
+
+    const handleFilterChange = (event) => {
+        const { name, value } = event.target;
+        setFilters((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const openDeleteModal = (service) => {
+        setConfirmModal({ isOpen: true, service, loading: false });
+    };
+
+    const closeDeleteModal = () => {
+        setConfirmModal({ isOpen: false, service: null, loading: false });
+    };
+
+    const confirmDelete = async () => {
+        if (!confirmModal.service) {
+            return;
+        }
+
+        setConfirmModal((prev) => ({ ...prev, loading: true }));
+
+        try {
+            await axiosClient.delete(`/extra-fees/${confirmModal.service._id}`);
+            toast.success('Service archived successfully.');
+            await fetchExtraFees(filters);
+            closeDeleteModal();
+        } catch (err) {
+            toast.error(
+                'Failed to delete service: ' +
+                (err.response?.data?.message || err.message)
+            );
+            setConfirmModal((prev) => ({ ...prev, loading: false }));
         }
     };
 
@@ -78,7 +133,7 @@ const ExtraFeeList = () => {
                         <PencilSimple size={18} weight="light" />
                     </Link>
                     <button
-                        onClick={() => handleDelete(row.original._id)}
+                        onClick={() => openDeleteModal(row.original)}
                         className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
                         title="Remove Service"
                     >
@@ -129,6 +184,57 @@ const ExtraFeeList = () => {
                     </Link>
                 </div>
 
+                <div className="bg-white border border-gray-100 rounded-sm p-4 sm:p-6 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                            Property
+                        </label>
+                        <select
+                            name="hotelId"
+                            value={filters.hotelId}
+                            onChange={handleFilterChange}
+                            className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+                        >
+                            <option value="all">All Properties</option>
+                            {hotels.map((hotel) => (
+                                <option key={hotel._id} value={hotel._id}>
+                                    {hotel.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                            Min Price
+                        </label>
+                        <input
+                            type="number"
+                            min="0"
+                            name="minPrice"
+                            value={filters.minPrice}
+                            onChange={handleFilterChange}
+                            placeholder="0"
+                            className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                            Max Price
+                        </label>
+                        <input
+                            type="number"
+                            min="0"
+                            name="maxPrice"
+                            value={filters.maxPrice}
+                            onChange={handleFilterChange}
+                            placeholder="No limit"
+                            className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+                        />
+                    </div>
+                </div>
+
                 {/* Table Section or Empty State */}
                 {extraFees.length === 0 ? (
                     <div className="bg-white border border-gray-200 border-dashed rounded-sm py-32 flex flex-col items-center justify-center text-center px-4">
@@ -150,6 +256,17 @@ const ExtraFeeList = () => {
                     </div>
                 )}
             </div>
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                title="Archive Service"
+                message={`Archive ${confirmModal.service?.extraName}? Guests will no longer be able to add this service to new bookings.`}
+                confirmText="Archive Service"
+                onCancel={closeDeleteModal}
+                onConfirm={confirmDelete}
+                loading={confirmModal.loading}
+                variant="danger"
+            />
         </div>
     );
 };

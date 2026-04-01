@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Table from '../../components/common/Table';
 import axiosClient from '../../services/axiosClient';
 import { toast } from 'sonner';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import {
   PencilSimpleIcon,
   PlusIcon,
@@ -18,6 +19,12 @@ const HotelList = () => {
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [statusModal, setStatusModal] = useState({
+    isOpen: false,
+    hotel: null,
+    newStatus: '',
+    loading: false,
+  });
 
   const fetchHotels = async () => {
     try {
@@ -36,20 +43,50 @@ const HotelList = () => {
     fetchHotels();
   }, []);
 
-  const handleStatusChange = async (id, newStatus) => {
+  const requestStatusChange = (hotel, newStatus) => {
+    if (hotel.status === newStatus) {
+      return;
+    }
+
+    setStatusModal({
+      isOpen: true,
+      hotel,
+      newStatus,
+      loading: false,
+    });
+  };
+
+  const closeStatusModal = () => {
+    setStatusModal({
+      isOpen: false,
+      hotel: null,
+      newStatus: '',
+      loading: false,
+    });
+  };
+
+  const confirmStatusChange = async () => {
+    if (!statusModal.hotel || !statusModal.newStatus) {
+      return;
+    }
+
+    setStatusModal((prev) => ({ ...prev, loading: true }));
+
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      await axiosClient.put(`/hotels/${id}/status`, {
-        status: newStatus,
+      await axiosClient.put(`/hotels/${statusModal.hotel._id}/status`, {
+        status: statusModal.newStatus,
         staffId: user._id,
       });
-      toast.success(`Hotel status updated to ${newStatus}.`);
-      fetchHotels();
+      toast.success(`Hotel status updated to ${statusModal.newStatus}.`);
+      await fetchHotels();
+      closeStatusModal();
     } catch (err) {
       toast.error(
         'Failed to update hotel status: ' +
           (err.response?.data?.message || err.message),
       );
+      setStatusModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -93,7 +130,6 @@ const HotelList = () => {
       header: 'Status',
       cell: ({ row }) => {
         const status = row.original.status || 'active';
-        const id = row.original._id;
 
         let dotColor = 'bg-green-500';
         let selectStyles = 'border-green-200 bg-green-50 text-green-700 hover:border-green-300';
@@ -113,7 +149,7 @@ const HotelList = () => {
             <select
               className={`appearance-none pl-6 pr-8 py-1.5 rounded-sm border text-[10px] uppercase tracking-widest font-medium cursor-pointer focus:ring-0 outline-none transition-colors ${selectStyles}`}
               value={status}
-              onChange={(e) => handleStatusChange(id, e.target.value)}
+              onChange={(e) => requestStatusChange(row.original, e.target.value)}
             >
               <option value="active">Active</option>
               <option value="suspended">Suspended</option>
@@ -223,6 +259,17 @@ const HotelList = () => {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={statusModal.isOpen}
+        title="Update Hotel Status"
+        message={`Change ${statusModal.hotel?.name} from ${statusModal.hotel?.status || 'active'} to ${statusModal.newStatus}?`}
+        confirmText="Confirm Status"
+        onCancel={closeStatusModal}
+        onConfirm={confirmStatusChange}
+        loading={statusModal.loading}
+        variant="warning"
+      />
     </div>
   );
 };

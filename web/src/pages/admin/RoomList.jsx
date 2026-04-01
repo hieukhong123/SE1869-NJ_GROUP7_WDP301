@@ -4,6 +4,7 @@ import Table from '../../components/common/Table';
 import axiosClient from '../../services/axiosClient';
 import { toast } from 'sonner';
 import { capitalizeFirstLetter } from '../../utils/helpers';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import {
   PencilSimpleIcon,
   TrashIcon,
@@ -14,13 +15,40 @@ import {
 
 const RoomList = () => {
   const [rooms, setRooms] = useState([]);
+  const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({
+    hotelId: 'all',
+    status: 'all',
+    minPrice: '',
+    maxPrice: '',
+  });
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    type: null,
+    room: null,
+    loading: false,
+  });
 
-  const fetchRooms = async () => {
+  const fetchRooms = async (activeFilters = filters) => {
     try {
       setLoading(true);
-      const response = await axiosClient.get('/rooms');
+      const params = {};
+      if (activeFilters.hotelId !== 'all') {
+        params.hotelId = activeFilters.hotelId;
+      }
+      if (activeFilters.status !== 'all') {
+        params.status = activeFilters.status;
+      }
+      if (activeFilters.minPrice !== '') {
+        params.minPrice = activeFilters.minPrice;
+      }
+      if (activeFilters.maxPrice !== '') {
+        params.maxPrice = activeFilters.maxPrice;
+      }
+
+      const response = await axiosClient.get('/rooms', { params });
       setRooms(response.data);
     } catch (err) {
       toast.error('Failed to load rooms.');
@@ -30,39 +58,72 @@ const RoomList = () => {
     }
   };
 
-  useEffect(() => {
-    fetchRooms();
-  }, []);
-
-  const handleDelete = async (roomId) => {
-    if (
-      window.confirm(
-        'Are you sure you want to remove this room from the portfolio?',
-      )
-    ) {
-      try {
-        await axiosClient.delete(`/rooms/${roomId}`);
-        toast.success('Room removed successfully.');
-        fetchRooms();
-      } catch (err) {
-        toast.error(
-          'Failed to delete room: ' +
-            (err.response?.data?.message || err.message),
-        );
-      }
+  const fetchHotels = async () => {
+    try {
+      const response = await axiosClient.get('/hotels/admin-all');
+      setHotels(response.data || []);
+    } catch (err) {
+      setHotels([]);
     }
   };
 
-  const handleToggleStatus = async (roomId) => {
+  useEffect(() => {
+    fetchHotels();
+  }, []);
+
+  useEffect(() => {
+    fetchRooms(filters);
+  }, [filters]);
+
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const openModal = (type, room) => {
+    setConfirmModal({
+      isOpen: true,
+      type,
+      room,
+      loading: false,
+    });
+  };
+
+  const closeModal = () => {
+    setConfirmModal({
+      isOpen: false,
+      type: null,
+      room: null,
+      loading: false,
+    });
+  };
+
+  const confirmAction = async () => {
+    if (!confirmModal.room) {
+      return;
+    }
+
+    setConfirmModal((prev) => ({ ...prev, loading: true }));
+
     try {
-      await axiosClient.put(`/rooms/${roomId}/toggleStatus`);
-      toast.success('Room status updated.');
-      fetchRooms();
+      if (confirmModal.type === 'delete') {
+        await axiosClient.delete(`/rooms/${confirmModal.room._id}`);
+        toast.success('Room archived successfully.');
+      }
+
+      if (confirmModal.type === 'status') {
+        await axiosClient.put(`/rooms/${confirmModal.room._id}/toggleStatus`);
+        toast.success('Room status updated.');
+      }
+
+      await fetchRooms(filters);
+      closeModal();
     } catch (err) {
       toast.error(
-        'Failed to update status: ' +
+        `Failed to ${confirmModal.type === 'delete' ? 'delete room' : 'update status'}: ` +
           (err.response?.data?.message || err.message),
       );
+      setConfirmModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -133,7 +194,7 @@ const RoomList = () => {
 
         return (
           <button
-            onClick={() => handleToggleStatus(row.original._id)}
+            onClick={() => openModal('status', row.original)}
             className={`text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-sm transition-all duration-300 border ${
               isAvailable
                 ? 'bg-white text-gray-900 border-gray-300 hover:border-gray-900'
@@ -159,7 +220,7 @@ const RoomList = () => {
             <PencilSimpleIcon size={18} weight="light" />
           </Link>
           <button
-            onClick={() => handleDelete(row.original._id)}
+            onClick={() => openModal('delete', row.original)}
             className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
             title="Remove Room"
           >
@@ -214,6 +275,73 @@ const RoomList = () => {
           </Link>
         </div>
 
+        <div className="bg-white border border-gray-100 rounded-sm p-4 sm:p-6 mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Property
+            </label>
+            <select
+              name="hotelId"
+              value={filters.hotelId}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            >
+              <option value="all">All Properties</option>
+              {hotels.map((hotel) => (
+                <option key={hotel._id} value={hotel._id}>
+                  {hotel.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Status
+            </label>
+            <select
+              name="status"
+              value={filters.status}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            >
+              <option value="all">All Status</option>
+              <option value="available">Available</option>
+              <option value="unavailable">Unavailable</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Min Price
+            </label>
+            <input
+              type="number"
+              min="0"
+              name="minPrice"
+              value={filters.minPrice}
+              onChange={handleFilterChange}
+              placeholder="0"
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Max Price
+            </label>
+            <input
+              type="number"
+              min="0"
+              name="maxPrice"
+              value={filters.maxPrice}
+              onChange={handleFilterChange}
+              placeholder="No limit"
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            />
+          </div>
+        </div>
+
         {rooms.length === 0 ? (
           <div className="bg-white border border-gray-200 border-dashed rounded-sm py-32 flex flex-col items-center justify-center text-center px-4">
             <BedIcon size={48} weight="light" className="text-gray-300 mb-6" />
@@ -237,6 +365,27 @@ const RoomList = () => {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={
+          confirmModal.type === 'delete'
+            ? 'Archive Room'
+            : 'Update Room Status'
+        }
+        message={
+          confirmModal.type === 'delete'
+            ? `Archive ${confirmModal.room?.roomName} from this portfolio? Guests will no longer be able to book it.`
+            : `Change room status for ${confirmModal.room?.roomName} to ${confirmModal.room?.status === 'available' ? 'Unavailable' : 'Available'}?`
+        }
+        confirmText={
+          confirmModal.type === 'delete' ? 'Archive Room' : 'Confirm Status'
+        }
+        onCancel={closeModal}
+        onConfirm={confirmAction}
+        loading={confirmModal.loading}
+        variant={confirmModal.type === 'delete' ? 'danger' : 'warning'}
+      />
     </div>
   );
 };

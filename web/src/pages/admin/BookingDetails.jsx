@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import axiosClient from '../../services/axiosClient';
 import { capitalizeFirstLetter } from '../../utils/helpers';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import { 
     CaretLeft, 
     CircleNotch, 
@@ -30,6 +31,17 @@ const BookingDetails = () => {
     const [rejectModalOpen, setRejectModalOpen] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
     const [processingAdminAction, setProcessingAdminAction] = useState(false);
+    const [refundTransferImg, setRefundTransferImg] = useState('');
+    const [uploadingRefundProof, setUploadingRefundProof] = useState(false);
+    const [processingStatusAction, setProcessingStatusAction] = useState(false);
+    const [statusModal, setStatusModal] = useState({
+        isOpen: false,
+        nextStatus: null,
+        title: '',
+        message: '',
+        confirmText: 'Confirm',
+        variant: 'default',
+    });
 
     const fetchBooking = async () => {
         setLoading(true);
@@ -54,17 +66,95 @@ const BookingDetails = () => {
             await axiosClient.put(`/bookings/${id}`, { status: newStatus });
             toast.success(`Booking status updated to ${capitalizeFirstLetter(newStatus).replace('_', ' ')}`);
             fetchBooking(); // Tải lại data để cập nhật UI
+            return true;
         } catch (err) {
             toast.error(`Failed to update status: ${err.response?.data?.message || err.message}`);
+            return false;
+        }
+    };
+
+    const openStatusModal = (nextStatus) => {
+        const statusMap = {
+            checked_in: {
+                title: 'Confirm Check-in',
+                message: 'Are you sure you want to mark this guest as checked in?',
+                confirmText: 'Check In',
+                variant: 'default',
+            },
+            checked_out: {
+                title: 'Confirm Check-out',
+                message: 'Are you sure you want to complete check-out for this booking?',
+                confirmText: 'Check Out',
+                variant: 'warning',
+            },
+            no_show: {
+                title: 'Mark As No Show',
+                message: 'This will release the room and apply no-show policies. Do you want to continue?',
+                confirmText: 'Confirm No Show',
+                variant: 'danger',
+            },
+        };
+
+        const modalConfig = statusMap[nextStatus];
+        if (!modalConfig) {
+            return;
+        }
+
+        setStatusModal({
+            isOpen: true,
+            nextStatus,
+            title: modalConfig.title,
+            message: modalConfig.message,
+            confirmText: modalConfig.confirmText,
+            variant: modalConfig.variant,
+        });
+    };
+
+    const closeStatusModal = () => {
+        if (processingStatusAction) {
+            return;
+        }
+
+        setStatusModal({
+            isOpen: false,
+            nextStatus: null,
+            title: '',
+            message: '',
+            confirmText: 'Confirm',
+            variant: 'default',
+        });
+    };
+
+    const handleConfirmStatusChange = async () => {
+        if (!statusModal.nextStatus) {
+            return;
+        }
+
+        setProcessingStatusAction(true);
+        const isSuccess = await handleStatusChange(booking._id, statusModal.nextStatus);
+        setProcessingStatusAction(false);
+
+        if (isSuccess) {
+            closeStatusModal();
         }
     };
 
     const handleAnswerCancellation = async (action) => {
+        const requiresTransferProof = action === 'Accept' && ['paid', 'confirmed'].includes(booking?.status);
+
+        if (requiresTransferProof && !refundTransferImg) {
+            toast.error('Please upload transfer proof before approving this refund request.');
+            return;
+        }
+
         setProcessingAdminAction(true);
         try {
             let config = { action };
             if (action === 'Reject') {
                 config.adminReplyReason = rejectReason;
+            }
+            if (requiresTransferProof) {
+                config.transfer_img = refundTransferImg;
             }
             
             await axiosClient.put(`/bookings/${id}/cancel-request/answer`, config);
@@ -73,11 +163,41 @@ const BookingDetails = () => {
             setAcceptModalOpen(false);
             setRejectModalOpen(false);
             setRejectReason('');
+            setRefundTransferImg('');
             fetchBooking();
         } catch (err) {
             toast.error(err.response?.data?.message || `Failed to process cancellation request`);
         } finally {
             setProcessingAdminAction(false);
+        }
+    };
+
+    const handleTransferProofUpload = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            setUploadingRefundProof(true);
+            const response = await axiosClient.post('/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            const uploadedUrl = response?.url || response?.data?.url;
+            if (!uploadedUrl) {
+                throw new Error('Upload succeeded but no image URL was returned.');
+            }
+
+            setRefundTransferImg(uploadedUrl);
+            toast.success('Transfer proof uploaded successfully.');
+        } catch (err) {
+            toast.error(err.response?.data?.message || err.message || 'Failed to upload transfer proof.');
+        } finally {
+            setUploadingRefundProof(false);
+            event.target.value = '';
         }
     };
 
@@ -275,17 +395,13 @@ const BookingDetails = () => {
                                 <>
                                     <p className="text-sm font-light text-gray-500 mb-4">Guest is scheduled to arrive. Proceed with check-in upon arrival.</p>
                                     <button 
-                                        onClick={() => handleStatusChange(booking._id, 'checked_in')}
+                                        onClick={() => openStatusModal('checked_in')}
                                         className="w-full py-3 bg-green-600 hover:bg-green-700 text-white text-xs uppercase tracking-widest font-medium transition-colors rounded-sm shadow-sm"
                                     >
                                         Check In Guest
                                     </button>
                                     <button 
-                                        onClick={() => {
-                                            if(window.confirm('Mark this booking as No Show? The room will be released and cancellation policies will apply.')) {
-                                                handleStatusChange(booking._id, 'no_show');
-                                            }
-                                        }}
+                                        onClick={() => openStatusModal('no_show')}
                                         className="w-full py-3 bg-transparent border border-gray-300 text-gray-600 hover:border-gray-900 hover:text-gray-900 text-xs uppercase tracking-widest transition-colors rounded-sm"
                                     >
                                         Mark as No Show
@@ -297,7 +413,7 @@ const BookingDetails = () => {
                                 <>
                                     <p className="text-sm font-light text-gray-500 mb-4">Guest is currently staying at the property.</p>
                                     <button 
-                                        onClick={() => handleStatusChange(booking._id, 'checked_out')}
+                                        onClick={() => openStatusModal('checked_out')}
                                         className="w-full py-3 bg-gray-900 hover:bg-black text-white text-xs uppercase tracking-widest font-medium transition-colors rounded-sm shadow-sm"
                                     >
                                         Complete Check Out
@@ -416,16 +532,59 @@ const BookingDetails = () => {
                         <p className="text-sm font-light text-gray-500 mb-8 leading-relaxed">
                             Are you sure you want to approve this request? The booking status will be changed to <strong className="font-medium text-gray-900">Cancelled</strong> and guests may need to be refunded according to your policy.
                         </p>
+
+                        {['paid', 'confirmed'].includes(booking.status) && (
+                            <div className="mb-8 text-left">
+                                <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">
+                                    Transfer Proof *
+                                </label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleTransferProofUpload}
+                                    disabled={uploadingRefundProof || processingAdminAction}
+                                    className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 disabled:opacity-70"
+                                />
+
+                                {uploadingRefundProof && (
+                                    <p className="mt-2 text-xs text-orange-700 flex items-center gap-2">
+                                        <CircleNotch size={14} className="animate-spin" /> Uploading proof...
+                                    </p>
+                                )}
+
+                                {refundTransferImg && (
+                                    <div className="mt-3 relative w-32 h-32 border border-gray-200 p-1">
+                                        <img
+                                            src={refundTransferImg}
+                                            alt="Refund transfer proof"
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setRefundTransferImg('')}
+                                            disabled={processingAdminAction}
+                                            className="absolute -top-2 -right-2 bg-white rounded-full shadow text-red-500 disabled:opacity-50"
+                                        >
+                                            <XCircle size={18} weight="fill" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         <div className="flex gap-3 justify-center">
                             <button
-                                onClick={() => setAcceptModalOpen(false)}
+                                onClick={() => {
+                                    setAcceptModalOpen(false);
+                                    setRefundTransferImg('');
+                                }}
                                 className="px-6 py-3 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-900 transition-colors rounded-sm w-full"
                             >
                                 Close
                             </button>
                             <button
                                 onClick={() => handleAnswerCancellation('Accept')}
-                                disabled={processingAdminAction}
+                                disabled={processingAdminAction || uploadingRefundProof}
                                 className="px-6 py-3 bg-gray-900 text-white text-xs uppercase tracking-widest hover:bg-black transition-colors rounded-sm w-full flex items-center justify-center gap-2 disabled:opacity-50"
                             >
                                 {processingAdminAction ? <CircleNotch size={14} className="animate-spin" /> : 'Confirm'}
@@ -477,6 +636,18 @@ const BookingDetails = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={statusModal.isOpen}
+                title={statusModal.title}
+                message={statusModal.message}
+                confirmText={statusModal.confirmText}
+                cancelText="Cancel"
+                onCancel={closeStatusModal}
+                onConfirm={handleConfirmStatusChange}
+                loading={processingStatusAction}
+                variant={statusModal.variant}
+            />
 
         </div>
     );

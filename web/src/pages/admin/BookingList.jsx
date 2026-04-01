@@ -4,9 +4,9 @@ import axiosClient from '../../services/axiosClient';
 import { capitalizeFirstLetter } from '../../utils/helpers';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import {
   CircleNotchIcon,
-  TrashIcon,
   EyeIcon,
   ReceiptIcon,
   CaretDownIcon,
@@ -17,9 +17,26 @@ import {
 
 const BookingList = () => {
   const [bookings, setBookings] = useState([]);
+  const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
+  const [filters, setFilters] = useState({
+    hotelId: 'all',
+    status: 'all',
+    minPrice: '',
+    maxPrice: '',
+  });
+  const [priceDraft, setPriceDraft] = useState({
+    minPrice: '',
+    maxPrice: '',
+  });
+  const [statusModal, setStatusModal] = useState({
+    isOpen: false,
+    booking: null,
+    newStatus: '',
+    loading: false,
+  });
 
   // Refund Modal State
   const [showRefundModal, setShowRefundModal] = useState(false);
@@ -28,11 +45,34 @@ const BookingList = () => {
   const [refundImg, setRefundImg] = useState('');
   const [uploading, setUploading] = useState(false);
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (activeFilters = filters) => {
     try {
       setLoading(true);
-      const response = await axiosClient.get('/bookings');
-      setBookings(response.data);
+      const params = {};
+      if (activeFilters.hotelId !== 'all') {
+        params.hotelId = activeFilters.hotelId;
+      }
+      if (activeFilters.status !== 'all') {
+        params.status = activeFilters.status;
+      }
+      if (activeFilters.minPrice !== '') {
+        params.minPrice = activeFilters.minPrice;
+      }
+      if (activeFilters.maxPrice !== '') {
+        params.maxPrice = activeFilters.maxPrice;
+      }
+
+      const response = await axiosClient.get('/bookings', { params });
+      const sortedBookings = [...(response.data || [])].sort((a, b) => {
+        if (a.status === 'paid' && b.status !== 'paid') {
+          return -1;
+        }
+        if (a.status !== 'paid' && b.status === 'paid') {
+          return 1;
+        }
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+      setBookings(sortedBookings);
     } catch (err) {
       setError(err);
       toast.error('Failed to load reservations.');
@@ -41,9 +81,54 @@ const BookingList = () => {
     }
   };
 
+  const fetchHotels = async () => {
+    try {
+      const response = await axiosClient.get('/hotels/admin-all');
+      setHotels(response.data || []);
+    } catch (err) {
+      setHotels([]);
+    }
+  };
+
   useEffect(() => {
-    fetchBookings();
+    fetchHotels();
   }, []);
+
+  useEffect(() => {
+    fetchBookings(filters);
+  }, [filters]);
+
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+
+    if (name === 'minPrice' || name === 'maxPrice') {
+      setPriceDraft((prev) => ({ ...prev, [name]: value }));
+      return;
+    }
+
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const applyPriceFilters = () => {
+    setFilters((prev) => ({
+      ...prev,
+      minPrice: priceDraft.minPrice,
+      maxPrice: priceDraft.maxPrice,
+    }));
+  };
+
+  const clearPriceFilters = () => {
+    setPriceDraft({ minPrice: '', maxPrice: '' });
+    setFilters((prev) => ({
+      ...prev,
+      minPrice: '',
+      maxPrice: '',
+    }));
+  };
+
+  const isPriceDirty =
+    priceDraft.minPrice !== filters.minPrice ||
+    priceDraft.maxPrice !== filters.maxPrice;
 
   const pendingCancelCount = useMemo(() => {
     return bookings.filter((b) => b.cancellationRequest?.status === 'Pending')
@@ -59,40 +144,53 @@ const BookingList = () => {
     return bookings;
   }, [bookings, activeTab]);
 
-  const handleDelete = async (id) => {
-    if (
-      window.confirm(
-        'Are you sure you want to delete this booking record? This action cannot be undone.',
-      )
-    ) {
-      try {
-        await axiosClient.delete(`/bookings/${id}`);
-        setBookings(bookings.filter((booking) => booking._id !== id));
-        toast.success('Reservation record removed.');
-      } catch (err) {
-        toast.error(
-          'Failed to remove record: ' +
-            (err.response?.data?.message || err.message),
-        );
-      }
+  const requestStatusChange = (booking, newStatus) => {
+    if (booking.status === newStatus) {
+      return;
     }
+
+    setStatusModal({
+      isOpen: true,
+      booking,
+      newStatus,
+      loading: false,
+    });
   };
 
-  const handleStatusChange = async (id, newStatus) => {
+  const closeStatusModal = () => {
+    setStatusModal({
+      isOpen: false,
+      booking: null,
+      newStatus: '',
+      loading: false,
+    });
+  };
+
+  const confirmStatusChange = async () => {
+    if (!statusModal.booking || !statusModal.newStatus) {
+      return;
+    }
+
+    setStatusModal((prev) => ({ ...prev, loading: true }));
+
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      await axiosClient.put(`/bookings/${id}`, {
-        status: newStatus,
+      await axiosClient.put(`/bookings/${statusModal.booking._id}`, {
+        status: statusModal.newStatus,
         staffId: user._id,
       });
-      setBookings(
-        bookings.map((booking) =>
-          booking._id === id ? { ...booking, status: newStatus } : booking,
-        ),
+
+      toast.success(
+        `Status updated to ${capitalizeFirstLetter(statusModal.newStatus)}`,
       );
-      toast.success(`Status updated to ${capitalizeFirstLetter(newStatus)}`);
+      await fetchBookings(filters);
+      closeStatusModal();
     } catch (err) {
-      toast.error(`Failed to update status: ${err.message}`);
+      toast.error(
+        'Failed to update status: ' +
+          (err.response?.data?.message || err.message),
+      );
+      setStatusModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -154,13 +252,16 @@ const BookingList = () => {
     {
       accessorKey: 'userId.fullName',
       header: 'Guest',
-      cell: (info) => (
+      cell: ({ row }) => (
         <div>
           <span className="font-medium text-gray-900 block">
-            {info.getValue() || 'Guest'}
+            {row.original.userId?.fullName || row.original.name || 'Guest'}
           </span>
-          <span className="text-[10px] text-gray-400 uppercase tracking-widest">
-            {info.row.original._id.substring(0, 8)}
+          <span className="text-[11px] text-gray-500 block">
+            {row.original.userId?.email || row.original.email || '-'}
+          </span>
+          <span className="text-[10px] text-gray-400 uppercase tracking-widest block mt-0.5">
+            {row.original.userId?.phone || row.original.phone || '-'}
           </span>
         </div>
       ),
@@ -247,11 +348,19 @@ const BookingList = () => {
       ),
     },
     {
+      accessorKey: 'totalAmount',
+      header: 'Booking Price',
+      cell: ({ row }) => (
+        <span className="font-serif text-gray-900 tracking-wide">
+          ${Number(row.original.totalAmount || 0).toLocaleString()}
+        </span>
+      ),
+    },
+    {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => {
         const status = row.original.status;
-        const id = row.original._id;
         const cancelReq = row.original.cancellationRequest;
 
         const pendingCancelBadge =
@@ -269,7 +378,7 @@ const BookingList = () => {
                 <select
                   className="appearance-none bg-orange-50 border border-orange-200 text-orange-800 text-[10px] uppercase tracking-widest py-1.5 pl-3 pr-8 rounded-sm cursor-pointer focus:ring-0 focus:border-orange-400 transition-colors font-medium"
                   value={status}
-                  onChange={(e) => handleStatusChange(id, e.target.value)}
+                  onChange={(e) => requestStatusChange(row.original, e.target.value)}
                 >
                   <option value="pending" disabled>
                     Pending
@@ -296,7 +405,7 @@ const BookingList = () => {
                 <select
                   className="appearance-none bg-blue-50 border border-blue-200 text-blue-800 text-[10px] uppercase tracking-widest py-1.5 pl-3 pr-8 rounded-sm cursor-pointer focus:ring-0 focus:border-blue-400 transition-colors font-medium"
                   value={status}
-                  onChange={(e) => handleStatusChange(id, e.target.value)}
+                  onChange={(e) => requestStatusChange(row.original, e.target.value)}
                 >
                   <option value="paid" disabled>
                     Paid
@@ -342,7 +451,7 @@ const BookingList = () => {
               <select
                 className={`appearance-none px-3 py-1.5 text-[10px] uppercase tracking-widest font-medium border rounded-sm w-fit pr-8 cursor-pointer focus:ring-0 transition-colors ${styles}`}
                 value={status}
-                onChange={(e) => handleStatusChange(id, e.target.value)}
+                onChange={(e) => requestStatusChange(row.original, e.target.value)}
               >
                 <option value="confirmed">Confirmed</option>
                 <option value="checked_in">Checked In</option>
@@ -368,8 +477,7 @@ const BookingList = () => {
       cell: ({ row }) => {
         const booking = row.original;
         const isPendingCancel =
-          booking.cancellationRequest?.status === 'Pending' &&
-          booking.status === 'confirmed';
+          booking.cancellationRequest?.status === 'Pending';
         const canRefund = ['paid', 'confirmed'].includes(booking.status);
 
         return (
@@ -399,13 +507,6 @@ const BookingList = () => {
                 >
                   <EyeIcon size={18} weight="light" />
                 </Link>
-                <button
-                  onClick={() => handleDelete(booking._id)}
-                  className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
-                  title="Delete Record"
-                >
-                  <TrashIcon size={18} weight="light" />
-                </button>
               </div>
             )}
           </div>
@@ -476,6 +577,104 @@ const BookingList = () => {
               <span className="absolute -bottom-px left-0 w-full h-px bg-red-600"></span>
             )}
           </button>
+        </div>
+
+        <div className="bg-white border border-gray-100 rounded-sm p-4 sm:p-6 mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Property
+            </label>
+            <select
+              name="hotelId"
+              value={filters.hotelId}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            >
+              <option value="all">All Properties</option>
+              {hotels.map((hotel) => (
+                <option key={hotel._id} value={hotel._id}>
+                  {hotel.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Booking Status
+            </label>
+            <select
+              name="status"
+              value={filters.status}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            >
+              <option value="all">All Status</option>
+              <option value="paid">Paid</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="checked_in">Checked In</option>
+              <option value="checked_out">Checked Out</option>
+              <option value="no_show">No Show</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="pending">Pending</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Min Booking Price
+            </label>
+            <input
+              type="number"
+              min="0"
+              name="minPrice"
+              value={priceDraft.minPrice}
+              onChange={handleFilterChange}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  applyPriceFilters();
+                }
+              }}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Max Booking Price
+            </label>
+            <input
+              type="number"
+              min="0"
+              name="maxPrice"
+              value={priceDraft.maxPrice}
+              onChange={handleFilterChange}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  applyPriceFilters();
+                }
+              }}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            />
+          </div>
+
+          <div className="md:col-span-2 xl:col-span-4 flex items-end justify-end gap-3 pt-1">
+            <button
+              type="button"
+              onClick={clearPriceFilters}
+              className="px-4 py-2.5 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-900 transition-colors rounded-sm"
+            >
+              Clear Price
+            </button>
+            <button
+              type="button"
+              onClick={applyPriceFilters}
+              disabled={!isPriceDirty}
+              className="px-4 py-2.5 bg-gray-900 text-white text-xs uppercase tracking-widest hover:bg-black transition-colors rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Apply Price
+            </button>
+          </div>
         </div>
 
         {filteredBookings.length === 0 ? (
@@ -575,6 +774,17 @@ const BookingList = () => {
             </div>
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={statusModal.isOpen}
+          title="Update Booking Status"
+          message={`Change booking ${statusModal.booking?._id?.slice(0, 8)} status from ${capitalizeFirstLetter(statusModal.booking?.status || '')} to ${capitalizeFirstLetter(statusModal.newStatus || '')}?`}
+          confirmText="Confirm Status"
+          onCancel={closeStatusModal}
+          onConfirm={confirmStatusChange}
+          loading={statusModal.loading}
+          variant="warning"
+        />
       </div>
     </div>
   );

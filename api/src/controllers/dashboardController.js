@@ -10,6 +10,24 @@ import {
     isBookingRevenueEligible,
 } from '../utils/bookingTiming.js';
 
+const normalizeRevenuePaymentAmount = (payment) => {
+    const rawAmount = Number(payment?.amount || 0);
+    const expectedBookingAmount = Number(payment?.bookingId?.totalAmount || 0);
+
+    if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
+        return 0;
+    }
+
+    if (expectedBookingAmount > 0) {
+        const ratio = rawAmount / expectedBookingAmount;
+        if (ratio > 99 && ratio < 101) {
+            return rawAmount / 100;
+        }
+    }
+
+    return rawAmount;
+};
+
 // @desc    Get dashboard statistics
 // @route   GET /api/dashboard
 // @access  Private/Admin & Staff
@@ -66,11 +84,13 @@ const getDashboardStats = catchAsync(async (req, res) => {
         confirmedPayments = await Payment.find({
             status: 'confirmed',
             bookingId: { $in: revenueEligibleBookingIds },
-        }).select('amount paymentDate');
+        })
+            .select('amount paymentDate bookingId')
+            .populate('bookingId', 'totalAmount');
     }
 
     const totalRevenue = confirmedPayments.reduce(
-        (acc, payment) => acc + payment.amount,
+        (acc, payment) => acc + normalizeRevenuePaymentAmount(payment),
         0
     );
 
@@ -111,12 +131,13 @@ const getDashboardStats = catchAsync(async (req, res) => {
 
     const monthlyRevenueMap = new Map();
     confirmedPayments.forEach((payment) => {
+        const normalizedAmount = normalizeRevenuePaymentAmount(payment);
         const paymentDate = new Date(payment.paymentDate);
         const year = paymentDate.getFullYear();
         const month = paymentDate.getMonth() + 1;
         const key = `${year}-${month}`;
         const currentRevenue = monthlyRevenueMap.get(key) || 0;
-        monthlyRevenueMap.set(key, currentRevenue + payment.amount);
+        monthlyRevenueMap.set(key, currentRevenue + normalizedAmount);
     });
 
     const monthlyRevenue = Array.from(monthlyRevenueMap.entries())
@@ -144,6 +165,7 @@ const getDashboardStats = catchAsync(async (req, res) => {
     }));
 
     confirmedPayments.forEach((payment) => {
+        const normalizedAmount = normalizeRevenuePaymentAmount(payment);
         const paymentDate = new Date(payment.paymentDate);
         if (
             paymentDate.getFullYear() !== analysisYear ||
@@ -158,7 +180,7 @@ const getDashboardStats = catchAsync(async (req, res) => {
 
         const bucket = weeklyBuckets[weekOfMonth - 1];
         if (bucket) {
-            bucket.revenue += payment.amount;
+            bucket.revenue += normalizedAmount;
         }
     });
 

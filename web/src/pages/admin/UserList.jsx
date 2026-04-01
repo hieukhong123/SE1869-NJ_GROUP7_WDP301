@@ -40,6 +40,7 @@ const UserList = () => {
 
       const response = await axiosClient.get('/users', { params });
       setUsers(response.data);
+      setError(null);
     } catch (err) {
       setError(err);
       toast.error('Failed to load guest directory.');
@@ -118,7 +119,6 @@ const UserList = () => {
       await fetchUsers(filters);
       closeConfirmModal();
     } catch (err) {
-      setError(err);
       if (confirmModal.type === 'status') {
         toast.error(
           'Failed to update user status: ' +

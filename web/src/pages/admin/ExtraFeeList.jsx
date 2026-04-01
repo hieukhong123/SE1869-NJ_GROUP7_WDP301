@@ -42,6 +42,7 @@ const ExtraFeeList = () => {
 
             const response = await axiosClient.get('/extra-fees', { params });
             setExtraFees(response.data);
+            setError(null);
         } catch (err) {
             setError(err);
             toast.error('Failed to load additional services.');

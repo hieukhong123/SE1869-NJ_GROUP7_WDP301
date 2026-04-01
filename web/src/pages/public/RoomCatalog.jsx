@@ -591,13 +591,6 @@ const RoomCatalog = () => {
                         
                         <div className="space-y-8">
                             <LuxuryDropdown
-                                label="Location"
-                                placeholder="Any City"
-                                options={cityOptions}
-                                value={selectedCity}
-                                onChange={handleCityFilter}
-                            />
-                            <LuxuryDropdown
                                 label="Property Style"
                                 placeholder="Any Style"
                                 options={propertyTypeOptions}

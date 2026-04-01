@@ -54,6 +54,7 @@ const RoomList = () => {
 
       const response = await axiosClient.get('/rooms/admin', { params });
       setRooms(response.data);
+      setError(null);
     } catch (err) {
       toast.error('Failed to load rooms.');
       setError(err);

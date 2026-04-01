@@ -7,6 +7,45 @@ import { VNPay } from 'vnpay';
 import { dateFormat } from 'vnpay/utils';
 import sendEmail from '../utils/sendEmail.js';
 
+const USD_TO_VND_RATE = 25000;
+const VNPAY_MINOR_UNIT_FACTOR = 100;
+
+const normalizeUsdAmountFromVnp = (rawVnpAmount, expectedUsd = 0) => {
+	const parsedRaw = Number(rawVnpAmount || 0);
+	if (!Number.isFinite(parsedRaw) || parsedRaw <= 0) {
+		return 0;
+	}
+
+	const candidateDirect = parsedRaw / USD_TO_VND_RATE;
+	const candidateMinorUnit =
+		parsedRaw / (USD_TO_VND_RATE * VNPAY_MINOR_UNIT_FACTOR);
+
+	if (Number.isFinite(expectedUsd) && expectedUsd > 0) {
+		const directDiff = Math.abs(candidateDirect - expectedUsd);
+		const minorUnitDiff = Math.abs(candidateMinorUnit - expectedUsd);
+		const selected = minorUnitDiff < directDiff ? candidateMinorUnit : candidateDirect;
+		return Number(selected.toFixed(2));
+	}
+
+	return Number(candidateDirect.toFixed(2));
+};
+
+const normalizeStoredPaymentAmount = (storedAmount, expectedUsd = 0) => {
+	const parsedStored = Number(storedAmount || 0);
+	if (!Number.isFinite(parsedStored) || parsedStored <= 0) {
+		return 0;
+	}
+
+	if (Number.isFinite(expectedUsd) && expectedUsd > 0) {
+		const ratio = parsedStored / expectedUsd;
+		if (ratio > 99 && ratio < 101) {
+			return Number((parsedStored / 100).toFixed(2));
+		}
+	}
+
+	return Number(parsedStored.toFixed(2));
+};
+
 // VNPay instance
 const vnpay = new VNPay({
 	tmnCode: process.env.VNP_TMNCODE || '2QXUI9CQ',
@@ -58,14 +97,45 @@ const getPayments = catchAsync(async (req, res) => {
 
 	const payments = await Payment.find(paymentFilter).populate({
 		path: 'bookingId',
+		select: 'totalAmount userId hotelId',
 		populate: [
 			{ path: 'userId', select: 'fullName' },
 			{ path: 'hotelId', select: 'name status' },
 		],
 	}).sort({ paymentDate: -1 });
+
+	const paymentFixOps = [];
+	const normalizedPayments = payments.map((payment) => {
+		const bookingTotalAmount = Number(payment.bookingId?.totalAmount || 0);
+		const normalizedAmount = normalizeStoredPaymentAmount(
+			payment.amount,
+			bookingTotalAmount,
+		);
+
+		if (
+			payment.status === 'confirmed' &&
+			Math.abs(Number(payment.amount || 0) - normalizedAmount) > 0.01
+		) {
+			paymentFixOps.push({
+				updateOne: {
+					filter: { _id: payment._id },
+					update: { $set: { amount: normalizedAmount } },
+				},
+			});
+		}
+
+		const paymentObj = payment.toObject();
+		paymentObj.amount = normalizedAmount;
+		return paymentObj;
+	});
+
+	if (paymentFixOps.length > 0) {
+		await Payment.bulkWrite(paymentFixOps);
+	}
+
 	res.status(HttpStatus.OK).json({
 		success: true,
-		data: payments,
+		data: normalizedPayments,
 	});
 });
 
@@ -92,6 +162,18 @@ const getPaymentByBookingId = catchAsync(async (req, res) => {
 	}
 
 	const payment = await Payment.findOne({ bookingId });
+
+	if (payment && payment.status === 'confirmed') {
+		const normalizedAmount = normalizeStoredPaymentAmount(
+			payment.amount,
+			Number(booking.totalAmount || 0),
+		);
+
+		if (Math.abs(Number(payment.amount || 0) - normalizedAmount) > 0.01) {
+			payment.amount = normalizedAmount;
+			await payment.save();
+		}
+	}
 
 	res.status(HttpStatus.OK).json({
 		success: true,
@@ -150,7 +232,7 @@ const createVnpayPayment = catchAsync(async (req, res, next) => {
 
 	// Convert USD to VND (1 USD = 25,000 VND)
 	// VNPay library takes the VND amount directly as the unit
-	const vnpAmount = Math.round(payableAmountUsd * 25000);
+	const vnpAmount = Math.round(payableAmountUsd * USD_TO_VND_RATE);
 
 	const paymentUrl = vnpay.buildPaymentUrl({
 		vnp_Amount: vnpAmount,
@@ -176,14 +258,13 @@ const vnpayReturn = catchAsync(async (req, res) => {
 	const verify = vnpay.verifyReturnUrl(req.query);
 	const txnRef = req.query.vnp_TxnRef;
 	const bookingId = txnRef?.split('-')[0];
+	const booking = bookingId ? await Booking.findById(bookingId) : null;
+	const amountUsd = normalizeUsdAmountFromVnp(
+		req.query.vnp_Amount,
+		Number(booking?.totalAmount || 0),
+	);
 
 	if (verify.isSuccess) {
-		// Convert VND back to USD for the database record
-		const amountVnd = parseInt(req.query.vnp_Amount);
-		const amountUsd = amountVnd / 25000;
-
-		const booking = await Booking.findById(bookingId);
-
 		if (
 			booking &&
 			booking.status !== 'confirmed' &&
@@ -201,6 +282,14 @@ const vnpayReturn = catchAsync(async (req, res) => {
 					status: 'confirmed',
 					paymentDate: new Date(),
 				});
+			} else if (
+				Math.abs(Number(existingPayment.amount || 0) - amountUsd) > 0.01 ||
+				existingPayment.status !== 'confirmed'
+			) {
+				existingPayment.amount = amountUsd;
+				existingPayment.status = 'confirmed';
+				existingPayment.paymentDate = new Date();
+				await existingPayment.save();
 			}
 
 			// Send success email
@@ -234,10 +323,6 @@ const vnpayReturn = catchAsync(async (req, res) => {
 			amount: amountUsd,
 		});
 	} else {
-		// Even if failed, pass the amount if it's available in the query
-		const amountVnd = parseInt(req.query.vnp_Amount || 0);
-		const amountUsd = amountVnd / 25000;
-
 		res.status(HttpStatus.OK).json({
 			success: false,
 			message: 'Payment verification failed',
@@ -255,10 +340,11 @@ const vnpayIpn = catchAsync(async (req, res) => {
 	if (verify.isSuccess) {
 		const txnRef = req.query.vnp_TxnRef;
 		const bookingId = txnRef.split('-')[0];
-		const amountVnd = parseInt(req.query.vnp_Amount);
-		const amountUsd = amountVnd / 25000;
-
 		const booking = await Booking.findById(bookingId);
+		const amountUsd = normalizeUsdAmountFromVnp(
+			req.query.vnp_Amount,
+			Number(booking?.totalAmount || 0),
+		);
 
 		if (
 			booking &&
@@ -276,6 +362,14 @@ const vnpayIpn = catchAsync(async (req, res) => {
 					status: 'confirmed',
 					paymentDate: new Date(),
 				});
+			} else if (
+				Math.abs(Number(existingPayment.amount || 0) - amountUsd) > 0.01 ||
+				existingPayment.status !== 'confirmed'
+			) {
+				existingPayment.amount = amountUsd;
+				existingPayment.status = 'confirmed';
+				existingPayment.paymentDate = new Date();
+				await existingPayment.save();
 			}
 		}
 		res.status(HttpStatus.OK).json({ RspCode: '00', Message: 'Success' });

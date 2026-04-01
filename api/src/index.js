@@ -17,6 +17,7 @@ import reservationRoute from './routes/reservationRouter.js';
 import { globalErrorHandler } from './middlewares/errorMiddleware.js';
 import AppError from './utils/AppError.js';
 import { HttpStatus } from './utils/httpStatus.js';
+import { initBookingStatusCronJobs } from './jobs/bookingStatusJobs.js';
 
 dotenv.config();
 const app = express();
@@ -81,5 +82,6 @@ app.use(globalErrorHandler);
 
 app.listen(port, () => {
 	connect();
+	initBookingStatusCronJobs();
 	console.log('Server listening on port', port);
 });

@@ -41,7 +41,7 @@ export const getRooms = catchAsync(async (req, res, next) => {
 			// Find bookings that overlap with requested range for this specific room category
 			const overlappingBookings = await Booking.find({
 				roomIds: room._id,
-				status: { $nin: ['cancelled', 'expired'] },
+				status: { $nin: ['cancelled', 'expired', 'no_show', 'checked_out'] },
 				checkIn: { $lt: end },
 				checkOut: { $gt: start },
 			});

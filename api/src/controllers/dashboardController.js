@@ -5,6 +5,10 @@ import Booking from '../models/Booking.js';
 import Payment from '../models/Payment.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import mongoose from 'mongoose';
+import {
+    REVENUE_COUNTED_STATUSES,
+    isBookingRevenueEligible,
+} from '../utils/bookingTiming.js';
 
 // @desc    Get dashboard statistics
 // @route   GET /api/dashboard
@@ -43,16 +47,27 @@ const getDashboardStats = catchAsync(async (req, res) => {
     const totalHotels = await Hotel.countDocuments(hotelFilter);
     const totalBookings = await Booking.countDocuments(bookingFilter);
 
-    const bookings = await Booking.find(bookingFilter).select('_id');
-    const bookingIds = bookings.map((b) => b._id);
+    const revenueBookingFilter = {
+        ...bookingFilter,
+        status: { $in: REVENUE_COUNTED_STATUSES },
+    };
 
-    let paymentFilter = { status: 'confirmed' };
+    const now = new Date();
+    const revenueCandidateBookings = await Booking.find(revenueBookingFilter).select(
+        '_id status checkIn'
+    );
 
-    if (Object.keys(bookingFilter).length > 0 || (req.user && req.user.role === 'staff')) {
-        paymentFilter.bookingId = { $in: bookingIds };
+    const revenueEligibleBookingIds = revenueCandidateBookings
+        .filter((booking) => isBookingRevenueEligible(booking, now))
+        .map((booking) => booking._id);
+
+    let confirmedPayments = [];
+    if (revenueEligibleBookingIds.length > 0) {
+        confirmedPayments = await Payment.find({
+            status: 'confirmed',
+            bookingId: { $in: revenueEligibleBookingIds },
+        }).select('amount paymentDate');
     }
-
-    const confirmedPayments = await Payment.find(paymentFilter);
 
     const totalRevenue = confirmedPayments.reduce(
         (acc, payment) => acc + payment.amount,
@@ -69,24 +84,30 @@ const getDashboardStats = catchAsync(async (req, res) => {
         },
     ]);
 
-    const monthlyRevenue = await Payment.aggregate([
-        { $match: paymentFilter },
-        {
-            $group: {
-                _id: {
-                    year: { $year: '$paymentDate' },
-                    month: { $month: '$paymentDate' },
-                },
-                revenue: { $sum: '$amount' },
-            },
-        },
-        {
-            $sort: {
-                '_id.year': 1,
-                '_id.month': 1,
-            },
-        },
-    ]);
+    const monthlyRevenueMap = new Map();
+    confirmedPayments.forEach((payment) => {
+        const paymentDate = new Date(payment.paymentDate);
+        const year = paymentDate.getFullYear();
+        const month = paymentDate.getMonth() + 1;
+        const key = `${year}-${month}`;
+        const currentRevenue = monthlyRevenueMap.get(key) || 0;
+        monthlyRevenueMap.set(key, currentRevenue + payment.amount);
+    });
+
+    const monthlyRevenue = Array.from(monthlyRevenueMap.entries())
+        .map(([key, revenue]) => {
+            const [year, month] = key.split('-').map(Number);
+            return {
+                _id: { year, month },
+                revenue,
+            };
+        })
+        .sort((a, b) => {
+            if (a._id.year !== b._id.year) {
+                return a._id.year - b._id.year;
+            }
+            return a._id.month - b._id.month;
+        });
 
     res.status(HttpStatus.OK).json({
         success: true,

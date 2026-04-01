@@ -253,6 +253,15 @@ export const createBooking = catchAsync(async (req, res, next) => {
 export const getAllBookings = catchAsync(async (req, res, next) => {
 		const { status, minPrice, maxPrice, bookingPrice } = req.query;
         const query = {};
+
+		await Booking.updateMany(
+			{
+				status: 'pending',
+				expiresAt: { $lt: new Date() },
+			},
+			{ $set: { status: 'expired' } },
+		);
+
 		if (req.query.hotelId && req.query.hotelId !== 'all') {
                 query.hotelId = req.query.hotelId;
         }
@@ -368,9 +377,9 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 	const oldStatus = booking.status;
 
 	const validTransitions = {
-		pending: ['paid', 'expired'],
-		paid: ['confirmed', 'cancelled'],
-		confirmed: ['checked_in', 'cancelled', 'no_show'],
+		pending: ['paid'],
+		paid: ['confirmed'],
+		confirmed: ['checked_in', 'no_show'],
 		checked_in: ['checked_out'],
 		expired: [],
 		cancelled: [],
@@ -379,7 +388,7 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 
 	const staffTransitions = {
 		paid: ['confirmed'],
-		confirmed: ['checked_in'],
+		confirmed: ['checked_in', 'no_show'],
 		checked_in: ['checked_out'],
 	};
 
@@ -387,6 +396,27 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 		req.user && req.user.role === 'staff'
 			? staffTransitions[oldStatus] || []
 			: validTransitions[oldStatus] || [];
+
+	if (
+		['paid', 'confirmed'].includes(oldStatus) &&
+		status === 'cancelled'
+	) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Paid/confirmed bookings must be cancelled through the refund workflow',
+			),
+		);
+	}
+
+	if (oldStatus === 'pending' && status === 'expired') {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Pending bookings are expired automatically by the system',
+			),
+		);
+	}
 
 	if (!allowedNextStatuses.includes(status)) {
 		return next(
@@ -493,15 +523,6 @@ export const processRefund = catchAsync(async (req, res, next) => {
 	const { reason, transfer_img, staffId } = req.body;
 	const actorId = req.user?._id || staffId;
 
-	if (req.user?.role === 'staff') {
-		return next(
-			new AppError(
-				HttpStatus.FORBIDDEN,
-				'Staff are not allowed to process refunds',
-			),
-		);
-	}
-
 	const booking = await Booking.findById(id);
 
 	if (!booking) {
@@ -515,6 +536,16 @@ export const processRefund = catchAsync(async (req, res, next) => {
 				'Only paid or confirmed bookings can be refunded',
 			),
 		);
+	}
+
+	if (req.user?.role === 'staff') {
+		if (!req.user.hotelId) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
+
+		if (booking.hotelId?.toString() !== req.user.hotelId?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
 	}
 
 	const now = new Date();
@@ -584,8 +615,22 @@ export const getRefundLogs = catchAsync(async (req, res, next) => {
 		query.staffId = performerId;
 	}
 
-	if (hotelId && hotelId !== 'all') {
-		const bookingIds = await Booking.find({ hotelId }).distinct('_id');
+	let scopedHotelId = null;
+
+	if (req.user?.role === 'staff') {
+		scopedHotelId = req.user.hotelId;
+	} else if (hotelId && hotelId !== 'all') {
+		scopedHotelId = hotelId;
+	}
+
+	if (req.user?.role === 'staff' && !scopedHotelId) {
+		query.bookingId = { $in: [] };
+	}
+
+	if (scopedHotelId) {
+		const bookingIds = await Booking.find({ hotelId: scopedHotelId }).distinct(
+			'_id',
+		);
 		query.bookingId = { $in: bookingIds };
 	}
 
@@ -817,15 +862,6 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 	if (req.user?.role === 'staff') {
 		if (booking.hotelId?.toString() !== req.user.hotelId?.toString()) {
 			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
-		}
-
-		if (action === 'Accept' && ['paid', 'confirmed'].includes(booking.status)) {
-			return next(
-				new AppError(
-					HttpStatus.FORBIDDEN,
-					'Staff are not allowed to process refunds',
-				),
-			);
 		}
 	}
 

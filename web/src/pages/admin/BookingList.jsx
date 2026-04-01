@@ -249,11 +249,6 @@ const BookingList = () => {
   };
 
   const handleRefundClick = (booking) => {
-    if (isStaff) {
-      toast.error('Staff are not allowed to process refunds.');
-      return;
-    }
-
     setRefundConfirmModal({
       isOpen: true,
       booking,
@@ -289,11 +284,6 @@ const BookingList = () => {
   };
 
   const handleRefundSubmit = async () => {
-    if (isStaff) {
-      toast.error('Staff are not allowed to process refunds.');
-      return;
-    }
-
     if (!refundReason || !refundImg) {
       toast.error('Please provide a reason and upload a transfer image');
       return;
@@ -442,6 +432,17 @@ const BookingList = () => {
           ) : null;
 
         if (status === 'pending') {
+          if (isStaff) {
+            return (
+              <div className="flex flex-col gap-2">
+                {pendingCancelBadge}
+                <span className="px-3 py-1.5 text-[10px] uppercase tracking-widest font-medium border rounded-sm w-fit bg-orange-50 text-orange-800 border-orange-200">
+                  Pending
+                </span>
+              </div>
+            );
+          }
+
           return (
             <div className="flex flex-col">
               {pendingCancelBadge}
@@ -455,8 +456,6 @@ const BookingList = () => {
                     Pending
                   </option>
                   <option value="paid">Paid</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="cancelled">Cancelled</option>
                 </select>
                 <CaretDownIcon
                   size={12}
@@ -482,7 +481,6 @@ const BookingList = () => {
                     Paid
                   </option>
                   <option value="confirmed">Confirm Payment</option>
-                  <option value="cancelled">Cancelled</option>
                 </select>
                 <CaretDownIcon
                   size={12}
@@ -490,6 +488,90 @@ const BookingList = () => {
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-800 pointer-events-none"
                 />
               </div>
+            </div>
+          );
+        }
+
+        if (status === 'expired') {
+          return (
+            <div className="flex flex-col gap-2">
+              {pendingCancelBadge}
+              <span className="px-3 py-1.5 text-[10px] uppercase tracking-widest font-medium border rounded-sm w-fit bg-gray-100 text-gray-600 border-gray-300">
+                Expired
+              </span>
+            </div>
+          );
+        }
+
+        if (status === 'confirmed') {
+          return (
+            <div className="flex flex-col gap-2">
+              {pendingCancelBadge}
+              <div className="relative w-fit">
+                <select
+                  className="appearance-none bg-green-50 border border-green-200 text-green-700 text-[10px] uppercase tracking-widest py-1.5 pl-3 pr-8 rounded-sm cursor-pointer focus:ring-0 focus:border-green-400 transition-colors font-medium"
+                  value={status}
+                  onChange={(e) => requestStatusChange(row.original, e.target.value)}
+                >
+                  <option value="confirmed" disabled>
+                    Confirmed
+                  </option>
+                  <option value="checked_in">Checked In</option>
+                  <option value="no_show">No Show</option>
+                </select>
+                <CaretDownIcon
+                  size={12}
+                  weight="bold"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-green-700 pointer-events-none"
+                />
+              </div>
+            </div>
+          );
+        }
+
+        if (status === 'checked_in') {
+          return (
+            <div className="flex flex-col gap-2">
+              {pendingCancelBadge}
+              <div className="relative w-fit">
+                <select
+                  className="appearance-none bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] uppercase tracking-widest py-1.5 pl-3 pr-8 rounded-sm cursor-pointer focus:ring-0 focus:border-indigo-400 transition-colors font-medium"
+                  value={status}
+                  onChange={(e) => requestStatusChange(row.original, e.target.value)}
+                >
+                  <option value="checked_in" disabled>
+                    Checked In
+                  </option>
+                  <option value="checked_out">Checked Out</option>
+                </select>
+                <CaretDownIcon
+                  size={12}
+                  weight="bold"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-700 pointer-events-none"
+                />
+              </div>
+            </div>
+          );
+        }
+
+        if (['checked_out', 'no_show', 'cancelled'].includes(status)) {
+          let terminalStyles = 'bg-gray-100 text-gray-600 border-gray-300';
+          if (status === 'checked_out') {
+            terminalStyles = 'bg-purple-50 text-purple-700 border-purple-200';
+          } else if (status === 'no_show') {
+            terminalStyles = 'bg-red-50 text-red-700 border-red-200';
+          } else if (status === 'cancelled') {
+            terminalStyles = 'bg-gray-50 text-gray-500 border-gray-200';
+          }
+
+          return (
+            <div className="flex flex-col gap-2">
+              {pendingCancelBadge}
+              <span
+                className={`px-3 py-1.5 text-[10px] uppercase tracking-widest font-medium border rounded-sm w-fit ${terminalStyles}`}
+              >
+                {capitalizeFirstLetter(status).replace('_', ' ')}
+              </span>
             </div>
           );
         }
@@ -524,11 +606,7 @@ const BookingList = () => {
                 value={status}
                 onChange={(e) => requestStatusChange(row.original, e.target.value)}
               >
-                <option value="confirmed">Confirmed</option>
-                <option value="checked_in">Checked In</option>
-                <option value="checked_out">Checked Out</option>
-                <option value="no_show">No Show</option>
-                <option value="cancelled">Cancelled</option>
+                <option value={status}>{capitalizeFirstLetter(status).replace('_', ' ')}</option>
               </select>
               <CaretDownIcon
                 size={12}
@@ -550,7 +628,7 @@ const BookingList = () => {
         const isPendingCancel =
           booking.cancellationRequest?.status === 'Pending';
         const canRefund =
-          !isStaff && ['paid', 'confirmed'].includes(booking.status);
+          ['paid', 'confirmed'].includes(booking.status);
 
         return (
           <div className="flex items-center gap-2">
@@ -688,6 +766,7 @@ const BookingList = () => {
               <option value="checked_out">Checked Out</option>
               <option value="no_show">No Show</option>
               <option value="cancelled">Cancelled</option>
+              <option value="expired">Expired</option>
               <option value="pending">Pending</option>
             </select>
           </div>

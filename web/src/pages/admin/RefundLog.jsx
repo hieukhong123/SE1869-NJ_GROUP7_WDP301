@@ -75,15 +75,6 @@ const RefundLog = () => {
 
   const columns = [
     {
-      accessorKey: 'bookingId._id',
-      header: 'Booking ID',
-      cell: (info) => (
-        <span className="text-[10px] text-gray-400 uppercase tracking-widest">
-          {info.getValue()?.substring(0, 12)}...
-        </span>
-      ),
-    },
-    {
       accessorKey: 'bookingId.hotelId.name',
       header: 'Hotel',
       cell: (info) => (

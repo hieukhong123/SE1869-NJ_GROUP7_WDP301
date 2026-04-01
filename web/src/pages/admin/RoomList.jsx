@@ -52,7 +52,7 @@ const RoomList = () => {
         params.maxPrice = activeFilters.maxPrice;
       }
 
-      const response = await axiosClient.get('/rooms', { params });
+      const response = await axiosClient.get('/rooms/admin', { params });
       setRooms(response.data);
     } catch (err) {
       toast.error('Failed to load rooms.');

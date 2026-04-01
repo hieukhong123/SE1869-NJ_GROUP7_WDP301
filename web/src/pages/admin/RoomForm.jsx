@@ -47,7 +47,7 @@ const RoomForm = () => {
             const fetchRoom = async () => {
                 try {
                     setLoading(true);
-                    const response = await axiosClient.get(`/rooms/${id}`);
+                    const response = await axiosClient.get(`/rooms/admin/${id}`);
                     setRoomData(response.data);
                 } catch (err) {
                     toast.error('Failed to load room details.');

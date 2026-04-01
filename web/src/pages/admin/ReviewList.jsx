@@ -35,7 +35,7 @@ const ReviewList = () => {
         params.rating = activeFilters.rating;
       }
 
-      const response = await axiosClient.get('/reviews', { params });
+      const response = await axiosClient.get('/reviews/admin', { params });
       setReviews(response.data);
     } catch (err) {
       setError(err);

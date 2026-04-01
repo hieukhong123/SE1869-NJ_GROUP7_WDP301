@@ -8,10 +8,9 @@ import {
     UploadSimple,
     X,
     CircleNotch,
-    Image as ImageIcon,
-    CheckCircle,
-    XCircle
+    Image as ImageIcon
 } from '@phosphor-icons/react';
+import CustomSelect from '../../components/common/CustomSelect';
 
 const HotelForm = () => {
     const userStr = localStorage.getItem('user');
@@ -27,7 +26,7 @@ const HotelForm = () => {
         hotelEmail: '',
         description: '',
         photos: [],
-        status: true,
+        status: 'active',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -41,7 +40,17 @@ const HotelForm = () => {
                 setLoading(true);
                 try {
                     const response = await axiosClient.get(`/hotels/${id}`);
-                    setHotel(response.data);
+                    const fetchedHotel = response.data || {};
+                    const normalizedStatus =
+                        typeof fetchedHotel.status === 'boolean'
+                            ? fetchedHotel.status
+                                ? 'active'
+                                : 'inactive'
+                            : fetchedHotel.status || 'active';
+                    setHotel({
+                        ...fetchedHotel,
+                        status: normalizedStatus,
+                    });
                 } catch (err) {
                     setError(err);
                     toast.error('Failed to load property details.');
@@ -54,10 +63,10 @@ const HotelForm = () => {
     }, [id]);
 
     const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
+        const { name, value } = e.target;
         setHotel({
             ...hotel,
-            [name]: type === 'checkbox' ? checked : value,
+            [name]: value,
         });
     };
 
@@ -118,11 +127,22 @@ const HotelForm = () => {
         e.preventDefault();
         setLoading(true);
         try {
+            const allowedStatuses = ['active', 'inactive', 'suspended'];
+            const normalizedStatus = allowedStatuses.includes(hotel.status)
+                ? hotel.status
+                : hotel.status
+                  ? 'active'
+                  : 'inactive';
+            const payload = {
+                ...hotel,
+                status: normalizedStatus,
+            };
+
             if (id) {
-                await axiosClient.put(`/hotels/${id}`, hotel);
+                await axiosClient.put(`/hotels/${id}`, payload);
                 toast.success('Property updated successfully.');
             } else {
-                await axiosClient.post('/hotels', hotel);
+                await axiosClient.post('/hotels', payload);
                 toast.success('New property created.');
             }
             navigate('/admin/hotels');
@@ -255,33 +275,24 @@ const HotelForm = () => {
                     </div>
 
                     {/* SECTION: Property Status */}
-                    <h3 className="text-xs uppercase tracking-widest text-gray-900 font-medium mb-6 pb-2 border-b border-gray-100 flex justify-between items-end">
+                    <h3 className="text-xs uppercase tracking-widest text-gray-900 font-medium mb-6 pb-2 border-b border-gray-100">
                         Property Status
-
-                        {/* Custom Toggle Switch for Status */}
-                        <label className="flex items-center cursor-pointer group">
-                            <div className="relative">
-                                <input
-                                    type="checkbox"
-                                    className="sr-only"
-                                    name="status"
-                                      checked={hotel.status}
-                                      onChange={handleChange}
-                                />
-                                <div className={`block w-10 h-6 rounded-full transition-colors duration-300 ${hotel.status ? 'bg-green-600' : 'bg-gray-300'}`}></div>
-                                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${hotel.status ? 'transform translate-x-4' : ''}`}></div>
-                            </div>
-                            <div className="ml-3 text-[10px] uppercase tracking-widest font-medium text-gray-500">
-                                {hotel.status ? (
-                                    <span className="text-green-600 flex items-center gap-1"><CheckCircle weight="fill"/> Active</span>
-                                ) : (
-                                    <span className="text-gray-400 flex items-center gap-1"><XCircle weight="fill"/> Inactive</span>
-                                )}
-                            </div>
-                        </label>
                     </h3>
+                    <div className="relative group w-full md:w-1/2 mb-6">
+                        <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Status</label>
+                        <CustomSelect
+                            options={[
+                                { label: 'Active', value: 'active' },
+                                { label: 'Inactive', value: 'inactive' },
+                                { label: 'Suspended', value: 'suspended' },
+                            ]}
+                            value={hotel.status || 'active'}
+                            onChange={(val) => handleChange({ target: { name: 'status', value: val } })}
+                            placeholder="Select status"
+                        />
+                    </div>
                     <p className="text-xs text-gray-500 font-light mb-10">
-                        Control whether this property is visible and bookable by guests. Inactive properties are hidden from search results.
+                        Active properties are visible and bookable. Inactive properties are hidden from search. Suspended properties are restricted for compliance or operational reasons.
                     </p>
 
                     {/* SECTION: Description */}

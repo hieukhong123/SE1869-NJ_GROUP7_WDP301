@@ -10,6 +10,7 @@ import {
     XCircle
 } from '@phosphor-icons/react';
 import CustomSelect from '../../components/common/CustomSelect';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 const UserForm = () => {
     const { id } = useParams();
@@ -26,6 +27,13 @@ const UserForm = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [hotels, setHotels] = useState([]);
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        confirmText: 'Confirm',
+    });
+    const [pendingPrivilegeChange, setPendingPrivilegeChange] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -72,6 +80,90 @@ const UserForm = () => {
 
             return nextUser;
         });
+    };
+
+    const applyPrivilegeChange = (name, value, type = 'text') => {
+        setUser((prev) => {
+            const nextValue = type === 'checkbox' ? Boolean(value) : value;
+            const nextUser = {
+                ...prev,
+                [name]: nextValue,
+            };
+
+            if (name === 'role' && value !== 'staff') {
+                nextUser.hotelId = '';
+                nextUser.confirmPassword = '';
+            }
+
+            return nextUser;
+        });
+    };
+
+    const openPrivilegeConfirm = ({ name, value, type = 'text' }) => {
+        const currentValue = type === 'checkbox' ? Boolean(user[name]) : user[name];
+        const nextValue = type === 'checkbox' ? Boolean(value) : value;
+
+        // Avoid noisy confirmation for no-op changes (e.g., selecting same role).
+        if (currentValue === nextValue) {
+            return;
+        }
+
+        // For create mode, apply directly to keep the flow fast.
+        if (!id) {
+            applyPrivilegeChange(name, nextValue, type);
+            return;
+        }
+
+        if (name === 'status') {
+            const nextStatus = Boolean(nextValue);
+            setPendingPrivilegeChange({ name, value: nextStatus, type: 'checkbox' });
+            setConfirmModal({
+                isOpen: true,
+                title: nextStatus ? 'Activate Account?' : 'Suspend Account?',
+                message: nextStatus
+                    ? 'This user will be able to log in and use the system again.'
+                    : 'This user will not be able to log in until the account is re-activated.',
+                confirmText: nextStatus ? 'Activate' : 'Suspend',
+            });
+            return;
+        }
+
+        if (name === 'role') {
+            const roleLabels = {
+                user: 'Standard User (Guest)',
+                admin: 'Administrator',
+                staff: 'Staff',
+            };
+
+            setPendingPrivilegeChange({ name, value: nextValue, type: 'text' });
+            setConfirmModal({
+                isOpen: true,
+                title: 'Confirm Role Change',
+                message: `Change this user's role to ${roleLabels[nextValue] || nextValue}? This will update their system privileges.`,
+                confirmText: 'Apply Role',
+            });
+            return;
+        }
+
+        applyPrivilegeChange(name, nextValue, type);
+    };
+
+    const handleConfirmPrivilegeChange = () => {
+        if (pendingPrivilegeChange) {
+            applyPrivilegeChange(
+                pendingPrivilegeChange.name,
+                pendingPrivilegeChange.value,
+                pendingPrivilegeChange.type,
+            );
+        }
+
+        setPendingPrivilegeChange(null);
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+    };
+
+    const handleCancelPrivilegeChange = () => {
+        setPendingPrivilegeChange(null);
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
     };
 
     const handleSubmit = async (e) => {
@@ -242,7 +334,13 @@ const UserForm = () => {
                                             className="sr-only" 
                                             name="status"
                                             checked={user.status}
-                                            onChange={handleChange}
+                                            onChange={(e) =>
+                                                openPrivilegeConfirm({
+                                                    name: 'status',
+                                                    value: e.target.checked,
+                                                    type: 'checkbox',
+                                                })
+                                            }
                                             disabled={user.role === 'admin'}
                                         />
                                         <div className={`block w-10 h-6 rounded-full transition-colors duration-300 ${user.status ? 'bg-green-600' : 'bg-gray-300'}`}></div>
@@ -267,7 +365,13 @@ const UserForm = () => {
                                         { label: 'Staff', value: 'staff' }
                                     ]}
                                     value={user.role}
-                                    onChange={(val) => handleChange({ target: { name: 'role', value: val } })}
+                                    onChange={(val) =>
+                                        openPrivilegeConfirm({
+                                            name: 'role',
+                                            value: val,
+                                            type: 'text',
+                                        })
+                                    }
                                 />
                             </div>
 
@@ -311,6 +415,17 @@ const UserForm = () => {
                     
                 </form>
             </div>
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                confirmText={confirmModal.confirmText}
+                cancelText="Cancel"
+                onCancel={handleCancelPrivilegeChange}
+                onConfirm={handleConfirmPrivilegeChange}
+                variant="warning"
+            />
         </div>
     );
 };

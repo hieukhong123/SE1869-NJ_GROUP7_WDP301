@@ -20,9 +20,9 @@ const router = express.Router();
 
 // Public routes (though some might need user auth, but for now we keep existing logic)
 router.route('/').post(createBooking);
-router.route('/user/:userId').get(getUserBookings);
-router.route('/:id').get(getBookingById);
-router.route('/:id/cancel').put(cancelBooking);
+router.route('/user/:userId').get(protect, getUserBookings);
+router.route('/:id').get(protect, getBookingById);
+router.route('/:id/cancel').put(protect, cancelBooking);
 router.route('/:id/cancel-request').put(protect, requestCancelBooking);
 
 // Protected routes
@@ -40,7 +40,7 @@ router
 	.put(authorize('admin', 'staff'), updateBookingStatus)
 	.delete(authorize('admin'), deleteBooking);
 
-router.route('/:id/refund').post(authorize('admin', 'staff'), processRefund);
+router.route('/:id/refund').post(authorize('admin'), processRefund);
 router
 	.route('/:id/cancel-request/answer')
 	.put(authorize('admin', 'staff'), answerCancelRequest);

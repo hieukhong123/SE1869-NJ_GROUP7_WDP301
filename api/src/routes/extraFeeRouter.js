@@ -1,6 +1,7 @@
 import express from 'express';
 import {
 	getExtraFees,
+	getPublicExtraFees,
 	getExtraFeeById,
 	createExtraFee,
 	updateExtraFee,
@@ -9,6 +10,8 @@ import {
 import { protect, authorize } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
+
+router.get('/public', getPublicExtraFees);
 
 router.use(protect);
 router.use(authorize('admin', 'staff'));

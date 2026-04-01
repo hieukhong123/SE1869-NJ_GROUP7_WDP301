@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
 import axiosClient from '../../services/axiosClient';
 import { toast } from 'sonner';
-import { CircleNotch, Envelope, PaperPlaneTilt, X, ChatCircleText } from '@phosphor-icons/react';
+import { CircleNotch, Envelope, PaperPlaneTilt, X } from '@phosphor-icons/react';
 
 const statusConfig = {
     unread: { label: 'Unread', className: 'text-orange-800 bg-orange-50 border-orange-200' },
@@ -12,15 +12,36 @@ const statusConfig = {
 
 const ContactList = () => {
     const [contacts, setContacts] = useState([]);
+    const [hotels, setHotels] = useState([]);
     const [loading, setLoading] = useState(true);
     const [replyModal, setReplyModal] = useState({ isOpen: false, contact: null });
     const [replyText, setReplyText] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [filters, setFilters] = useState({
+        hotelId: 'all',
+        status: 'all',
+        startDate: '',
+        endDate: '',
+    });
 
-    const fetchContacts = async () => {
+    const fetchContacts = async (activeFilters = filters) => {
         try {
             setLoading(true);
-            const response = await axiosClient.get('/contacts');
+            const params = {};
+            if (activeFilters.hotelId !== 'all') {
+                params.hotelId = activeFilters.hotelId;
+            }
+            if (activeFilters.status !== 'all') {
+                params.status = activeFilters.status;
+            }
+            if (activeFilters.startDate) {
+                params.startDate = activeFilters.startDate;
+            }
+            if (activeFilters.endDate) {
+                params.endDate = activeFilters.endDate;
+            }
+
+            const response = await axiosClient.get('/contacts', { params });
             setContacts(response.data || []);
         } catch {
             toast.error('Failed to load contact messages.');
@@ -29,9 +50,27 @@ const ContactList = () => {
         }
     };
 
+    const fetchHotels = async () => {
+        try {
+            const response = await axiosClient.get('/hotels/admin-all');
+            setHotels(response.data || []);
+        } catch (error) {
+            setHotels([]);
+        }
+    };
+
     useEffect(() => {
-        fetchContacts();
+        fetchHotels();
     }, []);
+
+    useEffect(() => {
+        fetchContacts(filters);
+    }, [filters]);
+
+    const handleFilterChange = (event) => {
+        const { name, value } = event.target;
+        setFilters((prev) => ({ ...prev, [name]: value }));
+    };
 
     const openReplyModal = async (contact) => {
         setReplyModal({ isOpen: true, contact });
@@ -116,6 +155,16 @@ const ContactList = () => {
             },
         },
         {
+            accessorKey: 'hotelId.name',
+            header: 'Property',
+            accessorFn: (row) => row.hotelId?.name || '-',
+            cell: (info) => (
+                <span className="text-gray-500 font-light text-sm block min-w-[160px]">
+                    {info.getValue() || '-'}
+                </span>
+            ),
+        },
+        {
             accessorKey: 'adminReply',
             header: 'Admin Reply',
             cell: (info) => (
@@ -167,6 +216,70 @@ const ContactList = () => {
                 <p className="text-gray-400 font-light text-sm mt-2">
                     <span>{contacts.length}</span> total messages &middot; <span>{contacts.filter((c) => c.status === 'unread').length}</span> unread
                 </p>
+            </div>
+
+            <div className="bg-white border border-gray-100 rounded-sm p-4 sm:p-6 mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                        Property
+                    </label>
+                    <select
+                        name="hotelId"
+                        value={filters.hotelId}
+                        onChange={handleFilterChange}
+                        className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+                    >
+                        <option value="all">All Properties</option>
+                        {hotels.map((hotel) => (
+                            <option key={hotel._id} value={hotel._id}>
+                                {hotel.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                        Status
+                    </label>
+                    <select
+                        name="status"
+                        value={filters.status}
+                        onChange={handleFilterChange}
+                        className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+                    >
+                        <option value="all">All Status</option>
+                        <option value="unread">Unread</option>
+                        <option value="read">Read</option>
+                        <option value="replied">Replied</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                        Date From
+                    </label>
+                    <input
+                        type="date"
+                        name="startDate"
+                        value={filters.startDate}
+                        onChange={handleFilterChange}
+                        className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                        Date To
+                    </label>
+                    <input
+                        type="date"
+                        name="endDate"
+                        value={filters.endDate}
+                        onChange={handleFilterChange}
+                        className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+                    />
+                </div>
             </div>
 
             {contacts.length === 0 ? (

@@ -5,7 +5,7 @@ import AppError from '../utils/AppError.js';
 import Contact from '../models/Contact.js';
 
 export const sendContactMessage = catchAsync(async (req, res, next) => {
-	const { name, email, message } = req.body;
+	const { name, email, message, hotelId } = req.body;
 
 	if (!name || !email || !message) {
 		return next(
@@ -22,7 +22,7 @@ export const sendContactMessage = catchAsync(async (req, res, next) => {
 	}
 
 	// Save to database
-	await Contact.create({ name, email, message });
+	await Contact.create({ name, email, message, hotelId: hotelId || null });
 
 	try {
 		// Send email to admin
@@ -84,7 +84,32 @@ export const sendContactMessage = catchAsync(async (req, res, next) => {
 });
 
 export const getContacts = catchAsync(async (req, res) => {
-	const contacts = await Contact.find().sort({ createdAt: -1 });
+	const { hotelId, status, startDate, endDate } = req.query;
+	const filter = {};
+
+	if (hotelId && hotelId !== 'all') {
+		filter.hotelId = hotelId;
+	}
+
+	if (status && status !== 'all') {
+		filter.status = status;
+	}
+
+	if (startDate || endDate) {
+		filter.createdAt = {};
+		if (startDate) {
+			filter.createdAt.$gte = new Date(startDate);
+		}
+		if (endDate) {
+			const end = new Date(endDate);
+			end.setHours(23, 59, 59, 999);
+			filter.createdAt.$lte = end;
+		}
+	}
+
+	const contacts = await Contact.find(filter)
+		.populate('hotelId', 'name')
+		.sort({ createdAt: -1 });
 	res.status(HttpStatus.OK).json({ success: true, data: contacts });
 });
 

@@ -19,13 +19,47 @@ const vnpay = new VNPay({
 // @desc    Get all payments
 // @route   GET /api/v1/payments
 const getPayments = catchAsync(async (req, res) => {
-	const payments = await Payment.find().populate({
+	const { hotelId, status, startDate, endDate, minPrice, maxPrice } = req.query;
+	const paymentFilter = {};
+
+	if (status && status !== 'all') {
+		paymentFilter.status = status;
+	}
+
+	if (startDate || endDate) {
+		paymentFilter.paymentDate = {};
+		if (startDate) {
+			paymentFilter.paymentDate.$gte = new Date(startDate);
+		}
+		if (endDate) {
+			const end = new Date(endDate);
+			end.setHours(23, 59, 59, 999);
+			paymentFilter.paymentDate.$lte = end;
+		}
+	}
+
+	if (minPrice !== undefined || maxPrice !== undefined) {
+		paymentFilter.amount = {};
+		if (minPrice !== undefined && minPrice !== '') {
+			paymentFilter.amount.$gte = Number(minPrice);
+		}
+		if (maxPrice !== undefined && maxPrice !== '') {
+			paymentFilter.amount.$lte = Number(maxPrice);
+		}
+	}
+
+	if (hotelId && hotelId !== 'all') {
+		const bookingIds = await Booking.find({ hotelId }).distinct('_id');
+		paymentFilter.bookingId = { $in: bookingIds };
+	}
+
+	const payments = await Payment.find(paymentFilter).populate({
 		path: 'bookingId',
 		populate: [
 			{ path: 'userId', select: 'fullName' },
 			{ path: 'hotelId', select: 'name status' },
 		],
-	});
+	}).sort({ paymentDate: -1 });
 	res.status(HttpStatus.OK).json({
 		success: true,
 		data: payments,

@@ -7,13 +7,42 @@ import { CircleNotchIcon, CreditCardIcon } from '@phosphor-icons/react';
 
 const PaymentList = () => {
   const [payments, setPayments] = useState([]);
+  const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({
+    hotelId: 'all',
+    status: 'all',
+    startDate: '',
+    endDate: '',
+    minPrice: '',
+    maxPrice: '',
+  });
 
-  const fetchPayments = async () => {
+  const fetchPayments = async (activeFilters = filters) => {
     try {
       setLoading(true);
-      const response = await axiosClient.get('/payments');
+      const params = {};
+      if (activeFilters.hotelId !== 'all') {
+        params.hotelId = activeFilters.hotelId;
+      }
+      if (activeFilters.status !== 'all') {
+        params.status = activeFilters.status;
+      }
+      if (activeFilters.startDate) {
+        params.startDate = activeFilters.startDate;
+      }
+      if (activeFilters.endDate) {
+        params.endDate = activeFilters.endDate;
+      }
+      if (activeFilters.minPrice !== '') {
+        params.minPrice = activeFilters.minPrice;
+      }
+      if (activeFilters.maxPrice !== '') {
+        params.maxPrice = activeFilters.maxPrice;
+      }
+
+      const response = await axiosClient.get('/payments', { params });
       setPayments(response.data);
     } catch (err) {
       setError(err);
@@ -23,9 +52,27 @@ const PaymentList = () => {
     }
   };
 
+  const fetchHotels = async () => {
+    try {
+      const response = await axiosClient.get('/hotels/admin-all');
+      setHotels(response.data || []);
+    } catch (err) {
+      setHotels([]);
+    }
+  };
+
   useEffect(() => {
-    fetchPayments();
+    fetchHotels();
   }, []);
+
+  useEffect(() => {
+    fetchPayments(filters);
+  }, [filters]);
+
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
 
   const columns = [
     {
@@ -164,6 +211,98 @@ const PaymentList = () => {
             <p className="text-xs font-light text-gray-500 uppercase tracking-[0.2em]">
               Monitor Guest Payments
             </p>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-100 rounded-sm p-4 sm:p-6 mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Property
+            </label>
+            <select
+              name="hotelId"
+              value={filters.hotelId}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            >
+              <option value="all">All Properties</option>
+              {hotels.map((hotel) => (
+                <option key={hotel._id} value={hotel._id}>
+                  {hotel.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Status
+            </label>
+            <select
+              name="status"
+              value={filters.status}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="cancel">Cancelled</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Date From
+            </label>
+            <input
+              type="date"
+              name="startDate"
+              value={filters.startDate}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Date To
+            </label>
+            <input
+              type="date"
+              name="endDate"
+              value={filters.endDate}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Min Amount
+            </label>
+            <input
+              type="number"
+              min="0"
+              name="minPrice"
+              value={filters.minPrice}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+              Max Amount
+            </label>
+            <input
+              type="number"
+              min="0"
+              name="maxPrice"
+              value={filters.maxPrice}
+              onChange={handleFilterChange}
+              className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+            />
           </div>
         </div>
 

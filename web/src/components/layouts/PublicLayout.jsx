@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '../common/Navbar';
 import Footer from '../common/Footer';
+import ChatbotWidget from '../common/ChatbotWidget';
 
 const PublicLayout = () => {
   const { pathname } = useLocation();
@@ -41,6 +42,7 @@ const PublicLayout = () => {
       </main>
 
       <Footer />
+      <ChatbotWidget />
     </div>
   );
 };

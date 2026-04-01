@@ -23,7 +23,7 @@ router.route('/').post(createBooking);
 router.route('/user/:userId').get(getUserBookings);
 router.route('/:id').get(getBookingById);
 router.route('/:id/cancel').put(cancelBooking);
-router.route('/:id/cancel-request').put(requestCancelBooking);
+router.route('/:id/cancel-request').put(protect, requestCancelBooking);
 
 // Protected routes
 router.use(protect);

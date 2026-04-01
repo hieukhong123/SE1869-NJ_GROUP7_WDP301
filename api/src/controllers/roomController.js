@@ -14,10 +14,24 @@ const normalizeDate = (dateStr) => {
 };
 
 export const getRooms = catchAsync(async (req, res, next) => {
-	const { hotelId, checkIn, checkOut } = req.query;
-	const filter = {};
-	if (hotelId) {
+	const { hotelId, checkIn, checkOut, status, minPrice, maxPrice } = req.query;
+	const filter = { isDeleted: false };
+	if (hotelId && hotelId !== 'all') {
 		filter.hotelId = hotelId;
+	}
+
+	if (status && status !== 'all') {
+		filter.status = status;
+	}
+
+	if (minPrice !== undefined || maxPrice !== undefined) {
+		filter.roomPrice = {};
+		if (minPrice !== undefined && minPrice !== '') {
+			filter.roomPrice.$gte = Number(minPrice);
+		}
+		if (maxPrice !== undefined && maxPrice !== '') {
+			filter.roomPrice.$lte = Number(maxPrice);
+		}
 	}
 
 	const rooms = await RoomCategory.find(filter).populate(
@@ -93,7 +107,11 @@ export const getRooms = catchAsync(async (req, res, next) => {
 
 export const getRoom = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const room = await RoomCategory.findById(id);
+	const room = await RoomCategory.findOne({ _id: id, isDeleted: false });
+
+	if (!room) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Room not found'));
+	}
 
 	res.status(HttpStatus.OK).json({
 		success: true,
@@ -137,7 +155,11 @@ export const createRoom = catchAsync(async (req, res, next) => {
 		);
 	}
 
-	const existingRoom = await RoomCategory.findOne({ roomName, hotelId });
+	const existingRoom = await RoomCategory.findOne({
+		roomName,
+		hotelId,
+		isDeleted: false,
+	});
 	if (existingRoom) {
 		return next(
 			new AppError(
@@ -171,7 +193,7 @@ export const updateRoom = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const updates = req.body;
 
-	const currentRoom = await RoomCategory.findById(id);
+	const currentRoom = await RoomCategory.findOne({ _id: id, isDeleted: false });
 	if (!currentRoom) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Room not found'));
 	}
@@ -204,6 +226,7 @@ export const updateRoom = catchAsync(async (req, res, next) => {
 			roomName: updates.roomName,
 			hotelId: targetHotelId,
 			_id: { $ne: id },
+			isDeleted: false,
 		});
 
 		if (duplicate) {
@@ -216,8 +239,8 @@ export const updateRoom = catchAsync(async (req, res, next) => {
 		}
 	}
 
-	const updatedRoom = await RoomCategory.findByIdAndUpdate(
-		id,
+	const updatedRoom = await RoomCategory.findOneAndUpdate(
+		{ _id: id, isDeleted: false },
 		{ $set: updates },
 		{ new: true, runValidators: true },
 	);
@@ -247,7 +270,7 @@ export const deleteRoom = catchAsync(async (req, res, next) => {
 		);
 	}
 
-	const room = await RoomCategory.findByIdAndDelete(id);
+	const room = await RoomCategory.findOne({ _id: id, isDeleted: false });
 
 	if (!room) {
 		return next(
@@ -255,16 +278,21 @@ export const deleteRoom = catchAsync(async (req, res, next) => {
 		);
 	}
 
+	room.isDeleted = true;
+	room.deletedAt = new Date();
+	room.status = 'unavailable';
+	await room.save();
+
 	res.status(HttpStatus.OK).json({
 		success: true,
-		message: 'Room deleted successfully',
+		message: 'Room archived successfully',
 	});
 });
 
 export const toggleRoomStatus = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 
-	const room = await RoomCategory.findById(id);
+	const room = await RoomCategory.findOne({ _id: id, isDeleted: false });
 	if (!room) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Room not found'));
 	}

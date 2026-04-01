@@ -9,8 +9,12 @@ import { HttpStatus } from '../utils/httpStatus.js';
 // @access  Public
 const getReviews = catchAsync(async (req, res) => {
 	const filter = {};
-	if (req.query.hotelId) {
+	if (req.query.hotelId && req.query.hotelId !== 'all') {
 		filter.hotelId = req.query.hotelId;
+	}
+
+	if (req.query.rating) {
+		filter.rating = Number(req.query.rating);
 	}
 
 	const reviews = await Review.find(filter)

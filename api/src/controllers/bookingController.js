@@ -19,6 +19,36 @@ const normalizeDate = (dateStr) => {
 	return d;
 };
 
+const sendRefundNotificationEmail = async (booking, actorName = 'our staff') => {
+	if (!booking?.email) {
+		return;
+	}
+
+	const bookingCode = booking._id?.toString().slice(-8)?.toUpperCase() || 'N/A';
+	const refundedAt = booking.refundInfo?.refundedAt
+		? new Date(booking.refundInfo.refundedAt).toLocaleString()
+		: new Date().toLocaleString();
+	const transferProof = booking.refundInfo?.transfer_img;
+
+	try {
+		await sendEmail({
+			email: booking.email,
+			subject: `Refund Processed - Booking ${bookingCode}`,
+			html: `
+				<h3>Hello ${booking.name || 'Guest'},</h3>
+				<p>Your refund request for booking <strong>${bookingCode}</strong> has been processed successfully.</p>
+				<p><strong>Processed by:</strong> ${actorName}</p>
+				<p><strong>Amount:</strong> $${Number(booking.totalAmount || 0).toLocaleString()}</p>
+				<p><strong>Processed at:</strong> ${refundedAt}</p>
+				${transferProof ? `<p><strong>Transfer proof:</strong> <a href="${transferProof}" target="_blank" rel="noopener noreferrer">View attachment</a></p>` : ''}
+				<p>Thank you for choosing us.</p>
+			`,
+		});
+	} catch (error) {
+		console.error('Refund notification email failed:', error);
+	}
+};
+
 export const createBooking = catchAsync(async (req, res, next) => {
 	const { hotelId, roomIds, checkIn, checkOut } = req.body;
 	const start = normalizeDate(checkIn);
@@ -60,7 +90,7 @@ export const createBooking = catchAsync(async (req, res, next) => {
 	// Check availability for each unique room category in the requested date range
 	for (const [roomId, count] of Object.entries(requestedRoomCounts)) {
 		const room = await RoomCategory.findById(roomId);
-		if (!room || room.status === 'unavailable') {
+		if (!room || room.status === 'unavailable' || room.isDeleted) {
 			return next(
 				new AppError(
 					HttpStatus.BAD_REQUEST,
@@ -155,10 +185,27 @@ export const createBooking = catchAsync(async (req, res, next) => {
 });
 
 export const getAllBookings = catchAsync(async (req, res, next) => {
+		const { status, minPrice, maxPrice, bookingPrice } = req.query;
         const query = {};
-        if (req.query.hotelId) {
+		if (req.query.hotelId && req.query.hotelId !== 'all') {
                 query.hotelId = req.query.hotelId;
         }
+
+		if (status && status !== 'all') {
+			query.status = status;
+		}
+
+		if (bookingPrice !== undefined && bookingPrice !== '') {
+			query.totalAmount = Number(bookingPrice);
+		} else if (minPrice !== undefined || maxPrice !== undefined) {
+			query.totalAmount = {};
+			if (minPrice !== undefined && minPrice !== '') {
+				query.totalAmount.$gte = Number(minPrice);
+			}
+			if (maxPrice !== undefined && maxPrice !== '') {
+				query.totalAmount.$lte = Number(maxPrice);
+			}
+		}
 
 		if (req.user && req.user.role === 'staff') {
 			query.hotelId = req.user.hotelId;
@@ -166,9 +213,20 @@ export const getAllBookings = catchAsync(async (req, res, next) => {
 
         const bookings = await Booking.find(query)
                 .populate('hotelId', 'name status')
-                .populate('userId', 'email fullName')
+                .populate('userId', 'email fullName phone')
                 .populate('roomIds', 'roomName')
                 .sort({ createdAt: -1 });
+
+		bookings.sort((a, b) => {
+			if (a.status === 'paid' && b.status !== 'paid') {
+				return -1;
+			}
+			if (a.status !== 'paid' && b.status === 'paid') {
+				return 1;
+			}
+
+			return new Date(b.createdAt) - new Date(a.createdAt);
+		});
 
 	res.status(HttpStatus.OK).json({
 		success: true,
@@ -326,6 +384,7 @@ export const getUserBookings = catchAsync(async (req, res, next) => {
 export const processRefund = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { reason, transfer_img, staffId } = req.body;
+	const actorId = req.user?._id || staffId;
 
 	const booking = await Booking.findById(id);
 
@@ -378,14 +437,14 @@ export const processRefund = catchAsync(async (req, res, next) => {
 		reason,
 		transfer_img,
 		refundedAt: new Date(),
-		refundedBy: staffId,
+		refundedBy: actorId,
 	};
 
 	await booking.save();
 
 	await Payment.findOneAndUpdate(
 		{ bookingId: booking._id },
-		{ status: 'refunded' }
+		{ status: 'cancel', isRefund: true }
 	);
 
 	// Create log
@@ -393,9 +452,15 @@ export const processRefund = catchAsync(async (req, res, next) => {
 		bookingId: id,
 		reason,
 		transfer_img,
-		staffId: staffId,
+		staffId: actorId,
 		amount: booking.totalAmount,
 	});
+
+	const actor = actorId ? await User.findById(actorId).select('fullName userName') : null;
+	await sendRefundNotificationEmail(
+		booking,
+		actor?.fullName || actor?.userName || 'our staff',
+	);
 
 	res.status(HttpStatus.OK).json({
 		success: true,
@@ -405,10 +470,27 @@ export const processRefund = catchAsync(async (req, res, next) => {
 });
 
 export const getRefundLogs = catchAsync(async (req, res, next) => {
-	const logs = await RefundLog.find()
+	const { hotelId, actorId, staffId } = req.query;
+	const query = {};
+	const performerId = actorId || staffId;
+
+	if (performerId && performerId !== 'all') {
+		query.staffId = performerId;
+	}
+
+	if (hotelId && hotelId !== 'all') {
+		const bookingIds = await Booking.find({ hotelId }).distinct('_id');
+		query.bookingId = { $in: bookingIds };
+	}
+
+	const logs = await RefundLog.find(query)
 		.populate({
 			path: 'bookingId',
-			populate: { path: 'hotelId', select: 'name' },
+			select: 'hotelId userId checkIn checkOut totalAmount email name',
+			populate: [
+				{ path: 'hotelId', select: 'name' },
+				{ path: 'userId', select: 'fullName email phone' },
+			],
 		})
 		.populate('staffId', 'fullName userName')
 		.sort({ createdAt: -1 });
@@ -420,7 +502,19 @@ export const getRefundLogs = catchAsync(async (req, res, next) => {
 });
 
 export const getHotelStatusLogs = catchAsync(async (req, res, next) => {
-	const logs = await HotelStatusLog.find()
+	const { hotelId, actorId, staffId } = req.query;
+	const query = {};
+	const performerId = actorId || staffId;
+
+	if (hotelId && hotelId !== 'all') {
+		query.hotelId = hotelId;
+	}
+
+	if (performerId && performerId !== 'all') {
+		query.staffId = performerId;
+	}
+
+	const logs = await HotelStatusLog.find(query)
 		.populate('hotelId', 'name')
 		.populate('staffId', 'fullName userName')
 		.sort({ createdAt: -1 });
@@ -432,10 +526,27 @@ export const getHotelStatusLogs = catchAsync(async (req, res, next) => {
 });
 
 export const getBookingStatusLogs = catchAsync(async (req, res, next) => {
-	const logs = await BookingStatusLog.find()
+	const { hotelId, actorId, staffId } = req.query;
+	const query = {};
+	const performerId = actorId || staffId;
+
+	if (performerId && performerId !== 'all') {
+		query.staffId = performerId;
+	}
+
+	if (hotelId && hotelId !== 'all') {
+		const bookingIds = await Booking.find({ hotelId }).distinct('_id');
+		query.bookingId = { $in: bookingIds };
+	}
+
+	const logs = await BookingStatusLog.find(query)
 		.populate({
 			path: 'bookingId',
-			populate: { path: 'hotelId', select: 'name' },
+			select: 'hotelId userId checkIn checkOut totalAmount email name',
+			populate: [
+				{ path: 'hotelId', select: 'name' },
+				{ path: 'userId', select: 'fullName email phone' },
+			],
 		})
 		.populate('staffId', 'fullName userName')
 		.sort({ createdAt: -1 });
@@ -512,11 +623,11 @@ export const requestCancelBooking = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
 	}
 
-	if (booking.status !== 'confirmed') {
+	if (!['paid', 'confirmed'].includes(booking.status)) {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Only confirmed bookings can be requested to cancel',
+				'Only paid or confirmed bookings can be requested for cancellation/refund',
 			),
 		);
 	}
@@ -549,7 +660,7 @@ export const requestCancelBooking = catchAsync(async (req, res, next) => {
 
 	res.status(HttpStatus.OK).json({
 		success: true,
-		message: 'Cancellation request submitted successfully',
+		message: 'Cancellation/refund request submitted successfully',
 		data: booking,
 	});
 });
@@ -600,7 +711,7 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 
 			await Payment.findOneAndUpdate(
 				{ bookingId: booking._id },
-				{ status: 'refunded' }
+				{ status: 'cancel', isRefund: true }
 			);
 
 			await RefundLog.create({
@@ -610,6 +721,11 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 				staffId: req.user._id,
 				amount: booking.totalAmount,
 			});
+
+			await sendRefundNotificationEmail(
+				booking,
+				req.user?.fullName || req.user?.userName || 'our staff',
+			);
 		}
 
 		booking.status = 'cancelled';

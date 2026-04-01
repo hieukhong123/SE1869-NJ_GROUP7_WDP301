@@ -48,7 +48,10 @@ const getPayments = catchAsync(async (req, res) => {
 		}
 	}
 
-	if (hotelId && hotelId !== 'all') {
+	if (req.user?.role === 'staff') {
+		const bookingIds = await Booking.find({ hotelId: req.user.hotelId }).distinct('_id');
+		paymentFilter.bookingId = { $in: bookingIds };
+	} else if (hotelId && hotelId !== 'all') {
 		const bookingIds = await Booking.find({ hotelId }).distinct('_id');
 		paymentFilter.bookingId = { $in: bookingIds };
 	}
@@ -70,6 +73,24 @@ const getPayments = catchAsync(async (req, res) => {
 // @route   GET /api/v1/payments/booking/:bookingId
 const getPaymentByBookingId = catchAsync(async (req, res) => {
 	const { bookingId } = req.params;
+	const booking = await Booking.findById(bookingId);
+
+	if (!booking) {
+		throw new AppError(HttpStatus.NOT_FOUND, 'Booking not found');
+	}
+
+	if (req.user?.role === 'staff') {
+		if (booking.hotelId?.toString() !== req.user.hotelId?.toString()) {
+			throw new AppError(HttpStatus.FORBIDDEN, 'Unauthorized');
+		}
+	}
+
+	if (req.user?.role === 'user') {
+		if (booking.userId?.toString() !== req.user._id?.toString()) {
+			throw new AppError(HttpStatus.FORBIDDEN, 'Unauthorized');
+		}
+	}
+
 	const payment = await Payment.findOne({ bookingId });
 
 	res.status(HttpStatus.OK).json({
@@ -117,9 +138,19 @@ const createVnpayPayment = catchAsync(async (req, res, next) => {
 		ipAddr = ipAddr.split('::ffff:')[1];
 	}
 
+	const payableAmountUsd = Number(booking.totalAmount ?? amount ?? 0);
+	if (!Number.isFinite(payableAmountUsd) || payableAmountUsd <= 0) {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Invalid booking amount for payment',
+			),
+		);
+	}
+
 	// Convert USD to VND (1 USD = 25,000 VND)
 	// VNPay library takes the VND amount directly as the unit
-	const vnpAmount = Math.round(amount * 25000);
+	const vnpAmount = Math.round(payableAmountUsd * 25000);
 
 	const paymentUrl = vnpay.buildPaymentUrl({
 		vnp_Amount: vnpAmount,

@@ -74,8 +74,33 @@ const getDashboardStats = catchAsync(async (req, res) => {
         0
     );
 
+    const nowDate = new Date();
+    let analysisYear = nowDate.getFullYear();
+    let analysisMonthIndex = nowDate.getMonth();
+
+    if (analysisMonth) {
+        const monthMatch = String(analysisMonth).match(/^(\d{4})-(\d{2})$/);
+        if (monthMatch) {
+            const parsedYear = Number(monthMatch[1]);
+            const parsedMonthIndex = Number(monthMatch[2]) - 1;
+
+            if (parsedMonthIndex >= 0 && parsedMonthIndex <= 11) {
+                analysisYear = parsedYear;
+                analysisMonthIndex = parsedMonthIndex;
+            }
+        }
+    }
+
+    const firstDayOfMonth = new Date(analysisYear, analysisMonthIndex, 1);
+    const firstDayOfNextMonth = new Date(analysisYear, analysisMonthIndex + 1, 1);
+
+    const bookingsByStatusFilter = {
+        ...bookingFilter,
+        bookAt: { $gte: firstDayOfMonth, $lt: firstDayOfNextMonth },
+    };
+
     const bookingsByStatus = await Booking.aggregate([
-        { $match: bookingFilter },
+        { $match: bookingsByStatusFilter },
         {
             $group: {
                 _id: '$status',
@@ -109,24 +134,6 @@ const getDashboardStats = catchAsync(async (req, res) => {
             return a._id.month - b._id.month;
         });
 
-    const nowDate = new Date();
-    let analysisYear = nowDate.getFullYear();
-    let analysisMonthIndex = nowDate.getMonth();
-
-    if (analysisMonth) {
-        const monthMatch = String(analysisMonth).match(/^(\d{4})-(\d{2})$/);
-        if (monthMatch) {
-            const parsedYear = Number(monthMatch[1]);
-            const parsedMonthIndex = Number(monthMatch[2]) - 1;
-
-            if (parsedMonthIndex >= 0 && parsedMonthIndex <= 11) {
-                analysisYear = parsedYear;
-                analysisMonthIndex = parsedMonthIndex;
-            }
-        }
-    }
-
-    const firstDayOfMonth = new Date(analysisYear, analysisMonthIndex, 1);
     const daysInMonth = new Date(analysisYear, analysisMonthIndex + 1, 0).getDate();
     const firstDayWeekday = firstDayOfMonth.getDay();
     const totalWeeks = Math.ceil((daysInMonth + firstDayWeekday) / 7);

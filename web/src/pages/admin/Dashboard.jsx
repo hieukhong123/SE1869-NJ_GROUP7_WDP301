@@ -332,7 +332,7 @@ const Dashboard = () => {
                   Booking Distribution
                 </h3>
                 <p className="text-[10px] uppercase tracking-widest text-gray-400 mt-1">
-                  Reservations by Current Status
+                  Reservations by Current Status in Selected Month
                 </p>
               </div>
             </div>

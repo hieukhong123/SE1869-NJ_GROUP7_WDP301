@@ -79,6 +79,12 @@ export const updateHotel = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Hotel not found'));
 	}
 
+	if (req.user?.role === 'staff') {
+		if (oldHotel._id.toString() !== req.user.hotelId?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
+	}
+
 	// Check status change logic
 	if (req.body.status && req.body.status !== oldHotel.status) {
 		if (req.body.status === 'inactive') {

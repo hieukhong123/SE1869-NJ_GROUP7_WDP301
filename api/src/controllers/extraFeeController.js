@@ -11,7 +11,9 @@ const getExtraFees = catchAsync(async (req, res) => {
 	const { hotelId, minPrice, maxPrice } = req.query;
 	const filter = { isDeleted: false };
 
-	if (hotelId && hotelId !== 'all') {
+	if (req.user?.role === 'staff') {
+		filter.hotelId = req.user.hotelId;
+	} else if (hotelId && hotelId !== 'all') {
 		filter.hotelId = hotelId;
 	}
 
@@ -32,6 +34,24 @@ const getExtraFees = catchAsync(async (req, res) => {
 	});
 });
 
+// @desc    Get public extra fees
+// @route   GET /api/v1/extra-fees/public
+// @access  Public
+const getPublicExtraFees = catchAsync(async (req, res) => {
+	const { hotelId } = req.query;
+	const filter = { isDeleted: false };
+
+	if (hotelId && hotelId !== 'all') {
+		filter.hotelId = hotelId;
+	}
+
+	const extraFees = await ExtraFee.find(filter).populate('hotelId', 'name');
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: extraFees,
+	});
+});
+
 // @desc    Get extra fee by ID
 // @route   GET /api/v1/extra-fees/:id
 // @access  Private/Admin
@@ -40,6 +60,14 @@ const getExtraFeeById = catchAsync(async (req, res, next) => {
 		_id: req.params.id,
 		isDeleted: false,
 	});
+
+	if (
+		extraFee &&
+		req.user?.role === 'staff' &&
+		extraFee.hotelId?.toString() !== req.user.hotelId?.toString()
+	) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
 
 	if (extraFee) {
 		res.status(HttpStatus.OK).json({
@@ -57,13 +85,27 @@ const getExtraFeeById = catchAsync(async (req, res, next) => {
 const createExtraFee = catchAsync(async (req, res, next) => {
 	const { hotelId, extraName, extraPrice } = req.body;
 	const parsedPrice = Number(extraPrice);
+	const effectiveHotelId =
+		req.user?.role === 'staff' ? req.user.hotelId : hotelId;
+
+	if (!effectiveHotelId) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'hotelId is required'));
+	}
+
+	if (
+		req.user?.role === 'staff' &&
+		hotelId &&
+		hotelId.toString() !== req.user.hotelId?.toString()
+	) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
 
 	if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
 		return next(new AppError(HttpStatus.BAD_REQUEST, 'Extra price is invalid'));
 	}
 
 	const extraFee = new ExtraFee({
-		hotelId,
+		hotelId: effectiveHotelId,
 		extraName,
 		extraPrice: parsedPrice,
 	});
@@ -88,6 +130,13 @@ const updateExtraFee = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Extra fee not found'));
 	}
 
+	if (
+		req.user?.role === 'staff' &&
+		extraFee.hotelId?.toString() !== req.user.hotelId?.toString()
+	) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
+
 	// Check for active bookings
 	const activeBookings = await Booking.exists({
 		extraIds: id,
@@ -103,7 +152,11 @@ const updateExtraFee = catchAsync(async (req, res, next) => {
 		);
 	}
 
-	extraFee.hotelId = hotelId || extraFee.hotelId;
+	if (req.user?.role === 'staff') {
+		extraFee.hotelId = req.user.hotelId;
+	} else {
+		extraFee.hotelId = hotelId || extraFee.hotelId;
+	}
 	extraFee.extraName = extraName || extraFee.extraName;
 	if (extraPrice !== undefined) {
 		const parsedPrice = Number(extraPrice);
@@ -133,6 +186,13 @@ const deleteExtraFee = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Extra fee not found'));
 	}
 
+	if (
+		req.user?.role === 'staff' &&
+		extraFee.hotelId?.toString() !== req.user.hotelId?.toString()
+	) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
+
 	// Check for active bookings
 	const activeBookings = await Booking.exists({
 		extraIds: id,
@@ -159,6 +219,7 @@ const deleteExtraFee = catchAsync(async (req, res, next) => {
 
 export {
 	getExtraFees,
+	getPublicExtraFees,
 	getExtraFeeById,
 	createExtraFee,
 	updateExtraFee,

@@ -16,6 +16,8 @@ import {
 } from '@phosphor-icons/react';
 
 const BookingList = () => {
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isStaff = currentUser?.role === 'staff';
   const [bookings, setBookings] = useState([]);
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -195,6 +197,11 @@ const BookingList = () => {
   };
 
   const handleRefundClick = (booking) => {
+    if (isStaff) {
+      toast.error('Staff are not allowed to process refunds.');
+      return;
+    }
+
     setSelectedBooking(booking);
     setShowRefundModal(true);
   };
@@ -223,6 +230,11 @@ const BookingList = () => {
   };
 
   const handleRefundSubmit = async () => {
+    if (isStaff) {
+      toast.error('Staff are not allowed to process refunds.');
+      return;
+    }
+
     if (!refundReason || !refundImg) {
       toast.error('Please provide a reason and upload a transfer image');
       return;
@@ -478,7 +490,8 @@ const BookingList = () => {
         const booking = row.original;
         const isPendingCancel =
           booking.cancellationRequest?.status === 'Pending';
-        const canRefund = ['paid', 'confirmed'].includes(booking.status);
+        const canRefund =
+          !isStaff && ['paid', 'confirmed'].includes(booking.status);
 
         return (
           <div className="flex items-center gap-2">
@@ -778,7 +791,7 @@ const BookingList = () => {
         <ConfirmModal
           isOpen={statusModal.isOpen}
           title="Update Booking Status"
-          message={`Change booking ${statusModal.booking?._id?.slice(0, 8)} status from ${capitalizeFirstLetter(statusModal.booking?.status || '')} to ${capitalizeFirstLetter(statusModal.newStatus || '')}?`}
+          message={`Change booking status from ${capitalizeFirstLetter(statusModal.booking?.status || '')} to ${capitalizeFirstLetter(statusModal.newStatus || '')}?`}
           confirmText="Confirm Status"
           onCancel={closeStatusModal}
           onConfirm={confirmStatusChange}

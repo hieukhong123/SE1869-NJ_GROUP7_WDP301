@@ -22,6 +22,31 @@ const BookingFormCard = ({
     onExtraToggle,
     onSubmit,
 }) => {
+
+    const parseLocalDateInput = (dateValue) => {
+        if (!dateValue) return null;
+        const [year, month, day] = dateValue.split('-').map(Number);
+        if (!year || !month || !day) return null;
+        return new Date(year, month - 1, day, 0, 0, 0, 0);
+    };
+
+    const getStayNights = () => {
+        const checkInDate = parseLocalDateInput(formData.checkIn);
+        const checkOutDate = parseLocalDateInput(formData.checkOut);
+
+        if (!checkInDate || !checkOutDate) {
+            return 1;
+        }
+
+        const diffMs = checkOutDate.getTime() - checkInDate.getTime();
+        if (diffMs <= 0) {
+            return 1;
+        }
+
+        return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    };
+
+    const stayNights = getStayNights();
     
     const getMinCheckoutDate = () => {
         if (!formData.checkIn) return "";
@@ -358,7 +383,9 @@ const BookingFormCard = ({
                             <span className="text-2xl md:text-3xl font-serif text-gray-900 tracking-wide" translate="no" key={totalAmount}>
                                 ${Number(totalAmount).toLocaleString()}
                             </span>
-                            <span className="text-[10px] text-gray-400 font-light mt-1">Taxes & fees included</span>
+                            <span className="text-[10px] text-gray-400 font-light mt-1">
+                                Estimated for {stayNights} night{stayNights > 1 ? 's' : ''} (extras charged once)
+                            </span>
                         </div>
                     </div>
                 </div>

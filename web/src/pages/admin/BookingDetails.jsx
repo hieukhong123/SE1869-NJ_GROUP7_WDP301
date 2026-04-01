@@ -22,6 +22,8 @@ import {
 const BookingDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const isStaff = currentUser?.role === 'staff';
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -141,6 +143,11 @@ const BookingDetails = () => {
 
     const handleAnswerCancellation = async (action) => {
         const requiresTransferProof = action === 'Accept' && ['paid', 'confirmed'].includes(booking?.status);
+
+        if (isStaff && requiresTransferProof) {
+            toast.error('Staff are not allowed to process refunds.');
+            return;
+        }
 
         if (requiresTransferProof && !refundTransferImg) {
             toast.error('Please upload transfer proof before approving this refund request.');
@@ -479,12 +486,14 @@ const BookingDetails = () => {
                                         >
                                             Decline
                                         </button>
-                                        <button 
-                                            onClick={() => setAcceptModalOpen(true)}
-                                            className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs uppercase tracking-widest py-3 rounded-sm transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            Approve
-                                        </button>
+                                        {!(isStaff && ['paid', 'confirmed'].includes(booking.status)) && (
+                                            <button 
+                                                onClick={() => setAcceptModalOpen(true)}
+                                                className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs uppercase tracking-widest py-3 rounded-sm transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                Approve
+                                            </button>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="pt-4 border-t border-gray-100 space-y-4">

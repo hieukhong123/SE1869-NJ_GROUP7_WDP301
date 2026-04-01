@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import axiosClient from '../../services/axiosClient';
 import { CaretLeft, CircleNotch, WarningCircle } from '@phosphor-icons/react';
 
 const Login = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [formData, setFormData] = useState({
         username: '',
         password: '',
@@ -14,6 +15,12 @@ const Login = () => {
     const [errors, setErrors] = useState({});
 
     useEffect(() => {
+        const expiredMessage = sessionStorage.getItem('authExpiredMessage');
+        if (expiredMessage) {
+            toast.warning(expiredMessage);
+            sessionStorage.removeItem('authExpiredMessage');
+        }
+
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             try {
@@ -81,7 +88,10 @@ const Login = () => {
             setFormData({ username: '', password: '' });
 
             setTimeout(() => {
-                if (response.data.role === 'admin' || response.data.role === 'staff') {
+                const redirectPath = new URLSearchParams(location.search).get('redirect');
+                if (redirectPath && redirectPath.startsWith('/')) {
+                    navigate(redirectPath);
+                } else if (response.data.role === 'admin' || response.data.role === 'staff') {
                     navigate('/admin/dashboard');
                 } else {
                     navigate('/');

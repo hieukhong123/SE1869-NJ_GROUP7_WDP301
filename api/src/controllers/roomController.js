@@ -13,9 +13,9 @@ const normalizeDate = (dateStr) => {
 	return d;
 };
 
-export const getRooms = catchAsync(async (req, res, next) => {
-	const { hotelId, checkIn, checkOut, status, minPrice, maxPrice } = req.query;
+const buildRoomFilter = ({ hotelId, status, minPrice, maxPrice }) => {
 	const filter = { isDeleted: false };
+
 	if (hotelId && hotelId !== 'all') {
 		filter.hotelId = hotelId;
 	}
@@ -34,12 +34,15 @@ export const getRooms = catchAsync(async (req, res, next) => {
 		}
 	}
 
+	return filter;
+};
+
+const loadRoomsWithAvailability = async ({ filter, checkIn, checkOut }) => {
 	const rooms = await RoomCategory.find(filter).populate(
 		'hotelId',
 		'name city photos status',
 	);
 
-	// If dates are provided, calculate actual availability
 	let roomsWithAvailability = rooms.map((room) => ({
 		...room.toObject(),
 		availableQuantity: room.quantity,
@@ -52,7 +55,6 @@ export const getRooms = catchAsync(async (req, res, next) => {
 		for (let i = 0; i < roomsWithAvailability.length; i++) {
 			const room = roomsWithAvailability[i];
 
-			// Find bookings that overlap with requested range for this specific room category
 			const overlappingBookings = await Booking.find({
 				roomIds: room._id,
 				status: { $nin: ['cancelled', 'expired', 'no_show', 'checked_out'] },
@@ -60,10 +62,8 @@ export const getRooms = catchAsync(async (req, res, next) => {
 				checkOut: { $gt: start },
 			});
 
-			// Count how many of this room type are booked in each overlapping booking
 			let bookedCount = 0;
 			overlappingBookings.forEach((booking) => {
-				// Ignore pending bookings that have expired but haven't been updated yet
 				if (
 					booking.status === 'pending' &&
 					booking.expiresAt &&
@@ -77,7 +77,6 @@ export const getRooms = catchAsync(async (req, res, next) => {
 				bookedCount += countInBooking;
 			});
 
-			// Also count rooms held by active (unexpired) reservations
 			const activeReservations = await RoomReservation.find({
 				roomIds: room._id,
 				checkIn: { $lt: end },
@@ -98,10 +97,67 @@ export const getRooms = catchAsync(async (req, res, next) => {
 		}
 	}
 
+	return roomsWithAvailability;
+};
+
+export const getRooms = catchAsync(async (req, res, next) => {
+	const { hotelId, checkIn, checkOut, status, minPrice, maxPrice } = req.query;
+	const filter = buildRoomFilter({ hotelId, status, minPrice, maxPrice });
+	const roomsWithAvailability = await loadRoomsWithAvailability({
+		filter,
+		checkIn,
+		checkOut,
+	});
+
 	res.status(HttpStatus.OK).json({
 		success: true,
 		count: roomsWithAvailability.length,
 		data: roomsWithAvailability,
+	});
+});
+
+export const getAdminRooms = catchAsync(async (req, res, next) => {
+	const { hotelId, checkIn, checkOut, status, minPrice, maxPrice } = req.query;
+	const scopedHotelId =
+		req.user?.role === 'staff' ? req.user.hotelId?.toString() : hotelId;
+
+	const filter = buildRoomFilter({
+		hotelId: scopedHotelId,
+		status,
+		minPrice,
+		maxPrice,
+	});
+	const roomsWithAvailability = await loadRoomsWithAvailability({
+		filter,
+		checkIn,
+		checkOut,
+	});
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		count: roomsWithAvailability.length,
+		data: roomsWithAvailability,
+	});
+});
+
+export const getAdminRoomById = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const room = await RoomCategory.findOne({ _id: id, isDeleted: false });
+
+	if (!room) {
+		return next(new AppError(HttpStatus.NOT_FOUND, 'Room not found'));
+	}
+
+	if (
+		req.user?.role === 'staff' &&
+		room.hotelId?.toString() !== req.user.hotelId?.toString()
+	) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: room,
 	});
 });
 
@@ -130,6 +186,21 @@ export const createRoom = catchAsync(async (req, res, next) => {
 		photo,
 	} = req.body;
 
+	const targetHotelId =
+		req.user?.role === 'staff' ? req.user.hotelId : hotelId;
+
+	if (!targetHotelId) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Hotel is required'));
+	}
+
+	if (
+		req.user?.role === 'staff' &&
+		hotelId &&
+		hotelId.toString() !== req.user.hotelId?.toString()
+	) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
+
 	if (roomPrice <= 0) {
 		return next(
 			new AppError(
@@ -148,7 +219,7 @@ export const createRoom = catchAsync(async (req, res, next) => {
 		);
 	}
 
-	const hotel = await Hotel.findById(hotelId);
+	const hotel = await Hotel.findById(targetHotelId);
 	if (!hotel) {
 		return next(
 			new AppError(HttpStatus.NOT_FOUND, 'Selected hotel not found.'),
@@ -157,7 +228,7 @@ export const createRoom = catchAsync(async (req, res, next) => {
 
 	const existingRoom = await RoomCategory.findOne({
 		roomName,
-		hotelId,
+		hotelId: targetHotelId,
 		isDeleted: false,
 	});
 	if (existingRoom) {
@@ -174,7 +245,7 @@ export const createRoom = catchAsync(async (req, res, next) => {
 		roomPrice,
 		maxOccupancy,
 		quantity,
-		hotelId,
+		hotelId: targetHotelId,
 		description,
 		photo,
 		status: quantity > 0 ? 'available' : 'unavailable',
@@ -196,6 +267,21 @@ export const updateRoom = catchAsync(async (req, res, next) => {
 	const currentRoom = await RoomCategory.findOne({ _id: id, isDeleted: false });
 	if (!currentRoom) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Room not found'));
+	}
+
+	if (
+		req.user?.role === 'staff' &&
+		currentRoom.hotelId?.toString() !== req.user.hotelId?.toString()
+	) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
+
+	if (
+		req.user?.role === 'staff' &&
+		updates.hotelId &&
+		updates.hotelId.toString() !== req.user.hotelId?.toString()
+	) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
 	}
 
 	if (updates.roomPrice !== undefined && updates.roomPrice <= 0) {
@@ -255,6 +341,21 @@ export const updateRoom = catchAsync(async (req, res, next) => {
 export const deleteRoom = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 
+	const room = await RoomCategory.findOne({ _id: id, isDeleted: false });
+
+	if (!room) {
+		return next(
+			new AppError(HttpStatus.NOT_FOUND, 'Room not found with that ID'),
+		);
+	}
+
+	if (
+		req.user?.role === 'staff' &&
+		room.hotelId?.toString() !== req.user.hotelId?.toString()
+	) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
+
 	// Check for active bookings
 	const activeBookings = await Booking.exists({
 		roomIds: id,
@@ -267,14 +368,6 @@ export const deleteRoom = catchAsync(async (req, res, next) => {
 				HttpStatus.BAD_REQUEST,
 				'Cannot delete a room category that has active bookings (paid, confirmed, or checked-in).',
 			),
-		);
-	}
-
-	const room = await RoomCategory.findOne({ _id: id, isDeleted: false });
-
-	if (!room) {
-		return next(
-			new AppError(HttpStatus.NOT_FOUND, 'Room not found with that ID'),
 		);
 	}
 
@@ -295,6 +388,13 @@ export const toggleRoomStatus = catchAsync(async (req, res, next) => {
 	const room = await RoomCategory.findOne({ _id: id, isDeleted: false });
 	if (!room) {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Room not found'));
+	}
+
+	if (
+		req.user?.role === 'staff' &&
+		room.hotelId?.toString() !== req.user.hotelId?.toString()
+	) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
 	}
 
 	// Only check if transitioning to unavailable

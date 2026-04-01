@@ -3,6 +3,8 @@ import {
 	createRoom,
 	getRoom,
 	getRooms,
+	getAdminRooms,
+	getAdminRoomById,
 	updateRoom,
 	toggleRoomStatus,
 	deleteRoom,
@@ -13,6 +15,15 @@ const router = express.Router();
 
 // Public routes
 router.route('/').get(getRooms);
+
+// Protected read routes for admin/staff
+router
+	.route('/admin')
+	.get(protect, authorize('admin', 'staff'), getAdminRooms);
+router
+	.route('/admin/:id')
+	.get(protect, authorize('admin', 'staff'), getAdminRoomById);
+
 router.route('/:id').get(getRoom);
 
 // Protected routes

@@ -29,18 +29,45 @@ ChartJS.register(
 );
 
 const Dashboard = () => {
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isStaff = user?.role === 'staff';
+
   const [stats, setStats] = useState(null);
+  const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hotelStatus, setHotelStatus] = useState('all');
+  const [hotelId, setHotelId] = useState('all');
+  const [analysisMonth, setAnalysisMonth] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  useEffect(() => {
+    const fetchHotels = async () => {
+      try {
+        const response = await axiosClient.get('/hotels/admin-all');
+        setHotels(response.data || []);
+      } catch (err) {
+        setHotels([]);
+      }
+    };
+
+    fetchHotels();
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const response = await axiosClient.get(
-          `/dashboard?hotelStatus=${hotelStatus}`,
-        );
+        const params = { hotelStatus };
+        if (hotelId !== 'all') {
+          params.hotelId = hotelId;
+        }
+        params.analysisMonth = analysisMonth;
+
+        const response = await axiosClient.get('/dashboard', { params });
         setStats(response.data);
       } catch (err) {
         setError(err);
@@ -49,7 +76,7 @@ const Dashboard = () => {
       }
     };
     fetchStats();
-  }, [hotelStatus]);
+  }, [hotelStatus, hotelId, analysisMonth]);
 
   if (loading)
     return (
@@ -111,13 +138,11 @@ const Dashboard = () => {
   };
 
   const monthlyRevenueData = {
-    labels: stats.monthlyRevenue.map(
-      (item) => `${item._id.month}/${item._id.year}`,
-    ),
+    labels: (stats.weeklyRevenue || []).map((item) => item.label),
     datasets: [
       {
         label: 'Revenue (USD)',
-        data: stats.monthlyRevenue.map((item) => item.revenue),
+        data: (stats.weeklyRevenue || []).map((item) => item.revenue),
         backgroundColor: '#9a3412',
         borderRadius: 2,
         barPercentage: 0.6,
@@ -157,20 +182,41 @@ const Dashboard = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-medium">
-              Filter Property Status:
-            </label>
-            <select
-              value={hotelStatus}
-              onChange={(e) => setHotelStatus(e.target.value)}
-              className="bg-white border border-gray-200 text-gray-900 text-[10px] uppercase tracking-widest py-2 pl-3 pr-8 rounded-sm cursor-pointer focus:ring-0 focus:border-gray-900 transition-colors"
-            >
-              <option value="all">All Properties</option>
-              <option value="active">Active Only</option>
-              <option value="suspended">Suspended Only</option>
-              <option value="inactive">Inactive Only</option>
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full sm:w-auto">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                Property
+              </label>
+              <select
+                value={hotelId}
+                onChange={(e) => setHotelId(e.target.value)}
+                disabled={isStaff}
+                className="w-full bg-white border border-gray-200 text-gray-900 text-[10px] uppercase tracking-widest py-2 pl-3 pr-8 rounded-sm cursor-pointer focus:ring-0 focus:border-gray-900 transition-colors disabled:opacity-60"
+              >
+                <option value="all">All Properties</option>
+                {hotels.map((hotel) => (
+                  <option key={hotel._id} value={hotel._id}>
+                    {hotel.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                Property Status
+              </label>
+              <select
+                value={hotelStatus}
+                onChange={(e) => setHotelStatus(e.target.value)}
+                className="w-full bg-white border border-gray-200 text-gray-900 text-[10px] uppercase tracking-widest py-2 pl-3 pr-8 rounded-sm cursor-pointer focus:ring-0 focus:border-gray-900 transition-colors"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active Only</option>
+                <option value="suspended">Suspended Only</option>
+                <option value="inactive">Inactive Only</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -258,8 +304,19 @@ const Dashboard = () => {
                   Revenue Growth
                 </h3>
                 <p className="text-[10px] uppercase tracking-widest text-gray-400 mt-1">
-                  Monthly Financial Analysis
+                  Weekly Revenue in Selected Month
                 </p>
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2 text-right">
+                  Analysis Month
+                </label>
+                <input
+                  type="month"
+                  value={analysisMonth}
+                  onChange={(e) => setAnalysisMonth(e.target.value)}
+                  className="bg-white border border-gray-200 text-gray-900 text-xs py-2 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+                />
               </div>
             </div>
             <div className="h-72 w-full">

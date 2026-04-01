@@ -14,7 +14,7 @@ import {
 // @route   GET /api/dashboard
 // @access  Private/Admin & Staff
 const getDashboardStats = catchAsync(async (req, res) => {
-    const { hotelId, hotelStatus } = req.query;
+    const { hotelId, hotelStatus, analysisMonth } = req.query;
 
     let hotelFilter = {};
 
@@ -109,6 +109,70 @@ const getDashboardStats = catchAsync(async (req, res) => {
             return a._id.month - b._id.month;
         });
 
+    const nowDate = new Date();
+    let analysisYear = nowDate.getFullYear();
+    let analysisMonthIndex = nowDate.getMonth();
+
+    if (analysisMonth) {
+        const monthMatch = String(analysisMonth).match(/^(\d{4})-(\d{2})$/);
+        if (monthMatch) {
+            const parsedYear = Number(monthMatch[1]);
+            const parsedMonthIndex = Number(monthMatch[2]) - 1;
+
+            if (parsedMonthIndex >= 0 && parsedMonthIndex <= 11) {
+                analysisYear = parsedYear;
+                analysisMonthIndex = parsedMonthIndex;
+            }
+        }
+    }
+
+    const firstDayOfMonth = new Date(analysisYear, analysisMonthIndex, 1);
+    const daysInMonth = new Date(analysisYear, analysisMonthIndex + 1, 0).getDate();
+    const firstDayWeekday = firstDayOfMonth.getDay();
+    const totalWeeks = Math.ceil((daysInMonth + firstDayWeekday) / 7);
+
+    const weeklyBuckets = Array.from({ length: totalWeeks }, (_, index) => ({
+        week: index + 1,
+        revenue: 0,
+    }));
+
+    confirmedPayments.forEach((payment) => {
+        const paymentDate = new Date(payment.paymentDate);
+        if (
+            paymentDate.getFullYear() !== analysisYear ||
+            paymentDate.getMonth() !== analysisMonthIndex
+        ) {
+            return;
+        }
+
+        const weekOfMonth = Math.ceil(
+            (paymentDate.getDate() + firstDayWeekday) / 7
+        );
+
+        const bucket = weeklyBuckets[weekOfMonth - 1];
+        if (bucket) {
+            bucket.revenue += payment.amount;
+        }
+    });
+
+    const weeklyRevenue = weeklyBuckets.map((bucket) => {
+        const calendarStartDay = (bucket.week - 1) * 7 - firstDayWeekday + 1;
+        const calendarEndDay = calendarStartDay + 6;
+        const startDay = Math.max(1, calendarStartDay);
+        const endDay = Math.min(daysInMonth, calendarEndDay);
+
+        return {
+            week: bucket.week,
+            startDay,
+            endDay,
+            label:
+                startDay === endDay
+                    ? `Week ${bucket.week} (${startDay})`
+                    : `Week ${bucket.week} (${startDay}-${endDay})`,
+            revenue: bucket.revenue,
+        };
+    });
+
     res.status(HttpStatus.OK).json({
         success: true,
         data: {
@@ -118,6 +182,8 @@ const getDashboardStats = catchAsync(async (req, res) => {
             totalRevenue,
             bookingsByStatus,
             monthlyRevenue,
+            weeklyRevenue,
+            analysisMonth: `${analysisYear}-${String(analysisMonthIndex + 1).padStart(2, '0')}`,
         },
     });
 });

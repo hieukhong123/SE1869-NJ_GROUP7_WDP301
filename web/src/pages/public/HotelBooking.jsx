@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axiosClient from "../../services/axiosClient";
 import { toast } from "sonner";
 import { 
@@ -66,6 +66,8 @@ const HotelBooking = () => {
     const [reservation, setReservation] = useState(null);
     const [countdown, setCountdown] = useState(null);
     const [reserving, setReserving] = useState(false);
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [termsError, setTermsError] = useState("");
 
     // Derived requirements
     const currentTotalGuests = formData.adult + formData.children + formData.baby;
@@ -215,6 +217,8 @@ const HotelBooking = () => {
             setShowRoomRequirementModal(true);
             return;
         }
+        setAgreedToTerms(false);
+        setTermsError("");
         setShowConfirmModal(true);
     };
 
@@ -246,6 +250,13 @@ const HotelBooking = () => {
     };
 
     const handleProceedToPayment = async () => {
+        if (!agreedToTerms) {
+            setTermsError("Please accept the Terms & Conditions to continue payment.");
+            toast.error("Please accept the Terms & Conditions before payment.");
+            return;
+        }
+
+        setTermsError("");
         setSubmitting(true);
         try {
             const roomIds = [];
@@ -286,6 +297,8 @@ const HotelBooking = () => {
         }
         setReservation(null);
         setCountdown(null);
+        setAgreedToTerms(false);
+        setTermsError("");
         setShowConfirmModal(false);
     };
 
@@ -675,6 +688,37 @@ const HotelBooking = () => {
                                     </div>
                                 </div>
 
+                                <div className="mb-6 border border-gray-200 rounded-sm p-4 bg-white">
+                                    <label className="flex items-start gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="checkbox checkbox-sm mt-0.5"
+                                            checked={agreedToTerms}
+                                            onChange={(e) => {
+                                                setAgreedToTerms(e.target.checked);
+                                                if (e.target.checked) {
+                                                    setTermsError("");
+                                                }
+                                            }}
+                                        />
+                                        <span className="text-xs font-light text-gray-600 leading-relaxed">
+                                            I have read and agree to the{' '}
+                                            <Link
+                                                to="/terms"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="font-medium text-orange-800 underline hover:no-underline"
+                                            >
+                                                Terms & Conditions
+                                            </Link>
+                                            .
+                                        </span>
+                                    </label>
+                                    {termsError && (
+                                        <p className="text-[11px] text-red-500 mt-2 ml-7">{termsError}</p>
+                                    )}
+                                </div>
+
                                 <div className="flex gap-3 justify-end">
                                     <button
                                         type="button"
@@ -686,7 +730,7 @@ const HotelBooking = () => {
                                     <button
                                         type="button"
                                         onClick={handleProceedToPayment}
-                                        disabled={submitting}
+                                        disabled={submitting || !agreedToTerms}
                                         className="px-5 py-2 bg-gray-900 text-white text-xs uppercase tracking-widest hover:bg-gray-700 transition-colors rounded-sm disabled:opacity-50"
                                     >
                                         {submitting ? 'Processing...' : 'Proceed to Payment →'}

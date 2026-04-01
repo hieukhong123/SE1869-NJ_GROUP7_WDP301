@@ -36,6 +36,7 @@ import Login from './pages/public/Login';
 import VerifyEmail from './pages/public/VerifyEmail';
 import ForgotPassword from './pages/public/ForgotPassword';
 import ResetPassword from './pages/public/ResetPassword';
+import TermsAndConditions from './pages/public/TermsAndConditions';
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
           <Route path="location" element={<Location />} />
           <Route path="hotels/:id/book" element={<HotelBooking />} />
           <Route path="hotels" element={<RoomCatalog />} />
+          <Route path="terms" element={<TermsAndConditions />} />
           <Route path="contact" element={<Contact />} />
           <Route path="about" element={<AboutUs />} />
           <Route path="my-favorites" element={<MyFavorites />} />
@@ -56,6 +58,8 @@ function App() {
           <Route path="my-bookings" element={<MyBookings />} />
           <Route path="my-bookings/:id" element={<GuestBookingDetails />} />
         </Route>
+
+        <Route path="/terms-and-conditions" element={<Navigate to="/terms" replace />} />
 
         {/* Auth Routes (without layout) */}
         <Route path="/register" element={<Register />} />

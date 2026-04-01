@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import axiosClient from '../../services/axiosClient';
 import { capitalizeFirstLetter } from '../../utils/helpers';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import RefundSuccessPreviewModal from '../../components/common/RefundSuccessPreviewModal';
 import { 
     CaretLeft, 
     CircleNotch, 
@@ -35,6 +36,11 @@ const BookingDetails = () => {
     const [processingAdminAction, setProcessingAdminAction] = useState(false);
     const [refundTransferImg, setRefundTransferImg] = useState('');
     const [uploadingRefundProof, setUploadingRefundProof] = useState(false);
+    const [showRefundPreview, setShowRefundPreview] = useState(false);
+    const [refundPreviewMeta, setRefundPreviewMeta] = useState({
+        referenceNo: '',
+        timestamp: '',
+    });
     const [processingStatusAction, setProcessingStatusAction] = useState(false);
     const [statusModal, setStatusModal] = useState({
         isOpen: false,
@@ -171,6 +177,7 @@ const BookingDetails = () => {
             setRejectModalOpen(false);
             setRejectReason('');
             setRefundTransferImg('');
+            setShowRefundPreview(false);
             fetchBooking();
         } catch (err) {
             toast.error(err.response?.data?.message || `Failed to process cancellation request`);
@@ -206,6 +213,22 @@ const BookingDetails = () => {
             setUploadingRefundProof(false);
             event.target.value = '';
         }
+    };
+
+    const openRefundPreview = () => {
+        if (!booking) {
+            return;
+        }
+
+        const now = new Date();
+        const refTail = String(booking._id || '').slice(-6).toUpperCase();
+        const randomTail = String(now.getTime()).slice(-6);
+
+        setRefundPreviewMeta({
+            referenceNo: `RF-${refTail}-${randomTail}`,
+            timestamp: now.toLocaleString('en-GB', { hour12: false }),
+        });
+        setShowRefundPreview(true);
     };
 
     if (loading && !booking) {
@@ -547,6 +570,13 @@ const BookingDetails = () => {
                                 <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">
                                     Transfer Proof *
                                 </label>
+                                <button
+                                    type="button"
+                                    onClick={openRefundPreview}
+                                    className="mb-3 px-4 py-2 border border-green-200 bg-green-50 text-green-700 text-[10px] uppercase tracking-widest hover:bg-green-100 transition-colors rounded-sm"
+                                >
+                                    Open Refund Success Screen
+                                </button>
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -586,6 +616,7 @@ const BookingDetails = () => {
                                 onClick={() => {
                                     setAcceptModalOpen(false);
                                     setRefundTransferImg('');
+                                    setShowRefundPreview(false);
                                 }}
                                 className="px-6 py-3 border border-gray-300 text-gray-700 text-xs uppercase tracking-widest hover:border-gray-900 transition-colors rounded-sm w-full"
                             >
@@ -656,6 +687,13 @@ const BookingDetails = () => {
                 onConfirm={handleConfirmStatusChange}
                 loading={processingStatusAction}
                 variant={statusModal.variant}
+            />
+
+            <RefundSuccessPreviewModal
+                isOpen={showRefundPreview}
+                onClose={() => setShowRefundPreview(false)}
+                booking={booking}
+                previewMeta={refundPreviewMeta}
             />
 
         </div>

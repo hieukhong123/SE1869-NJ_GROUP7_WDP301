@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import {
   CircleNotchIcon,
+  CheckCircleIcon,
   EyeIcon,
   ReceiptIcon,
   CaretDownIcon,
@@ -46,6 +47,57 @@ const BookingList = () => {
   const [refundReason, setRefundReason] = useState('');
   const [refundImg, setRefundImg] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [refundStep, setRefundStep] = useState(1);
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+  const [refundConfirmModal, setRefundConfirmModal] = useState({
+    isOpen: false,
+    booking: null,
+  });
+  const [refundPreviewMeta, setRefundPreviewMeta] = useState({
+    referenceNo: '',
+    timestamp: '',
+  });
+
+  const resetRefundModal = () => {
+    setShowRefundModal(false);
+    setSelectedBooking(null);
+    setRefundReason('');
+    setRefundImg('');
+    setRefundStep(1);
+    setIsSubmittingRefund(false);
+    setRefundPreviewMeta({ referenceNo: '', timestamp: '' });
+  };
+
+  const closeRefundConfirmModal = () => {
+    setRefundConfirmModal({
+      isOpen: false,
+      booking: null,
+    });
+  };
+
+  const buildRefundPreviewMeta = (booking) => {
+    const now = new Date();
+    const refTail = String(booking?._id || '').slice(-6).toUpperCase();
+    const randomTail = String(now.getTime()).slice(-6);
+
+    return {
+      referenceNo: `RF-${refTail}-${randomTail}`,
+      timestamp: now.toLocaleString('en-GB', { hour12: false }),
+    };
+  };
+
+  const startRefundProcess = (booking) => {
+    if (!booking) {
+      return;
+    }
+
+    setSelectedBooking(booking);
+    setRefundReason('');
+    setRefundImg('');
+    setRefundStep(1);
+    setRefundPreviewMeta(buildRefundPreviewMeta(booking));
+    setShowRefundModal(true);
+  };
 
   const fetchBookings = async (activeFilters = filters) => {
     try {
@@ -202,8 +254,15 @@ const BookingList = () => {
       return;
     }
 
-    setSelectedBooking(booking);
-    setShowRefundModal(true);
+    setRefundConfirmModal({
+      isOpen: true,
+      booking,
+    });
+  };
+
+  const confirmRefundFlow = () => {
+    startRefundProcess(refundConfirmModal.booking);
+    closeRefundConfirmModal();
   };
 
   const handleImageUpload = async (e) => {
@@ -241,22 +300,22 @@ const BookingList = () => {
     }
 
     try {
+      setIsSubmittingRefund(true);
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       await axiosClient.post(`/bookings/${selectedBooking._id}/refund`, {
         reason: refundReason,
         transfer_img: refundImg,
         staffId: user._id,
       });
-      toast.success('Refund processed successfully');
-      setShowRefundModal(false);
-      setRefundReason('');
-      setRefundImg('');
-      fetchBookings();
+      await fetchBookings();
+      setRefundStep(3);
     } catch (err) {
       toast.error(
         'Failed to process refund: ' +
           (err.response?.data?.message || err.message),
       );
+    } finally {
+      setIsSubmittingRefund(false);
     }
   };
 
@@ -720,73 +779,167 @@ const BookingList = () => {
                 Process Refund
               </h2>
 
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
-                    Refund Reason
-                  </label>
-                  <textarea
-                    className="w-full border border-gray-200 p-3 text-sm focus:ring-0 focus:border-gray-900 rounded-sm min-h-25"
-                    placeholder="Explain why this booking is being refunded..."
-                    value={refundReason}
-                    onChange={(e) => setRefundReason(e.target.value)}
-                  />
-                </div>
+              <div className="flex items-center gap-3 mb-8">
+                {[1, 2, 3].map((step) => (
+                  <div key={step} className="flex items-center gap-2">
+                    <div
+                      className={`w-7 h-7 rounded-full text-[10px] font-medium flex items-center justify-center border ${
+                        refundStep >= step
+                          ? 'bg-gray-900 text-white border-gray-900'
+                          : 'bg-white text-gray-400 border-gray-300'
+                      }`}
+                    >
+                      {step}
+                    </div>
+                    {step < 3 && <div className="w-8 h-px bg-gray-300" />}
+                  </div>
+                ))}
+              </div>
 
+              {refundStep === 1 && selectedBooking && (
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
-                    Transfer Image (Screenshot)
-                  </label>
-                  <div className="flex flex-col gap-4">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
-                    />
-                    {uploading && (
-                      <div className="text-xs text-orange-600 flex items-center gap-2">
-                        <CircleNotchIcon className="animate-spin" />{' '}
-                        Uploading...
-                      </div>
-                    )}
-                    {refundImg && (
-                      <div className="relative w-40 h-40 border border-gray-200 p-1">
-                        <img
-                          src={refundImg}
-                          alt="Refund proof"
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          onClick={() => setRefundImg('')}
-                          className="absolute -top-2 -right-2 bg-white rounded-full shadow-md text-red-500"
-                        >
-                          <XCircleIcon size={20} weight="fill" />
-                        </button>
-                      </div>
-                    )}
+                  <div className="flex flex-col items-center text-center">
+                    <CheckCircleIcon size={54} weight="fill" className="text-green-600" />
+                    <h3 className="mt-4 text-xl font-serif text-gray-900">Payment Result</h3>
+                    <p className="mt-1 text-[10px] uppercase tracking-widest text-gray-500">
+                      Reference {refundPreviewMeta.referenceNo}
+                    </p>
+                  </div>
+
+                  <div className="mt-6 border border-gray-200 rounded-sm p-4 grid grid-cols-2 gap-y-3 text-sm">
+                    <span className="text-gray-500">Amount</span>
+                    <span className="text-right font-semibold text-green-700">
+                      ${Number(selectedBooking.totalAmount || 0).toLocaleString()}
+                    </span>
+                    <span className="text-gray-500">Booking Ref</span>
+                    <span className="text-right text-gray-900">
+                      {String(selectedBooking._id).slice(-8).toUpperCase()}
+                    </span>
+                    <span className="text-gray-500">Transfer Time</span>
+                    <span className="text-right text-gray-900">{refundPreviewMeta.timestamp}</span>
+                    <span className="text-gray-500">Status</span>
+                    <span className="text-right text-green-700 uppercase tracking-wide font-medium">Success</span>
+                  </div>
+
+                  <p className="mt-4 text-xs text-gray-500">
+                    Capture this screen as your transfer confirmation, then continue to upload proof.
+                  </p>
+
+                  <div className="flex gap-4 mt-8">
+                    <button
+                      onClick={resetRefundModal}
+                      className="flex-1 px-6 py-3 border border-gray-200 text-gray-600 text-xs tracking-widest uppercase hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => setRefundStep(2)}
+                      className="flex-1 px-6 py-3 bg-gray-900 text-white text-xs tracking-widest uppercase hover:bg-black transition-colors"
+                    >
+                      Next: Upload Proof
+                    </button>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className="flex gap-4 mt-10">
-                <button
-                  onClick={() => setShowRefundModal(false)}
-                  className="flex-1 px-6 py-3 border border-gray-200 text-gray-600 text-xs tracking-widest uppercase hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleRefundSubmit}
-                  disabled={uploading}
-                  className="flex-1 px-6 py-3 bg-gray-900 text-white text-xs tracking-widest uppercase hover:bg-black transition-colors disabled:opacity-50"
-                >
-                  Submit Refund
-                </button>
-              </div>
+              {refundStep === 2 && (
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                      Refund Reason
+                    </label>
+                    <textarea
+                      className="w-full border border-gray-200 p-3 text-sm focus:ring-0 focus:border-gray-900 rounded-sm min-h-25"
+                      placeholder="Explain why this booking is being refunded..."
+                      value={refundReason}
+                      onChange={(e) => setRefundReason(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                      Transfer Image (Screenshot)
+                    </label>
+                    <div className="flex flex-col gap-4">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                      />
+                      {uploading && (
+                        <div className="text-xs text-orange-600 flex items-center gap-2">
+                          <CircleNotchIcon className="animate-spin" /> Uploading...
+                        </div>
+                      )}
+                      {refundImg && (
+                        <div className="relative w-40 h-40 border border-gray-200 p-1">
+                          <img
+                            src={refundImg}
+                            alt="Refund proof"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            onClick={() => setRefundImg('')}
+                            className="absolute -top-2 -right-2 bg-white rounded-full shadow-md text-red-500"
+                          >
+                            <XCircleIcon size={20} weight="fill" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 mt-10">
+                    <button
+                      onClick={() => setRefundStep(1)}
+                      className="flex-1 px-6 py-3 border border-gray-200 text-gray-600 text-xs tracking-widest uppercase hover:bg-gray-50 transition-colors"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handleRefundSubmit}
+                      disabled={uploading || isSubmittingRefund}
+                      className="flex-1 px-6 py-3 bg-gray-900 text-white text-xs tracking-widest uppercase hover:bg-black transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isSubmittingRefund ? <CircleNotchIcon className="animate-spin" /> : null}
+                      Submit Refund
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {refundStep === 3 && (
+                <div>
+                  <div className="flex flex-col items-center text-center py-4">
+                    <CheckCircleIcon size={58} weight="fill" className="text-green-600" />
+                    <h3 className="mt-4 text-2xl font-serif text-gray-900">Refund Completed</h3>
+                    <p className="mt-2 text-sm text-gray-500">
+                      Refund has been recorded successfully and proof image was attached.
+                    </p>
+                    <button
+                      onClick={resetRefundModal}
+                      className="mt-8 px-8 py-3 bg-gray-900 text-white text-xs tracking-widest uppercase hover:bg-black transition-colors"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={refundConfirmModal.isOpen}
+          title="Confirm Refund"
+          message={`Proceed refund for this booking?`}
+          confirmText="Start Refund"
+          cancelText="Cancel"
+          onCancel={closeRefundConfirmModal}
+          onConfirm={confirmRefundFlow}
+          variant="warning"
+        />
 
         <ConfirmModal
           isOpen={statusModal.isOpen}

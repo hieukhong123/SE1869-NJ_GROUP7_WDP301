@@ -12,6 +12,7 @@ import AppError from '../utils/AppError.js';
 import sendEmail from '../utils/sendEmail.js';
 import User from '../models/User.js';
 import Payment from '../models/Payment.js';
+import { getCheckInStartTime } from '../utils/bookingTiming.js';
 
 // Helper to normalize date to start of day (midnight) in local time
 const normalizeDate = (dateStr) => {
@@ -422,6 +423,27 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 		return next(
 			new AppError(HttpStatus.BAD_REQUEST, 'Invalid status transition'),
 		);
+	}
+
+	if (oldStatus === 'confirmed' && status === 'checked_in') {
+		if (!booking.checkIn) {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Cannot check in because booking check-in date is missing',
+				),
+			);
+		}
+
+		const checkInStartTime = getCheckInStartTime(booking.checkIn);
+		if (new Date() < checkInStartTime) {
+			return next(
+				new AppError(
+					HttpStatus.BAD_REQUEST,
+					'Cannot check in before the booking check-in time (14:00 on check-in date)',
+				),
+			);
+		}
 	}
 
 	booking.status = status;

@@ -86,7 +86,7 @@ const TermsAndConditions = () => {
             <strong className="font-medium text-gray-900">15-Minute Payment Window:</strong> Once a reservation is initiated, the selected rooms are temporarily held for 15 minutes. If payment is not completed within this timeframe, the reservation will automatically expire (Status: Expired) and the rooms will be released.
           </p>
           <p>
-            <strong className="font-medium text-gray-900">Accepted Methods:</strong> We accept major credit cards, debit cards, and secure online payment gateways (e.g., VNPay). All transactions are encrypted and processed securely.
+            <strong className="font-medium text-gray-900">Accepted Methods:</strong> We accept major credit cards, debit cards, and secure online payment gateways (e.g., SePay transfer QR). All transactions are encrypted and processed securely.
           </p>
           <p>
             <strong className="font-medium text-gray-900">Taxes & Fees:</strong> All displayed rates are inclusive of applicable VAT and service charges unless stated otherwise.

@@ -152,7 +152,7 @@ const MyBookings = () => {
   const handlePayment = async (booking) => {
     try {
       setProcessingBookingId(booking._id);
-      const response = await axiosClient.post('/payments/vnpay/create', {
+      const response = await axiosClient.post('/payments/sepay/create', {
         bookingId: booking._id,
         amount: booking.totalAmount,
       });

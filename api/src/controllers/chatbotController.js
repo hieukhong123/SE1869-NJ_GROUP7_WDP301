@@ -68,7 +68,7 @@ const getDefaultSuggestions = () => [
 const getWebsiteFacts = () => [
 	'Roomerang is a hotel booking website.',
 	'Users can browse hotels, view room options, place bookings, and pay online.',
-	'VNPay is supported for online payment.',
+	'SePay is supported for online payment.',
 	'Users can submit support requests from the Contact page.',
 ];
 
@@ -234,7 +234,7 @@ const getRuleBasedReply = ({ rawMessage, message, hotels }) => {
 	const greetingKeywords = ['xin chao', 'chao', 'hello', 'hi', 'hey'];
 	const aboutKeywords = ['website', 'roomerang', 'gioi thieu', 'about'];
 	const bookingKeywords = ['dat phong', 'booking', 'reservation', 'book'];
-	const paymentKeywords = ['thanh toan', 'payment', 'vnpay'];
+	const paymentKeywords = ['thanh toan', 'payment', 'sepay', 'vietqr'];
 	const contactKeywords = ['lien he', 'contact', 'email', 'so dien thoai', 'phone'];
 	const refundKeywords = ['hoan tien', 'refund', 'huy phong', 'cancel'];
 
@@ -268,7 +268,7 @@ const getRuleBasedReply = ({ rawMessage, message, hotels }) => {
 
 	if (includesAny(message, paymentKeywords)) {
 		return {
-			reply: 'The website currently supports VNPay for online payments. After a successful transaction, the system verifies it and updates your booking.',
+			reply: 'The website currently supports SePay for online payments. After a successful transfer, the system verifies it and updates your booking.',
 			suggestions: ['How to book a room', 'Cancellation policy', 'Contact information'],
 		};
 	}

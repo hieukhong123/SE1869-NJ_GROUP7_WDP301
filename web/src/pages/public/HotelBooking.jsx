@@ -302,7 +302,7 @@ const HotelBooking = () => {
             };
             const response = await axiosClient.post('/bookings', bookingData);
             const newBooking = response.data;
-            const paymentResponse = await axiosClient.post('/payments/vnpay/create', {
+            const paymentResponse = await axiosClient.post('/payments/sepay/create', {
                 bookingId: newBooking._id,
                 amount: totalAmount,
             });

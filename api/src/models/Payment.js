@@ -24,6 +24,31 @@ const paymentSchema = new mongoose.Schema(
 			type: Boolean,
 			default: false,
 		},
+		paymentMethod: {
+			type: String,
+			default: 'manual',
+			enum: ['manual', 'vnpay', 'sepay'],
+		},
+		paymentCode: {
+			type: String,
+			default: null,
+		},
+		externalTransactionId: {
+			type: String,
+			default: null,
+		},
+		gatewayName: {
+			type: String,
+			default: null,
+		},
+		gatewayTransactionDate: {
+			type: Date,
+			default: null,
+		},
+		gatewayPayload: {
+			type: mongoose.Schema.Types.Mixed,
+			default: null,
+		},
 	},
 	{ timestamps: true }
 );

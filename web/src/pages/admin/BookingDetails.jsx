@@ -92,12 +92,6 @@ const BookingDetails = () => {
                 confirmText: 'Check Out',
                 variant: 'warning',
             },
-            no_show: {
-                title: 'Mark As No Show',
-                message: 'This will release the room and apply no-show policies. Do you want to continue?',
-                confirmText: 'Confirm No Show',
-                variant: 'danger',
-            },
         };
 
         const modalConfig = statusMap[nextStatus];
@@ -131,7 +125,7 @@ const BookingDetails = () => {
     };
 
     const handleConfirmStatusChange = async () => {
-        if (!statusModal.nextStatus) {
+        if (!statusModal.nextStatus || processingStatusAction) {
             return;
         }
 
@@ -180,6 +174,8 @@ const BookingDetails = () => {
     };
 
     const handleAnswerCancellation = async (action) => {
+        if (processingAdminAction) return;
+
         const requiresTransferProof = action === 'Accept' && ['paid', 'confirmed'].includes(booking?.status);
 
         if (requiresTransferProof && !refundTransferImg) {
@@ -222,6 +218,8 @@ const BookingDetails = () => {
     };
 
     const handleTransferProofUpload = async (event) => {
+        if (uploadingRefundProof) return;
+
         const file = event.target.files?.[0];
         if (!file) {
             return;
@@ -442,18 +440,12 @@ const BookingDetails = () => {
                         <div className="p-6 space-y-4">
                             {booking.status === 'confirmed' && (
                                 <>
-                                    <p className="text-sm font-light text-gray-500 mb-4">Guest is scheduled to arrive. Proceed with check-in upon arrival.</p>
+                                    <p className="text-sm font-light text-gray-500 mb-4">Guest is scheduled to arrive. Proceed with check-in upon arrival. No-show is assigned automatically by the system.</p>
                                     <button 
                                         onClick={() => openStatusModal('checked_in')}
                                         className="w-full py-3 bg-green-600 hover:bg-green-700 text-white text-xs uppercase tracking-widest font-medium transition-colors rounded-sm shadow-sm"
                                     >
                                         Check In Guest
-                                    </button>
-                                    <button 
-                                        onClick={() => openStatusModal('no_show')}
-                                        className="w-full py-3 bg-transparent border border-gray-300 text-gray-600 hover:border-gray-900 hover:text-gray-900 text-xs uppercase tracking-widest transition-colors rounded-sm"
-                                    >
-                                        Mark as No Show
                                     </button>
                                 </>
                             )}
@@ -489,7 +481,7 @@ const BookingDetails = () => {
                                 <span>Guest Party</span>
                                 <span>{booking.adult} Adults, {booking.children || 0} Children</span>
                             </div>
-                            <div className="w-full h-[1px] bg-gray-800 my-4"></div>
+                            <div className="w-full h-px bg-gray-800 my-4"></div>
                             <div className="flex justify-between items-end">
                                 <span className="text-xs uppercase tracking-widest text-gray-400">Total Amount</span>
                                 <div className="text-right">

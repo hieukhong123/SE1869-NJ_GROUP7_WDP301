@@ -12,7 +12,8 @@ import AppError from '../utils/AppError.js';
 import sendEmail from '../utils/sendEmail.js';
 import User from '../models/User.js';
 import Payment from '../models/Payment.js';
-import { getCheckInStartTime } from '../utils/bookingTiming.js';
+import { checkRoomAvailability } from '../utils/bookingUtils.js';
+
 
 // Helper to normalize date to start of day (midnight) in local time
 const normalizeDate = (dateStr) => {
@@ -64,13 +65,38 @@ const sendRefundNotificationEmail = async (booking, actorName = 'our staff') => 
 };
 
 export const createBooking = catchAsync(async (req, res, next) => {
+	// Online booking always belongs to the authenticated user
+	const userId = req.user?._id?.toString();
 	const { hotelId, roomIds, checkIn, checkOut } = req.body;
 	const start = normalizeDate(checkIn);
 	const end = normalizeDate(checkOut);
 
+	if (!userId) {
+		return next(new AppError(HttpStatus.UNAUTHORIZED, 'You are not logged in'));
+	}
+
+	if (!roomIds || roomIds.length === 0) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'At least one room must be selected'));
+	}
+
+	// Validate dates
+	if (!start || !end) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Check-in and check-out dates are required'));
+	}
+	if (end <= start) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Check-out date must be after check-in date'));
+	}
+	// Check-in must be today or in the future (normalize today to start of day)
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	if (start < today) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Check-in date cannot be in the past'));
+	}
+
 	// Check if hotel is active
 	const hotel = await Hotel.findById(hotelId);
 	if (!hotel || hotel.status !== 'active') {
+
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
@@ -93,63 +119,50 @@ export const createBooking = catchAsync(async (req, res, next) => {
 				),
 			);
 		}
-	}
 
-	// Group requested rooms to check availability for each category
-	const requestedRoomCounts = {};
-	roomIds.forEach((id) => {
-		requestedRoomCounts[id] = (requestedRoomCounts[id] || 0) + 1;
-	});
-
-	let roomSubtotalPerNight = 0;
-
-	// Check availability for each unique room category in the requested date range
-	for (const [roomId, count] of Object.entries(requestedRoomCounts)) {
-		const room = await RoomCategory.findById(roomId);
-		if (!room || room.status === 'unavailable' || room.isDeleted) {
-			return next(
-				new AppError(
-					HttpStatus.BAD_REQUEST,
-					`Room category is no longer available`,
-				),
-			);
+		if (activeReservation.userId?.toString() !== userId) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'This room hold does not belong to your account'));
 		}
 
-		// Find existing bookings that overlap with this range
-		const overlappingBookings = await Booking.find({
-			roomIds: roomId,
-			status: { $nin: ['cancelled', 'expired', 'no_show', 'checked_out'] },
-			checkIn: { $lt: end },
-			checkOut: { $gt: start },
-		});
-
-		let bookedCount = 0;
-		overlappingBookings.forEach((booking) => {
-			// Ignore pending bookings that have expired but haven't been updated yet
-			if (
-				booking.status === 'pending' &&
-				booking.expiresAt &&
-				booking.expiresAt < new Date()
-			) {
-				return;
-			}
-			const countInBooking = booking.roomIds.filter(
-				(id) => id.toString() === roomId,
-			).length;
-			bookedCount += countInBooking;
-		});
-
-		if (bookedCount + count > room.quantity) {
-			return next(
-				new AppError(
-					HttpStatus.BAD_REQUEST,
-					`Not enough rooms available for ${room.roomName} during these dates.`,
-				),
-			);
+		if (activeReservation.hotelId?.toString() !== hotelId?.toString()) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Reservation hotel does not match booking hotel'));
 		}
 
-		roomSubtotalPerNight += Number(room.roomPrice || 0) * count;
+		const reservedStart = normalizeDate(activeReservation.checkIn);
+		const reservedEnd = normalizeDate(activeReservation.checkOut);
+		if (
+			!reservedStart ||
+			!reservedEnd ||
+			reservedStart.getTime() !== start.getTime() ||
+			reservedEnd.getTime() !== end.getTime()
+		) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Reservation dates do not match booking dates'));
+		}
+
+		const requestedRoomKey = roomIds.map((id) => id.toString()).sort().join(',');
+		const reservedRoomKey = activeReservation.roomIds
+			.map((id) => id.toString())
+			.sort()
+			.join(',');
+		if (requestedRoomKey !== reservedRoomKey) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Selected rooms do not match the held reservation'));
+		}
 	}
+
+	// Centralized availability check
+	const availability = await checkRoomAvailability(
+		roomIds, 
+		start, 
+		end, 
+		req.body.reservationId,
+		hotelId,
+	);
+	
+	if (!availability.success) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, availability.error));
+	}
+
+	const roomSubtotalPerNight = availability.roomPriceSubtotal;
 
 	const stayNights = Math.max(
 		1,
@@ -204,7 +217,17 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		: new Date(Date.now() + 15 * 60 * 1000);
 
 	const newBooking = await Booking.create({
-		...req.body,
+		userId,
+		hotelId,
+		roomIds,
+		extraIds: selectedExtraIds,
+		name: req.body.name,
+		adult: req.body.adult,
+		children: req.body.children || 0,
+		baby: req.body.baby || 0,
+		phone: req.body.phone,
+		email: req.body.email,
+		status: 'pending',
 		totalAmount: computedTotalAmount,
 		checkIn: start,
 		checkOut: end,
@@ -254,14 +277,6 @@ export const createBooking = catchAsync(async (req, res, next) => {
 export const getAllBookings = catchAsync(async (req, res, next) => {
 		const { status, minPrice, maxPrice, bookingPrice } = req.query;
         const query = {};
-
-		await Booking.updateMany(
-			{
-				status: 'pending',
-				expiresAt: { $lt: new Date() },
-			},
-			{ $set: { status: 'expired' } },
-		);
 
 		if (req.query.hotelId && req.query.hotelId !== 'all') {
                 query.hotelId = req.query.hotelId;
@@ -339,15 +354,6 @@ export const getBookingById = catchAsync(async (req, res, next) => {
 		}
 	}
 
-	if (
-		booking.status === 'pending' &&
-		booking.expiresAt &&
-		booking.expiresAt < new Date()
-	) {
-		booking.status = 'expired';
-		await booking.save();
-	}
-
 	res.status(HttpStatus.OK).json({
 		success: true,
 		data: booking,
@@ -378,9 +384,9 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 	const oldStatus = booking.status;
 
 	const validTransitions = {
-		pending: ['paid'],
+		pending: [],
 		paid: ['confirmed'],
-		confirmed: ['checked_in', 'no_show'],
+		confirmed: ['checked_in'],
 		checked_in: ['checked_out'],
 		expired: [],
 		cancelled: [],
@@ -389,7 +395,7 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 
 	const staffTransitions = {
 		paid: ['confirmed'],
-		confirmed: ['checked_in', 'no_show'],
+		confirmed: ['checked_in'],
 		checked_in: ['checked_out'],
 	};
 
@@ -419,6 +425,15 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 		);
 	}
 
+	if (status === 'no_show') {
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'No-show status is assigned automatically by the system',
+			),
+		);
+	}
+
 	if (!allowedNextStatuses.includes(status)) {
 		return next(
 			new AppError(HttpStatus.BAD_REQUEST, 'Invalid status transition'),
@@ -435,12 +450,16 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 			);
 		}
 
-		const checkInStartTime = getCheckInStartTime(booking.checkIn);
-		if (new Date() < checkInStartTime) {
+		// Allow early check-in from 08:00 on the check-in date (6 hours before standard 14:00)
+		const checkInDate = new Date(booking.checkIn);
+		const earlyCheckInTime = new Date(checkInDate);
+		earlyCheckInTime.setHours(8, 0, 0, 0); // allow from 08:00
+
+		if (new Date() < earlyCheckInTime) {
 			return next(
 				new AppError(
 					HttpStatus.BAD_REQUEST,
-					'Cannot check in before the booking check-in time (14:00 on check-in date)',
+					'Cannot check in before 08:00 on the check-in date (earliest allowed is 6 hours before standard 14:00 check-in)',
 				),
 			);
 		}
@@ -449,7 +468,8 @@ export const updateBookingStatus = catchAsync(async (req, res, next) => {
 	booking.status = status;
 	await booking.save();
 
-	if (oldStatus === 'paid' && status === 'confirmed' && actorId) {
+	// Log ALL status transitions (not only paid→confirmed)
+	if (actorId) {
 		await BookingStatusLog.create({
 			bookingId: id,
 			oldStatus,
@@ -515,24 +535,6 @@ export const getUserBookings = catchAsync(async (req, res, next) => {
 		.populate('extraIds', 'extraName extraPrice')
 		.sort({ createdAt: -1 });
 
-	// Auto-expire pending bookings
-	let updated = false;
-	const now = new Date();
-	bookings = await Promise.all(
-		bookings.map(async (booking) => {
-			if (
-				booking.status === 'pending' &&
-				booking.expiresAt &&
-				booking.expiresAt < now
-			) {
-				booking.status = 'expired';
-				updated = true;
-				return await booking.save();
-			}
-			return booking;
-		}),
-	);
-
 	res.status(HttpStatus.OK).json({
 		success: true,
 		count: bookings.length,
@@ -573,7 +575,10 @@ export const processRefund = catchAsync(async (req, res, next) => {
 	const now = new Date();
 	const diffHours = (new Date(booking.checkIn) - now) / (1000 * 60 * 60);
 
-	if (diffHours < 24) {
+	// 24h refund rule ONLY applies when called via customer-facing flow.
+	// Admin and Staff can initiate a direct refund at any time.
+	const isCustomerRefund = req.user?.role === 'user';
+	if (isCustomerRefund && diffHours < 24) {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
@@ -591,7 +596,9 @@ export const processRefund = catchAsync(async (req, res, next) => {
 		);
 	}
 
+	const oldStatus = booking.status;
 	booking.status = 'cancelled';
+
 	booking.refundInfo = {
 		reason,
 		transfer_img,
@@ -600,6 +607,16 @@ export const processRefund = catchAsync(async (req, res, next) => {
 	};
 
 	await booking.save();
+
+	// Log the status transition in BookingStatusLog
+	if (actorId) {
+		await BookingStatusLog.create({
+			bookingId: id,
+			oldStatus,
+			newStatus: 'cancelled',
+			staffId: actorId,
+		});
+	}
 
 	await Payment.findOneAndUpdate(
 		{ bookingId: booking._id },
@@ -785,8 +802,20 @@ export const cancelBooking = catchAsync(async (req, res, next) => {
 	}
 
 	// Update status to cancelled
+	const oldStatus = booking.status;
 	booking.status = 'cancelled';
+
 	await booking.save();
+
+	// Log the status transition
+	if (req.user?._id) {
+		await BookingStatusLog.create({
+			bookingId: id,
+			oldStatus,
+			newStatus: 'cancelled',
+			staffId: req.user._id,
+		});
+	}
 
 	res.status(HttpStatus.OK).json({
 		success: true,
@@ -805,12 +834,9 @@ export const requestCancelBooking = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
 	}
 
-	if (req.user && req.user.id !== booking.userId.toString()) {
+	// Fix: use req.user._id (not req.user.id which is undefined in mongoose)
+	if (req.user && req.user._id.toString() !== booking.userId?.toString()) {
 		return next(new AppError(403, 'Unauthorized'));
-	}
-
-	if (!booking) {
-		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
 	}
 
 	if (!['paid', 'confirmed'].includes(booking.status)) {
@@ -900,7 +926,7 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 			}
 			booking.refundInfo = {
 				reason: booking.cancellationRequest.reason,
-				transfer_img,
+				transfer_img, // this comes from the accepted refund proof
 				refundedAt: new Date(),
 				refundedBy: req.user._id, // use authenticated staff/admin
 			};
@@ -924,9 +950,18 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 			);
 		}
 
+		const oldStatus = booking.status;
 		booking.status = 'cancelled';
 		booking.cancellationRequest.status = 'Accepted';
 		booking.cancellationRequest.adminReplyReason = adminReplyReason || '';
+
+		// Log status transition in BookingStatusLog
+		await BookingStatusLog.create({
+			bookingId: id,
+			oldStatus,
+			newStatus: 'cancelled',
+			staffId: req.user._id,
+		});
 	}
  else if (action === 'Reject') {
 		if (!adminReplyReason) {
@@ -975,3 +1010,124 @@ export const answerCancelRequest = catchAsync(async (req, res, next) => {
 
 
 
+// @desc    Create a booking manually (for walk-in guests by staff)
+// @route   POST /api/v1/bookings/manual
+// @access  Private/Admin,Staff
+export const createManualBooking = catchAsync(async (req, res, next) => {
+	const { hotelId, roomIds, checkIn, checkOut, name, phone, email, adult, children, baby, extraIds, totalAmount: clientTotal } = req.body;
+	const start = normalizeDate(checkIn);
+	const end = normalizeDate(checkOut);
+
+	if (!start || !end) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Check-in and check-out dates are required'));
+	}
+	if (end <= start) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Check-out date must be after check-in date'));
+	}
+	if (!name || !phone || !email) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'Guest name, phone and email are required'));
+	}
+	if (!roomIds || roomIds.length === 0) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'At least one room must be selected'));
+	}
+
+	// Staff can only create bookings for their assigned hotel
+	if (req.user.role === 'staff') {
+		if (!req.user.hotelId || hotelId !== req.user.hotelId.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'You can only create bookings for your assigned hotel'));
+		}
+	}
+
+	const hotel = await Hotel.findById(hotelId);
+	if (!hotel || hotel.status !== 'active') {
+		return next(new AppError(HttpStatus.BAD_REQUEST, 'This hotel is no longer available for booking'));
+	}
+
+	// Centralized availability check - ensures staff respect online visitor locks (15 min hold)
+	const availability = await checkRoomAvailability(
+		roomIds,
+		start,
+		end,
+		null,
+		hotelId,
+	);
+	if (!availability.success) {
+		return next(new AppError(HttpStatus.BAD_REQUEST, availability.error));
+	}
+
+	const roomSubtotalPerNight = availability.roomPriceSubtotal;
+
+	const stayNights = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+
+	const selectedExtraIds = Array.isArray(extraIds) ? extraIds : [];
+	let extrasTotal = 0;
+
+	if (selectedExtraIds.length > 0) {
+		const uniqueExtraIds = [...new Set(selectedExtraIds.map((id) => id.toString()))];
+		const extras = await ExtraFee.find({ _id: { $in: uniqueExtraIds }, isDeleted: false });
+
+		if (extras.length !== uniqueExtraIds.length) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Some selected additional services are no longer available.'));
+		}
+
+		const hasCrossHotelExtra = extras.some((extra) => extra.hotelId.toString() !== hotelId.toString());
+		if (hasCrossHotelExtra) {
+			return next(new AppError(HttpStatus.BAD_REQUEST, 'Invalid additional service selection for this property.'));
+		}
+
+		extrasTotal = extras.reduce((sum, extra) => sum + Number(extra.extraPrice || 0), 0);
+	}
+
+	const computedTotalAmount = Number((roomSubtotalPerNight * stayNights + extrasTotal).toFixed(2));
+
+	// For manual bookings, determine status based on check-in date
+	const today = new Date();
+	today.setHours(0,0,0,0);
+	const isToday = start.getTime() === today.getTime();
+	
+	const bookingStatus = isToday ? 'checked_in' : 'confirmed';
+
+	const newBooking = await Booking.create({
+		hotelId,
+		userId: req.body.userId || req.user._id,
+		roomIds,
+		extraIds: selectedExtraIds,
+		name,
+		phone,
+		email,
+		adult: adult || 1,
+		children: children || 0,
+		baby: baby || 0,
+		checkIn: start,
+		checkOut: end,
+		totalAmount: computedTotalAmount,
+		status: bookingStatus,
+	});
+
+	// Task 23: Create transaction record for financial integrity
+	await Payment.create({
+		bookingId: newBooking._id,
+		amount: computedTotalAmount,
+		status: 'confirmed',
+		paymentDate: new Date(),
+	});
+
+	// Log the manual booking as a status transition
+	await BookingStatusLog.create({
+		bookingId: newBooking._id,
+		oldStatus: 'manual_creation',
+		newStatus: bookingStatus,
+		staffId: req.user._id,
+	});
+
+	const booking = await Booking.findById(newBooking._id)
+		.populate('hotelId', 'name')
+		.populate('roomIds', 'roomName roomPrice')
+		.populate('extraIds', 'extraName extraPrice');
+
+	res.status(HttpStatus.CREATED).json({
+		success: true,
+		message: 'Manual booking created successfully',
+		data: booking,
+	});
+});

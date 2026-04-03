@@ -453,10 +453,10 @@ const loginUser = catchAsync(async (req, res, next) => {
 		);
 	}
 
-	// Find user by username or email
+	// Find user by username or email and populate hotelId
 	const user = await User.findOne({
 		$or: [{ userName: username }, { email: username }],
-	});
+	}).populate('hotelId', 'name');
 
 	if (!user) {
 		return next(
@@ -717,6 +717,11 @@ const toggleUserStatus = catchAsync(async (req, res, next) => {
 // @route   GET /api/v1/users/profile/:userId
 // @access  Public (user accesses their own profile)
 const getUserProfile = catchAsync(async (req, res, next) => {
+	const isAdmin = req.user?.role === 'admin';
+	if (!isAdmin && req.user?._id?.toString() !== req.params.userId) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
+
 	const user = await User.findById(req.params.userId).select(
 		'-password -resetPasswordToken -resetPasswordExpires -emailVerificationToken -emailVerificationExpires',
 	);
@@ -735,6 +740,11 @@ const getUserProfile = catchAsync(async (req, res, next) => {
 // @route   PUT /api/v1/users/profile/:userId
 // @access  Public (user updates their own profile)
 const updateUserProfile = catchAsync(async (req, res, next) => {
+	const isAdmin = req.user?.role === 'admin';
+	if (!isAdmin && req.user?._id?.toString() !== req.params.userId) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
+
 	const user = await User.findById(req.params.userId);
 
 	if (!user) {
@@ -778,6 +788,11 @@ const updateUserProfile = catchAsync(async (req, res, next) => {
 // @access  Public (user changes their own password)
 const changePassword = catchAsync(async (req, res, next) => {
 	const { currentPassword, newPassword } = req.body;
+
+	const isAdmin = req.user?.role === 'admin';
+	if (!isAdmin && req.user?._id?.toString() !== req.params.userId) {
+		return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+	}
 
 	// Validate required fields
 	if (!currentPassword || !newPassword) {

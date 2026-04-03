@@ -43,18 +43,18 @@ const loadRoomsWithAvailability = async ({ filter, checkIn, checkOut }) => {
 		'name city photos status',
 	);
 
-	let roomsWithAvailability = rooms.map((room) => ({
-		...room.toObject(),
-		availableQuantity: room.quantity,
-	}));
+	if (!checkIn || !checkOut) {
+		return rooms.map((room) => ({
+			...room.toObject(),
+			availableQuantity: room.quantity,
+		}));
+	}
 
-	if (checkIn && checkOut) {
-		const start = normalizeDate(checkIn);
-		const end = normalizeDate(checkOut);
+	const start = normalizeDate(checkIn);
+	const end = normalizeDate(checkOut);
 
-		for (let i = 0; i < roomsWithAvailability.length; i++) {
-			const room = roomsWithAvailability[i];
-
+	const roomsWithAvailability = await Promise.all(
+		rooms.map(async (room) => {
 			const overlappingBookings = await Booking.find({
 				roomIds: room._id,
 				status: { $nin: ['cancelled', 'expired', 'no_show', 'checked_out'] },
@@ -64,11 +64,7 @@ const loadRoomsWithAvailability = async ({ filter, checkIn, checkOut }) => {
 
 			let bookedCount = 0;
 			overlappingBookings.forEach((booking) => {
-				if (
-					booking.status === 'pending' &&
-					booking.expiresAt &&
-					booking.expiresAt < new Date()
-				) {
+				if (booking.status === 'pending' && booking.expiresAt && booking.expiresAt < new Date()) {
 					return;
 				}
 				const countInBooking = booking.roomIds.filter(
@@ -83,6 +79,7 @@ const loadRoomsWithAvailability = async ({ filter, checkIn, checkOut }) => {
 				checkOut: { $gt: start },
 				expiresAt: { $gt: new Date() },
 			});
+			
 			let reservedCount = 0;
 			activeReservations.forEach((rsv) => {
 				reservedCount += rsv.roomIds.filter(
@@ -90,12 +87,12 @@ const loadRoomsWithAvailability = async ({ filter, checkIn, checkOut }) => {
 				).length;
 			});
 
-			roomsWithAvailability[i].availableQuantity = Math.max(
-				0,
-				room.quantity - bookedCount - reservedCount,
-			);
-		}
-	}
+			return {
+				...room.toObject(),
+				availableQuantity: Math.max(0, room.quantity - bookedCount - reservedCount),
+			};
+		})
+	);
 
 	return roomsWithAvailability;
 };

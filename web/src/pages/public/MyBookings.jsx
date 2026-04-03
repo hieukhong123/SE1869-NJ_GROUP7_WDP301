@@ -185,7 +185,11 @@ const MyBookings = () => {
   const getStatusUI = (status) => {
     const maps = {
       pending: { color: 'text-orange-800 bg-orange-50 border-orange-100', text: 'Awaiting Payment', icon: <Clock size={14} /> },
+      paid: { color: 'text-blue-800 bg-blue-50 border-blue-100', text: 'Paid', icon: <Wallet size={14} /> },
       confirmed: { color: 'text-green-800 bg-green-50 border-green-100', text: 'Confirmed', icon: <CheckCircle size={14} /> },
+      checked_in: { color: 'text-indigo-800 bg-indigo-50 border-indigo-100', text: 'Checked In', icon: <CheckCircle size={14} /> },
+      checked_out: { color: 'text-purple-800 bg-purple-50 border-purple-100', text: 'Checked Out', icon: <CheckCircle size={14} /> },
+      no_show: { color: 'text-red-800 bg-red-50 border-red-200', text: 'No Show', icon: <XCircle size={14} /> },
       cancelled: { color: 'text-gray-500 bg-gray-50 border-gray-200', text: 'Cancelled', icon: <X size={14} /> },
       expired: { color: 'text-red-800 bg-red-50 border-red-200', text: 'Expired', icon: <X size={14} /> },
     };
@@ -230,16 +234,26 @@ const MyBookings = () => {
           
           {/* Tabs */}
           <div className="flex gap-6 md:gap-8 overflow-x-auto w-full md:w-auto hide-scrollbar border-b border-gray-200">
-            {['all', 'pending', 'confirmed', 'cancelled', 'expired'].map((tab) => (
+            {[
+              { key: 'all', label: 'All' },
+              { key: 'pending', label: 'Pending' },
+              { key: 'paid', label: 'Paid' },
+              { key: 'confirmed', label: 'Confirmed' },
+              { key: 'checked_in', label: 'Checked In' },
+              { key: 'checked_out', label: 'Checked Out' },
+              { key: 'no_show', label: 'No Show' },
+              { key: 'cancelled', label: 'Cancelled' },
+              { key: 'expired', label: 'Expired' },
+            ].map(({ key, label }) => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
+                key={key}
+                onClick={() => setActiveTab(key)}
                 className={`pb-3 text-xs uppercase tracking-widest whitespace-nowrap transition-colors relative ${
-                  activeTab === tab ? 'text-orange-800 font-medium' : 'text-gray-400 hover:text-gray-900 font-light'
+                  activeTab === key ? 'text-orange-800 font-medium' : 'text-gray-400 hover:text-gray-900 font-light'
                 }`}
               >
-                {tab}
-                {activeTab === tab && (
+                {label}
+                {activeTab === key && (
                     <span className="absolute bottom-[-1px] left-0 w-full h-[1px] bg-orange-800"></span>
                 )}
               </button>
@@ -286,9 +300,14 @@ const MyBookings = () => {
               const cancelReq = booking.cancellationRequest;
               
               const canRequestCancel = 
-                  booking.status === 'confirmed' && 
+                  ['paid', 'confirmed'].includes(booking.status) && 
                   !cancelReq && 
                   new Date(booking.checkIn) > new Date();
+
+              // For unpaid pending bookings, show pay/cancel buttons
+              const isPending = booking.status === 'pending';
+              // For paid/confirmed, show request cancel
+              const isPaidOrConfirmed = ['paid', 'confirmed'].includes(booking.status);
 
               return (
                 <div key={booking._id} className="bg-white border border-gray-200 hover:shadow-xl transition-all duration-500 rounded-sm overflow-hidden flex flex-col md:flex-row group">

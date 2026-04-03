@@ -2,6 +2,22 @@ import axios from 'axios';
 
 let isRedirectingToLogin = false;
 
+const resolveHotelId = (hotelIdValue) => {
+    if (!hotelIdValue) {
+        return null;
+    }
+
+    if (typeof hotelIdValue === 'string') {
+        return hotelIdValue;
+    }
+
+    if (typeof hotelIdValue === 'object') {
+        return hotelIdValue._id || hotelIdValue.id || null;
+    }
+
+    return null;
+};
+
 const axiosClient = axios.create({
 	baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1',
 	headers: {
@@ -20,10 +36,21 @@ axiosClient.interceptors.request.use(
         if (userStr) {
             try {
                 const user = JSON.parse(userStr);
-                if (user.role === 'staff' && user.hotelId) {
+                const staffHotelId = resolveHotelId(user.hotelId);
+
+                if (user.role === 'staff' && staffHotelId) {
                     if (config.method === 'get') {
+                        const hasHotelIdInUrl =
+                            typeof config.url === 'string' && /[?&]hotelId=/.test(config.url);
+
+                        if (hasHotelIdInUrl) {
+                            return config;
+                        }
+
                         config.params = config.params || {};
-                        config.params.hotelId = user.hotelId;
+                        if (!config.params.hotelId) {
+                            config.params.hotelId = staffHotelId;
+                        }
                     }
                 }
             } catch(e) {}

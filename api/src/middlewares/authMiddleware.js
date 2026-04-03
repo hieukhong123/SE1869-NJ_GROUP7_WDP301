@@ -37,6 +37,16 @@ export const protect = catchAsync(async (req, res, next) => {
 		);
 	}
 
+	// Check if user account is active
+	if (currentUser.status === false) {
+		return next(
+			new AppError(
+				HttpStatus.FORBIDDEN,
+				'Your account has been deactivated. Please contact support.',
+			),
+		);
+	}
+
 	// GRANT ACCESS TO PROTECTED ROUTE
 	req.user = currentUser;
 	next();

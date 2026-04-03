@@ -1,6 +1,8 @@
 import { catchAsync } from '../middlewares/errorMiddleware.js';
 import Payment from '../models/Payment.js';
 import Booking from '../models/Booking.js';
+import BookingStatusLog from '../models/BookingStatusLog.js';
+import User from '../models/User.js';
 import { HttpStatus } from '../utils/httpStatus.js';
 import AppError from '../utils/AppError.js';
 import { VNPay } from 'vnpay';
@@ -44,6 +46,131 @@ const normalizeStoredPaymentAmount = (storedAmount, expectedUsd = 0) => {
 	}
 
 	return Number(parsedStored.toFixed(2));
+};
+
+const syncConfirmedPayment = async (booking, amountUsd) => {
+	const existingPayment = await Payment.findOne({ bookingId: booking._id });
+
+	if (!existingPayment) {
+		await Payment.create({
+			bookingId: booking._id,
+			amount: amountUsd,
+			status: 'confirmed',
+			paymentDate: new Date(),
+		});
+		return;
+	}
+
+	if (
+		Math.abs(Number(existingPayment.amount || 0) - amountUsd) > 0.01 ||
+		existingPayment.status !== 'confirmed'
+	) {
+		existingPayment.amount = amountUsd;
+		existingPayment.status = 'confirmed';
+		existingPayment.paymentDate = new Date();
+		await existingPayment.save();
+	}
+};
+
+const resolveHotelIdFromBooking = (booking) => {
+	if (!booking?.hotelId) {
+		return null;
+	}
+
+	if (typeof booking.hotelId === 'object' && booking.hotelId?._id) {
+		return booking.hotelId._id;
+	}
+
+	return booking.hotelId;
+};
+
+const notifyHotelStaffWhenBookingPaid = async (booking, amountUsd) => {
+	const hotelId = resolveHotelIdFromBooking(booking);
+	if (!hotelId) {
+		return;
+	}
+
+	try {
+		const staffMembers = await User.find({
+			role: 'staff',
+			hotelId,
+		}).select('email fullName');
+
+		if (!staffMembers.length) {
+			return;
+		}
+
+		const hotelName =
+			typeof booking.hotelId === 'object' && booking.hotelId?.name
+				? booking.hotelId.name
+				: 'your property';
+		const bookingCode = booking._id?.toString().slice(-8).toUpperCase() || 'N/A';
+		const paidAmount = Number(amountUsd || booking.totalAmount || 0).toFixed(2);
+
+		await Promise.all(
+			staffMembers
+				.filter((staff) => Boolean(staff.email))
+				.map((staff) =>
+					sendEmail({
+						email: staff.email,
+						subject: `Payment Received - Booking ${bookingCode}`,
+						html: `
+							<h3>Hello ${staff.fullName || 'Staff'},</h3>
+							<p>A booking payment has just been received for <strong>${hotelName}</strong>.</p>
+							<p><strong>Booking reference:</strong> ${bookingCode}</p>
+							<p><strong>Amount paid:</strong> $${paidAmount}</p>
+							<p>Please review and move the booking from <strong>paid</strong> to <strong>confirmed</strong> after verification.</p>
+						`,
+					}),
+				),
+		);
+	} catch (error) {
+		console.error('[Payment] Failed to notify staff for paid booking:', error);
+	}
+};
+
+const applyVerifiedPayment = async (booking, amountUsd) => {
+	if (!booking) {
+		return { ok: false, reason: 'BOOKING_NOT_FOUND' };
+	}
+
+	if (booking.status === 'pending' && booking.expiresAt && booking.expiresAt <= new Date()) {
+		const oldStatus = booking.status;
+		booking.status = 'expired';
+		await booking.save();
+
+		await BookingStatusLog.create({
+			bookingId: booking._id,
+			oldStatus,
+			newStatus: 'expired',
+		});
+
+		return { ok: false, reason: 'BOOKING_EXPIRED' };
+	}
+
+	if (!['pending', 'paid', 'confirmed'].includes(booking.status)) {
+		return { ok: false, reason: 'INVALID_BOOKING_STATE' };
+	}
+
+	if (booking.status === 'pending') {
+		const oldStatus = booking.status;
+		booking.status = 'paid';
+		await booking.save();
+
+		await BookingStatusLog.create({
+			bookingId: booking._id,
+			oldStatus,
+			newStatus: 'paid',
+		});
+
+		await syncConfirmedPayment(booking, amountUsd);
+		await notifyHotelStaffWhenBookingPaid(booking, amountUsd);
+		return { ok: true, justPaid: true };
+	}
+
+	// idempotent success for already processed states
+	await syncConfirmedPayment(booking, amountUsd);
+	return { ok: true, justPaid: false };
 };
 
 // VNPay instance
@@ -191,6 +318,37 @@ const createVnpayPayment = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Booking not found'));
 	}
 
+	if (req.user?.role === 'user') {
+		if (booking.userId?.toString() !== req.user._id?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
+	}
+
+	if (req.user?.role === 'staff') {
+		if (booking.hotelId?._id?.toString() !== req.user.hotelId?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized'));
+		}
+	}
+
+	if (booking.status === 'pending' && booking.expiresAt && booking.expiresAt <= new Date()) {
+		const oldStatus = booking.status;
+		booking.status = 'expired';
+		await booking.save();
+
+		await BookingStatusLog.create({
+			bookingId: booking._id,
+			oldStatus,
+			newStatus: 'expired',
+		});
+
+		return next(
+			new AppError(
+				HttpStatus.BAD_REQUEST,
+				'Booking has expired. Please create a new booking',
+			),
+		);
+	}
+
 	if (booking.status === 'expired' || booking.status === 'cancelled') {
 		return next(
 			new AppError(
@@ -200,12 +358,18 @@ const createVnpayPayment = catchAsync(async (req, res, next) => {
 		);
 	}
 
-	if (booking.status === 'confirmed') {
+	if (booking.status === 'confirmed' || booking.status === 'paid') {
 		return next(
 			new AppError(
 				HttpStatus.BAD_REQUEST,
-				'Booking is already confirmed',
+				'Booking has already been paid',
 			),
+		);
+	}
+
+	if (booking.status !== 'pending') {
+		return next(
+			new AppError(HttpStatus.BAD_REQUEST, 'Booking is not payable in current status'),
 		);
 	}
 
@@ -258,41 +422,39 @@ const vnpayReturn = catchAsync(async (req, res) => {
 	const verify = vnpay.verifyReturnUrl(req.query);
 	const txnRef = req.query.vnp_TxnRef;
 	const bookingId = txnRef?.split('-')[0];
-	const booking = bookingId ? await Booking.findById(bookingId) : null;
+	const booking = bookingId
+		? await Booking.findById(bookingId).populate('hotelId', 'name')
+		: null;
 	const amountUsd = normalizeUsdAmountFromVnp(
 		req.query.vnp_Amount,
 		Number(booking?.totalAmount || 0),
 	);
 
 	if (verify.isSuccess) {
-		if (
-			booking &&
-			booking.status !== 'confirmed' &&
-			booking.status !== 'paid'
-		) {
-			booking.status = 'paid';
-			await booking.save();
+ 		const paymentResult = await applyVerifiedPayment(booking, amountUsd);
 
-			// Create payment record if not exists
-			const existingPayment = await Payment.findOne({ bookingId });
-			if (!existingPayment) {
-				await Payment.create({
-					bookingId: booking._id,
-					amount: amountUsd,
-					status: 'confirmed',
-					paymentDate: new Date(),
-				});
-			} else if (
-				Math.abs(Number(existingPayment.amount || 0) - amountUsd) > 0.01 ||
-				existingPayment.status !== 'confirmed'
-			) {
-				existingPayment.amount = amountUsd;
-				existingPayment.status = 'confirmed';
-				existingPayment.paymentDate = new Date();
-				await existingPayment.save();
+		if (!paymentResult.ok) {
+			let message = 'Payment cannot be applied to this booking';
+			if (paymentResult.reason === 'BOOKING_NOT_FOUND') {
+				message = 'Booking not found';
+			}
+			if (paymentResult.reason === 'BOOKING_EXPIRED') {
+				message = 'Booking has expired';
+			}
+			if (paymentResult.reason === 'INVALID_BOOKING_STATE') {
+				message = 'Booking is not payable in current status';
 			}
 
-			// Send success email
+			return res.status(HttpStatus.OK).json({
+				success: false,
+				message,
+				bookingId,
+				amount: amountUsd,
+			});
+		}
+
+		if (paymentResult.justPaid) {
+			// Send success email only when transitioning pending -> paid
 			try {
 				await sendEmail({
 					email: booking.email,
@@ -339,39 +501,33 @@ const vnpayIpn = catchAsync(async (req, res) => {
 
 	if (verify.isSuccess) {
 		const txnRef = req.query.vnp_TxnRef;
-		const bookingId = txnRef.split('-')[0];
-		const booking = await Booking.findById(bookingId);
+		const bookingId = txnRef?.split('-')[0];
+		if (!bookingId) {
+			return res.status(HttpStatus.OK).json({ RspCode: '01', Message: 'Order not found' });
+		}
+
+		const populatedBooking = await Booking.findById(bookingId).populate(
+			'hotelId',
+			'name',
+		);
 		const amountUsd = normalizeUsdAmountFromVnp(
 			req.query.vnp_Amount,
-			Number(booking?.totalAmount || 0),
+			Number(populatedBooking?.totalAmount || 0),
 		);
 
-		if (
-			booking &&
-			booking.status !== 'confirmed' &&
-			booking.status !== 'paid'
-		) {
-			booking.status = 'paid';
-			await booking.save();
+		const paymentResult = await applyVerifiedPayment(populatedBooking, amountUsd);
+		if (!paymentResult.ok) {
+			const message =
+				paymentResult.reason === 'BOOKING_EXPIRED'
+					? 'Booking expired'
+					: paymentResult.reason === 'INVALID_BOOKING_STATE'
+						? 'Invalid booking state'
+						: 'Order not found';
 
-			const existingPayment = await Payment.findOne({ bookingId });
-			if (!existingPayment) {
-				await Payment.create({
-					bookingId: booking._id,
-					amount: amountUsd,
-					status: 'confirmed',
-					paymentDate: new Date(),
-				});
-			} else if (
-				Math.abs(Number(existingPayment.amount || 0) - amountUsd) > 0.01 ||
-				existingPayment.status !== 'confirmed'
-			) {
-				existingPayment.amount = amountUsd;
-				existingPayment.status = 'confirmed';
-				existingPayment.paymentDate = new Date();
-				await existingPayment.save();
-			}
+			const rspCode = paymentResult.reason === 'BOOKING_NOT_FOUND' ? '01' : '02';
+			return res.status(HttpStatus.OK).json({ RspCode: rspCode, Message: message });
 		}
+
 		res.status(HttpStatus.OK).json({ RspCode: '00', Message: 'Success' });
 	} else {
 		res.status(HttpStatus.OK).json({

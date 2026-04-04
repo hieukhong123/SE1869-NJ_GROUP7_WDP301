@@ -107,9 +107,7 @@ const BookingList = () => {
       if (activeFilters.hotelId !== 'all') {
         params.hotelId = activeFilters.hotelId;
       }
-      if (activeFilters.status !== 'all') {
-        params.status = activeFilters.status;
-      }
+      // Note: Status filter is handled on frontend to keep badge counts accurate
       if (activeFilters.minPrice !== '') {
         params.minPrice = activeFilters.minPrice;
       }
@@ -184,20 +182,27 @@ const BookingList = () => {
   const isPriceDirty =
     priceDraft.minPrice !== filters.minPrice ||
     priceDraft.maxPrice !== filters.maxPrice;
-
+  
   const pendingCancelCount = useMemo(() => {
     return bookings.filter((b) => b.cancellationRequest?.status === 'Pending')
       .length;
   }, [bookings]);
 
   const filteredBookings = useMemo(() => {
+    let result = bookings;
+    
     if (activeTab === 'pending_cancel') {
-      return bookings.filter(
+      result = result.filter(
         (b) => b.cancellationRequest?.status === 'Pending',
       );
     }
-    return bookings;
-  }, [bookings, activeTab]);
+    
+    if (filters.status !== 'all') {
+      result = result.filter((b) => b.status === filters.status);
+    }
+    
+    return result;
+  }, [bookings, activeTab, filters.status]);
 
   const requestStatusChange = (booking, newStatus) => {
     if (booking.status === newStatus) {
@@ -735,6 +740,7 @@ const BookingList = () => {
           </button>
         </div>
 
+
         <div className="bg-white border border-gray-100 rounded-sm p-4 sm:p-6 mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
@@ -847,7 +853,7 @@ const BookingList = () => {
             <p className="text-gray-500 font-light max-w-md mx-auto">
               {activeTab === 'pending_cancel'
                 ? 'There are no pending cancellation requests to review.'
-                : 'There are currently no booking records in the system.'}
+                : 'There are currently no booking records matching your filters.'}
             </p>
           </div>
         ) : (

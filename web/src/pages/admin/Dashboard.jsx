@@ -247,42 +247,43 @@ const Dashboard = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full sm:w-auto">
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
-                Property
-              </label>
-              <select
-                value={hotelId}
-                onChange={(e) => setHotelId(e.target.value)}
-                disabled={isStaff}
-                className="w-full bg-white border border-gray-200 text-gray-900 text-[10px] uppercase tracking-widest py-2 pl-3 pr-8 rounded-sm cursor-pointer focus:ring-0 focus:border-gray-900 transition-colors disabled:opacity-60"
-              >
-                <option value="all">All Properties</option>
-                {hotels.map((hotel) => (
-                  <option key={hotel._id} value={hotel._id}>
-                    {hotel.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {!isStaff && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full sm:w-auto">
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                  Property
+                </label>
+                <select
+                  value={hotelId}
+                  onChange={(e) => setHotelId(e.target.value)}
+                  className="w-full bg-white border border-gray-200 text-gray-900 text-[10px] uppercase tracking-widest py-2 pl-3 pr-8 rounded-sm cursor-pointer focus:ring-0 focus:border-gray-900 transition-colors"
+                >
+                  <option value="all">All Properties</option>
+                  {hotels.map((hotel) => (
+                    <option key={hotel._id} value={hotel._id}>
+                      {hotel.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
-                Property Status
-              </label>
-              <select
-                value={hotelStatus}
-                onChange={(e) => setHotelStatus(e.target.value)}
-                className="w-full bg-white border border-gray-200 text-gray-900 text-[10px] uppercase tracking-widest py-2 pl-3 pr-8 rounded-sm cursor-pointer focus:ring-0 focus:border-gray-900 transition-colors"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active Only</option>
-                <option value="suspended">Suspended Only</option>
-                <option value="inactive">Inactive Only</option>
-              </select>
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-2">
+                  Property Status
+                </label>
+                <select
+                  value={hotelStatus}
+                  onChange={(e) => setHotelStatus(e.target.value)}
+                  className="w-full bg-white border border-gray-200 text-gray-900 text-[10px] uppercase tracking-widest py-2 pl-3 pr-8 rounded-sm cursor-pointer focus:ring-0 focus:border-gray-900 transition-colors"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active Only</option>
+                  <option value="suspended">Suspended Only</option>
+                  <option value="inactive">Inactive Only</option>
+                </select>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Key Metrics Cards */}

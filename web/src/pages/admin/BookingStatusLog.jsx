@@ -202,7 +202,7 @@ const BookingStatusLog = () => {
             Booking Status Logs
           </h1>
           <p className="text-xs font-light text-gray-500 uppercase tracking-[0.2em]">
-            Audit trail of manual booking confirmations (Paid to Confirmed)
+            Audit trail of manual booking confirmations
           </p>
         </div>
 

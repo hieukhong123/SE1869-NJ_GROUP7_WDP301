@@ -20,6 +20,7 @@ import ContactList from './pages/admin/ContactList';
 import RefundLog from './pages/admin/RefundLog';
 import HotelStatusLog from './pages/admin/HotelStatusLog';
 import BookingStatusLog from './pages/admin/BookingStatusLog';
+import StaffBookingCreate from './pages/admin/StaffBookingCreate';
 import HomePage from './pages/public/HomePage';
 import Location from './pages/public/Location';
 import Contact from './pages/public/Contact';
@@ -75,6 +76,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
 
           <Route path="bookings" element={<BookingList />} />
+          <Route path="bookings/new" element={<StaffBookingCreate />} />
           <Route path="bookings/:id/view" element={<BookingDetails />} />
 
           <Route path="hotels" element={<HotelList />} />

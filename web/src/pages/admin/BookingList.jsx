@@ -14,6 +14,7 @@ import {
   WarningCircleIcon,
   XCircleIcon,
   ArrowClockwiseIcon,
+  PlusIcon,
 } from '@phosphor-icons/react';
 
 const BookingList = () => {
@@ -517,7 +518,6 @@ const BookingList = () => {
                     Confirmed
                   </option>
                   <option value="checked_in">Checked In</option>
-                  <option value="no_show">No Show</option>
                 </select>
                 <CaretDownIcon
                   size={12}
@@ -699,6 +699,12 @@ const BookingList = () => {
               Manage Guest Bookings
             </p>
           </div>
+          <Link
+            to="/admin/bookings/new"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-xs uppercase tracking-widest hover:bg-black transition-colors rounded-sm"
+          >
+            <PlusIcon size={16} weight="light" /> New Booking
+          </Link>
         </div>
 
         <div className="flex gap-6 border-b border-gray-200 mb-8 overflow-x-auto hide-scrollbar">

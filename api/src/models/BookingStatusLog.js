@@ -18,7 +18,7 @@ const bookingStatusLogSchema = new mongoose.Schema(
 		staffId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'User',
-			required: true,
+			required: false, // allow system-automated logs
 		},
 	},
 	{ timestamps: true },

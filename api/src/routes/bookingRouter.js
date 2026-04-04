@@ -1,6 +1,7 @@
 import express from 'express';
 import {
 	createBooking,
+	createManualBooking,
 	getAllBookings,
 	getBookingById,
 	updateBookingStatus,
@@ -18,17 +19,18 @@ import { protect, authorize } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Public routes (though some might need user auth, but for now we keep existing logic)
-router.route('/').post(createBooking);
+// Online booking by customer (requires login)
+router.route('/').post(protect, createBooking);
 router.route('/user/:userId').get(protect, getUserBookings);
 router.route('/:id').get(protect, getBookingById);
 router.route('/:id/cancel').put(protect, cancelBooking);
 router.route('/:id/cancel-request').put(protect, requestCancelBooking);
 
-// Protected routes
+// Protected routes (admin/staff only)
 router.use(protect);
 
 router.route('/').get(authorize('admin', 'staff'), getAllBookings);
+router.route('/manual').post(authorize('admin', 'staff'), createManualBooking);
 router.route('/logs/refund').get(authorize('admin', 'staff'), getRefundLogs);
 router.route('/logs/hotel-status').get(authorize('admin'), getHotelStatusLogs);
 router

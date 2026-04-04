@@ -850,6 +850,27 @@ const changePassword = catchAsync(async (req, res, next) => {
 	});
 });
 
+// @desc    Get staff and admin users for filtering in logs
+// @route   GET /api/v1/users/staff-admins
+// @access  Private/Admin & Staff
+const getStaffAdmins = catchAsync(async (req, res) => {
+	const query = {
+		role: { $in: ['admin', 'staff'] },
+	};
+
+	// If staff, only show staff from the same hotel (optional, but safer)
+	// For now, following user's "hiện hết" (show all staff/admin)
+	
+	const users = await User.find(query)
+		.populate('hotelId', 'name')
+		.select('fullName userName role hotelId');
+
+	res.status(HttpStatus.OK).json({
+		success: true,
+		data: users,
+	});
+});
+
 export {
 	getUsers,
 	getUserById,
@@ -857,6 +878,7 @@ export {
 	deleteUser,
 	createUser,
 	registerUser,
+	getStaffAdmins,
 	verifyEmail,
 	resendVerificationCode,
 	loginUser,

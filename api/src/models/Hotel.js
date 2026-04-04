@@ -20,8 +20,14 @@ const hotelSchema = new mongoose.Schema(
 			default: 'Hotel',
 		},
 		hotelPhone: {
-			type: Number,
+			type: String,
 			required: true,
+			validate: {
+				validator: function (v) {
+					return /^[0-9+-\s]{10,15}$/.test(v);
+				},
+				message: (props) => `${props.value} is not a valid phone number! (10-15 digits)`,
+			},
 		},
 		hotelEmail: {
 			type: String,

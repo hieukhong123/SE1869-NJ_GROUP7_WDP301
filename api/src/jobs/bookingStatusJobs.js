@@ -7,9 +7,6 @@ const CRON_TIMEZONE = process.env.CRON_TIMEZONE || 'Asia/Ho_Chi_Minh';
 
 export const runAutoCheckoutJob = async () => {
 	const now = new Date();
-	// checkOut stored as midnight (00:00) of checkout day. Actual checkout time is 12:00 noon.
-	// We auto-checkout bookings where it's past noon on their checkout date.
-	// Build a query that adds 12h to checkOut: equivalent to checkOut <= now - 12h
 	const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
 
 	const eligibleBookings = await Booking.find({
@@ -34,7 +31,6 @@ export const runAutoCheckoutJob = async () => {
 		bookingId: id,
 		oldStatus: 'checked_in',
 		newStatus: 'checked_out',
-		// staffId is omitted for system auto log
 	}));
 	await BookingStatusLog.insertMany(logs);
 

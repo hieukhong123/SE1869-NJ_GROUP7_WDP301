@@ -47,7 +47,7 @@ const BookingStatusLog = () => {
     try {
       const [hotelResponse, userResponse] = await Promise.all([
         axiosClient.get('/hotels/admin-all'),
-        axiosClient.get('/users'),
+        axiosClient.get('/users/staff-admins'),
       ]);
 
       setHotels(hotelResponse.data || []);

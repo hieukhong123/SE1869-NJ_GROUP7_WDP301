@@ -140,8 +140,8 @@ const HotelForm = () => {
 
             if (id) {
                 // Phone validation
-                if (payload.hotelPhone && !/^[0-9+-\s]+$/.test(payload.hotelPhone)) {
-                    toast.error('Invalid phone number format.');
+                if (payload.hotelPhone && !/^[0-9+-\s]{10,15}$/.test(payload.hotelPhone)) {
+                    toast.error('Phone should be 10-15 digits.');
                     setLoading(false);
                     return;
                 }

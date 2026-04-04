@@ -6,6 +6,7 @@ import {
   deleteUser,
   createUser,
   registerUser,
+  getStaffAdmins,
   verifyEmail,
   resendVerificationCode,
   loginUser,
@@ -32,6 +33,8 @@ router.use(protect);
 
 router.route('/profile/:userId').get(getUserProfile).put(updateUserProfile);
 router.route('/change-password/:userId').put(changePassword);
+
+router.route('/staff-admins').get(authorize('admin', 'staff'), getStaffAdmins);
 
 // Admin only routes
 router.use(authorize('admin'));

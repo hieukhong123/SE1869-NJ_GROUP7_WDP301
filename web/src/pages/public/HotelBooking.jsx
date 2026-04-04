@@ -263,10 +263,12 @@ const HotelBooking = () => {
                 checkIn: formData.checkIn,
                 checkOut: formData.checkOut,
             });
-            setReservation(res.data);
+            // axiosClient interceptor returns response.data, so res is { success, data: reservation }
+            const reservationDoc = res.data || res;
+            setReservation(reservationDoc);
             
-            // Calculate exact seconds
-            const diff = Math.max(0, Math.floor((new Date(res.data.expiresAt).getTime() - Date.now()) / 1000));
+            // Calculate exact seconds from the actual reservation document
+            const diff = Math.max(0, Math.floor((new Date(reservationDoc.expiresAt).getTime() - Date.now()) / 1000));
             setCountdown(diff);
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to hold rooms. Please try again.');

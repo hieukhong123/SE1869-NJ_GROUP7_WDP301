@@ -85,7 +85,10 @@ export const createBooking = catchAsync(async (req, res, next) => {
 		activeReservation = await RoomReservation.findById(
 			req.body.reservationId,
 		);
-		if (!activeReservation || activeReservation.expiresAt < new Date()) {
+		// If the document was found but has already expired, reject.
+		// If it's null, MongoDB TTL may have just cleaned it up — we rely
+		// on the availability check below as the authoritative guard.
+		if (activeReservation && activeReservation.expiresAt < new Date()) {
 			return next(
 				new AppError(
 					HttpStatus.BAD_REQUEST,

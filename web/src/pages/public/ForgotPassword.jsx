@@ -51,9 +51,10 @@ const ForgotPassword = () => {
 		const newErrors = {};
 
 		// Email validation
+		const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 		if (!formData.email.trim()) {
 			newErrors.email = 'Email is required';
-		} else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+		} else if (!emailRegex.test(formData.email.trim())) {
 			newErrors.email = 'Email is invalid';
 		}
 

@@ -87,8 +87,8 @@ const Navbar = () => {
 
                 {/* Navigation Links - Center (Hidden on Mobile) */}
                 <div className="hidden md:flex flex-1 justify-center">
-                    <ul className="flex items-center gap-8">
-                        {['Home', 'Location', 'Hotels', 'About', 'Contact'].map((item) => {
+                    <ul className="flex items-center gap-7 max-w-md">
+                        {['Home', 'Location', 'Hotels', 'About', 'Terms', 'Contact'].map((item) => {
                             const path = item === 'Home' ? '/' : `/${item.toLowerCase().replace(' ', '-')}`;
                             return (
                                 <li key={item}>

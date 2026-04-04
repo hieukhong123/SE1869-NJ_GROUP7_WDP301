@@ -94,6 +94,24 @@ const Profile = () => {
 
     const handleEditSubmit = async (e) => {
         e.preventDefault();
+
+        // Validate fullName: letters and spaces only
+        if (editFormData.fullName && !/^[a-zA-Z\s\u00C0-\u1EF9]+$/.test(editFormData.fullName)) {
+            toast.error('Full name should only contain letters');
+            return;
+        }
+
+        // Validate email format
+        if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(editFormData.email)) {
+            toast.error('Please enter a valid email address');
+            return;
+        }
+
+        // Validate phone: 10-11 digits
+        if (editFormData.phone && !/^[0-9]{10,11}$/.test(editFormData.phone)) {
+            toast.error('Phone number must be 10 or 11 digits');
+            return;
+        }
         
         try {
             setSubmitting(true);
@@ -124,8 +142,9 @@ const Profile = () => {
             return;
         }
 
-        if (passwordFormData.newPassword.length < 6) {
-            toast.error('Password must be at least 6 characters');
+        const passwordRegex = /^(?=.*[0-9]).{6,}$/;
+        if (!passwordRegex.test(passwordFormData.newPassword)) {
+            toast.error('Password must be at least 6 characters and contain at least one number');
             return;
         }
 
@@ -349,11 +368,14 @@ const Profile = () => {
                                     <input
                                         type="tel"
                                         name="phone"
-                                        placeholder="Enter your phone number"
-                                        className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light placeholder-gray-300 focus:ring-0 focus:border-orange-800 transition-colors"
+                                        placeholder="10-11 digits"
+                                        className={`w-full bg-transparent border-0 border-b ${editFormData.phone && !/^[0-9]{10,11}$/.test(editFormData.phone) ? 'border-red-500' : 'border-gray-300'} px-0 py-2 text-gray-900 font-light placeholder-gray-300 focus:ring-0 focus:border-orange-800 transition-colors`}
                                         value={editFormData.phone}
                                         onChange={handleEditInputChange}
                                     />
+                                    {editFormData.phone && !/^[0-9]{10,11}$/.test(editFormData.phone) && (
+                                        <p className="text-[10px] text-red-500 mt-1.5 font-light">Invalid phone format (10-11 digits)</p>
+                                    )}
                                 </div>
 
                                 <div className="flex gap-4 pt-6 mt-2 border-t border-gray-100">

@@ -1107,11 +1107,12 @@ export const createManualBooking = catchAsync(async (req, res, next) => {
 		status: bookingStatus,
 	});
 
-	// Task 23: Create transaction record for financial integrity
+	// Create confirmed payment record for financial integrity
 	await Payment.create({
 		bookingId: newBooking._id,
 		amount: computedTotalAmount,
 		status: 'confirmed',
+		paymentMethod: 'cash',
 		paymentDate: new Date(),
 	});
 

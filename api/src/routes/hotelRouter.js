@@ -27,7 +27,7 @@ router.route('/:id').get(getHotel);
 router.use(protect);
 
 router.route('/').post(authorize('admin'), createHotel);
-router.route('/:id/status').put(authorize('admin'), updateHotelStatus);
+router.route('/:id/status').put(authorize('admin', 'staff'), updateHotelStatus);
 router.route('/:id').put(authorize('admin', 'staff'), updateHotel);
 router.route('/:id').delete(authorize('admin'), deleteHotel);
 

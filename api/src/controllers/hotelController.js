@@ -250,6 +250,13 @@ export const updateHotelStatus = catchAsync(async (req, res, next) => {
 		return next(new AppError(HttpStatus.NOT_FOUND, 'Hotel not found'));
 	}
 
+	// Staff can only update their own hotel
+	if (req.user?.role === 'staff') {
+		if (hotel._id.toString() !== req.user.hotelId?.toString()) {
+			return next(new AppError(HttpStatus.FORBIDDEN, 'Unauthorized: You can only update your assigned hotel status'));
+		}
+	}
+
 	if (status === hotel.status) {
 		return res.status(HttpStatus.OK).json({
 			success: true,

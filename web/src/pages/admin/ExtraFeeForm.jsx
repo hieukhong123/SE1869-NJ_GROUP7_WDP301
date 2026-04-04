@@ -65,6 +65,18 @@ const ExtraFeeForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+        const price = Number(extraFee.extraPrice);
+        if (isNaN(price) || price < 0 || price > 1000000) {
+            toast.error('Service price must be between 0 and 1,000,000.');
+            setLoading(false);
+            return;
+        }
+        if (!extraFee.extraName.trim()) {
+            toast.error('Service name is required.');
+            setLoading(false);
+            return;
+        }
+
         try {
             if (id) {
                 await axiosClient.put(`/extra-fees/${id}`, extraFee);

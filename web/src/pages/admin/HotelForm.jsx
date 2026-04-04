@@ -139,9 +139,32 @@ const HotelForm = () => {
             };
 
             if (id) {
+                // Phone validation
+                if (payload.hotelPhone && !/^[0-9+-\s]+$/.test(payload.hotelPhone)) {
+                    toast.error('Invalid phone number format.');
+                    setLoading(false);
+                    return;
+                }
+                // Email validation
+                if (payload.hotelEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.hotelEmail)) {
+                    toast.error('Invalid email format.');
+                    setLoading(false);
+                    return;
+                }
                 await axiosClient.put(`/hotels/${id}`, payload);
                 toast.success('Property updated successfully.');
             } else {
+                // Full validation for creation
+                if (!/^[0-9+-\s]{10,15}$/.test(hotel.hotelPhone)) {
+                    toast.error('Phone should be 10-15 digits.');
+                    setLoading(false);
+                    return;
+                }
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(hotel.hotelEmail)) {
+                    toast.error('Invalid email format.');
+                    setLoading(false);
+                    return;
+                }
                 await axiosClient.post('/hotels', payload);
                 toast.success('New property created.');
             }
@@ -254,7 +277,7 @@ const HotelForm = () => {
                                 onChange={handleChange}
                                   disabled={isStaff}
                                 placeholder="+84 123 456 789"
-                                className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
+                                className={`w-full bg-transparent border-0 border-b ${hotel.hotelPhone && !/^[0-9+-\s]+$/.test(hotel.hotelPhone) ? 'border-red-500' : 'border-gray-300'} px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300`}
                                 required
                             />
                         </div>

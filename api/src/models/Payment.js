@@ -27,7 +27,7 @@ const paymentSchema = new mongoose.Schema(
 		paymentMethod: {
 			type: String,
 			default: 'manual',
-			enum: ['manual', 'vnpay', 'sepay'],
+			enum: ['manual', 'vnpay', 'sepay', 'cash', 'bank_transfer'],
 		},
 		paymentCode: {
 			type: String,

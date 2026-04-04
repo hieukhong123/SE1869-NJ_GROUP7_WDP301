@@ -169,14 +169,19 @@ const UserForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!id && user.role === 'staff') {
-            if (!user.confirmPassword) {
-                toast.error('Confirm password is required for staff account.');
-                return;
-            }
+        if (user.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) {
+            toast.error('Invalid email address format.');
+            return;
+        }
 
-            if (user.password !== user.confirmPassword) {
-                toast.error('Password and confirm password do not match.');
+        if (id) {
+            // Update mode: Still check name and other critical fields
+            if (user.fullName && !/^[a-zA-Z\s\u00C0-\u1EF9]+$/.test(user.fullName)) {
+                 toast.error('Full name should only contain letters.');
+                 return;
+            }
+            if (user.userName && !/^[a-zA-Z0-9_]{3,}$/.test(user.userName)) {
+                toast.error('Username must be at least 3 characters (alphanumeric/underscore).');
                 return;
             }
         }
@@ -187,6 +192,25 @@ const UserForm = () => {
                 await axiosClient.put(`/users/${id}`, user);
                 toast.success('User profile updated successfully.');
             } else {
+                // New User validation (already handled by common check above, but adding role-specific bits)
+                if (!/^[a-zA-Z0-9_]{3,}$/.test(user.userName)) {
+                    toast.error('Username must be at least 3 characters and contain only letters/numbers/underscores.');
+                    return;
+                }
+                if (user.password.length < 6 || !/(?=.*[0-9])/.test(user.password)) {
+                    toast.error('Password must be at least 6 characters and contain at least one number.');
+                    return;
+                }
+                if (user.role === 'staff') {
+                    if (!user.confirmPassword) {
+                        toast.error('Confirm password is required for staff account.');
+                        return;
+                    }
+                    if (user.password !== user.confirmPassword) {
+                        toast.error('Password and confirm password do not match.');
+                        return;
+                    }
+                }
                 await axiosClient.post('/users', user);
                 toast.success('New user added to the directory.');
             }
@@ -265,9 +289,12 @@ const UserForm = () => {
                                         value={user.email}
                                         onChange={handleChange}
                                         placeholder="Email address"
-                                        className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
+                                        className={`w-full bg-transparent border-0 border-b ${user.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email) ? 'border-red-500' : 'border-gray-300'} px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300`}
                                         required
                                     />
+                                    {user.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email) && (
+                                        <p className="text-[10px] text-red-500 mt-1.5 font-light">Invalid email format</p>
+                                    )}
                                 </div>
 
                                 {/* Password field only shows when creating a NEW user */}

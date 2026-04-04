@@ -82,6 +82,22 @@ const RoomForm = () => {
         setLoading(true);
         setError(null);
 
+        if (roomData.roomPrice <= 0 || roomData.roomPrice > 10000000) {
+            toast.error('Room price must be between 1 and 10,000,000.');
+            setLoading(false);
+            return;
+        }
+        if (roomData.maxOccupancy <= 0) {
+            toast.error('Max occupancy must be at least 1.');
+            setLoading(false);
+            return;
+        }
+        if (roomData.quantity < 0) {
+            toast.error('Quantity cannot be negative.');
+            setLoading(false);
+            return;
+        }
+
         try {
             if (id) {
                 await axiosClient.put(`/rooms/${id}`, roomData);

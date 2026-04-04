@@ -62,10 +62,11 @@ const ResetPassword = () => {
 		}
 
 		// Password validation
+		const passwordRegex = /^(?=.*[0-9]).{6,}$/;
 		if (!formData.newPassword) {
 			newErrors.newPassword = 'New password is required';
-		} else if (formData.newPassword.length < 6) {
-			newErrors.newPassword = 'Password must be at least 6 characters';
+		} else if (!passwordRegex.test(formData.newPassword)) {
+			newErrors.newPassword = 'Password must be at least 6 characters and contain at least one number';
 		}
 
 		// Confirm password validation

@@ -28,9 +28,15 @@ const Contact = () => {
         }
 
         // Email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(formData.email)) {
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(formData.email.trim())) {
             toast.error("Please enter a valid email address");
+            return;
+        }
+
+        // Name validation: no numbers
+        if (!/^[a-zA-Z\s\u00C0-\u1EF9]+$/.test(formData.name.trim())) {
+            toast.error("Full name should only contain letters");
             return;
         }
 

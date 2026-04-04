@@ -74,26 +74,43 @@ const Register = () => {
     const validateForm = (data) => {
         const newErrors = {};
 
+        // Username: and no special chars, min 3 chars
         if (!data.userName) {
             newErrors.userName = 'Username is required';
         } else if (data.userName.length < 3) {
             newErrors.userName = 'Username must be at least 3 characters';
+        } else if (!/^[a-zA-Z0-9_]+$/.test(data.userName)) {
+            newErrors.userName = 'Username contains invalid characters (letters, numbers, underscore only)';
         }
 
+        // Email: standard regex
         if (!data.email) {
             newErrors.email = 'Email is required';
-        } else if (!/\S+@\S+\.\S+/.test(data.email)) {
-            newErrors.email = 'Email is invalid';
+        } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(data.email)) {
+            newErrors.email = 'Please provide a valid email address (e.g., name@example.com)';
         }
 
+        // Password: at least 6 characters, mixed case and numbers
         if (!data.password) {
             newErrors.password = 'Password is required';
         } else if (data.password.length < 6) {
             newErrors.password = 'Password must be at least 6 characters';
+        } else if (!/(?=.*[0-9])/.test(data.password)) {
+            newErrors.password = 'Password must contain at least one number';
         }
 
-        if (data.phone && !/^[0-9]{10,11}$/.test(data.phone)) {
-            newErrors.phone = 'Phone number must be 10-11 digits';
+        // Phone: Must be numeric and 10 or 11 digits
+        if (!data.phone) {
+             // Optional in model, but if provided it must be valid
+        } else if (!/^[0-9]+$/.test(data.phone)) {
+            newErrors.phone = 'Phone number must only contain digits';
+        } else if (data.phone.length < 10 || data.phone.length > 11) {
+            newErrors.phone = 'Phone number must be 10 or 11 digits';
+        }
+
+        // Full name: prevent numbers or special chars
+        if (data.fullName && !/^[a-zA-Z\s\u00C0-\u1EF9]+$/.test(data.fullName)) {
+            newErrors.fullName = 'Full name should only contain letters';
         }
 
         if (!agreedToTerms) {
@@ -256,9 +273,12 @@ const Register = () => {
                                             name="fullName"
                                             value={formData.fullName}
                                             onChange={handleChange}
-                                            className="w-full bg-transparent border-0 border-b border-gray-300 px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300"
+                                            aria-invalid={Boolean(errors.fullName)}
+                                            aria-describedby={errors.fullName ? 'register-fullName-error' : undefined}
+                                            className={`w-full bg-transparent border-0 border-b ${errors.fullName ? 'border-red-500' : 'border-gray-300'} px-0 py-2 text-gray-900 font-light focus:ring-0 focus:border-gray-900 transition-colors placeholder-gray-300`}
                                             placeholder=""
                                         />
+                                        {errors.fullName && <p id="register-fullName-error" className="text-[10px] text-red-500 mt-1.5">{errors.fullName}</p>}
                                     </div>
                                 </div>
 

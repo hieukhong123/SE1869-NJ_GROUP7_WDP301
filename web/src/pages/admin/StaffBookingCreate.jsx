@@ -166,6 +166,24 @@ const StaffBookingCreate = () => {
       return;
     }
 
+    // Name: letters and spaces only
+    if (!/^[a-zA-Z\s\u00C0-\u1EF9]+$/.test(formData.name.trim())) {
+      toast.error('Guest name should only contain letters');
+      return;
+    }
+
+    // Email strict
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email.trim())) {
+      toast.error('Please provide a valid guest email address');
+      return;
+    }
+
+    // Phone 10-11
+    if (!/^[0-9]{10,11}$/.test(formData.phone.trim())) {
+      toast.error('Phone number must be 10 or 11 digits');
+      return;
+    }
+
     // Build roomIds array (repeated entries for qty > 1)
     const roomIds = [];
     Object.entries(roomSelections).forEach(([roomId, qty]) => {
@@ -329,7 +347,7 @@ const StaffBookingCreate = () => {
                   value={formData.email}
                   onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
                   placeholder="e.g. guest@email.com"
-                  className="w-full border border-gray-200 text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900"
+                  className={`w-full border ${formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) ? 'border-red-500' : 'border-gray-200'} text-sm py-2.5 px-3 rounded-sm focus:ring-0 focus:border-gray-900`}
                   required
                 />
               </div>
